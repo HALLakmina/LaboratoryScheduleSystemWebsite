@@ -1,45 +1,4 @@
 <?php include("./components/navigation_bar.php");?>
-<style>
-    .news-content
-    {
-        margin:10px;
-        margin-top:10%;
-        margin-bottom:5%;
-        display:flex;
-        flex-wrap: wrap;
-    }
-    .news-card
-    {
-        background-color: #fff;
-        width:20%;
-        height: 400px;
-        margin:20px;
-        padding:10px;
-        border-radius: 10px;
-    }
-    .news-image-box
-    {
-        width:100%;
-        height:250px;
-        box-shadow: 0px 0px 5px rgba(0,0,0,0.8);
-        border-radius:10px;
-    }
-    .news-details
-    {
-        margin-top: 20px;
-        overflow: hidden;
-        overflow-y: scroll;
-        max-height: 32%;
-    }
-    .news-image
-    {
-        border-radius:10px;
-        display:flex;
-        justify-content: center;
-        align-items: center;
-        max-width: 100%;
-    }
-</style>
     <main class="news-content">
         <?php
             $news_query = "SELECT * FROM news";
