@@ -369,11 +369,11 @@ td, th
 }
 .image-box
 {
-    width: 25%;
+    width: 22%;
     height: 200px;
     display: flex;
     align-items: center;
-    border: 5px solid #000
+    /*border: 5px solid #000*/
     
 }
 .profile-img
@@ -389,7 +389,11 @@ td, th
     justify-content: space-between;
     flex-direction: row;
 }
-.logout-box{}
+.logout-box{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
 
 .logout-link
 {
@@ -400,6 +404,17 @@ td, th
     text-decoration: none;
     font-weight: bold;
 }
+.profile-edit
+{
+    color: #000;
+    background-color: gray;
+    padding: 6px;
+    border-radius:5px;
+    text-decoration: none;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 60px;
+}
 .lecture-name
 {
     font-size: 50px;
@@ -409,6 +424,7 @@ td, th
 {
     font-size: 25px;
     font-weight: bold;
+    margin-left: 30px;
     color: #00aaff;
 }
 .profile-row2
@@ -429,15 +445,159 @@ td, th
     flex-direction: column;
     width: 75%;
 }
+.profile-background
+{
+    background:none;
+}
 .profile-heading
 {
     font-size: 30px;
     font-weight: bold;
     margin-left: 30px;
-    color:#fff;
+    color:#000000;
+}
+.profile-sub-heading
+{
+    font-size: 15px;
+    font-weight: bold;
+    color:#cecece;
 }
 .profile-details
 {
     margin-left: 40px;
-    color:#fff;
+    font-size: 12px;
+    color:#00aaff;
+}
+.profile-table
+{
+    margin-left: 40px
+}
+.profile-table-cell
+{
+    background: none;
+    min-width: 10px;   
+    color: #000000;
+    padding: 0;
+    padding-right: 5px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    justify-content: flex-start;
+    text-align: left;
+    font-size: 12px;
+}
+.profile-table-cell-details
+{
+    color: #00aaff;
+    background: none;
+    font-size: 12px;
+}
+.profile-update-box
+{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top:10%;
+}
+.profile-update-form
+{
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding:30px;
+    border-radius: 10px;
+    
+}
+.profile-details-box
+{
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-bottom: 25px;
+}
+.profile-details-item-left
+{
+    display: flex;
+    flex-direction: column;
+}
+.profile-details-item
+{
+    display: flex;
+    flex-direction: column;
+    margin-left: 30px;
+}
+.profile-edit-text-box
+{
+    outline: none;
+    border: none;
+    border-bottom: 1px solid #000;
+    background: none;
+}
+.update-button
+{
+    margin-top: 20px;
+    background-color: #000;
+    color: #fff;
+    font-weight: bold;
+    font-size:15px;
+    padding:10px;
+    width: 100px;
+    border-radius:10px;
+}
+/*Request from*/
+.request-from-box
+{
+    position: absolute;
+    top: -50%;
+    left: 50%;
+    transform: translate(-50%, -50%)scale(0.1);
+    width:400px;
+    background-color: red;
+    padding:10px;
+    border-radius:10px;
+    color: #fff;
+    box-shadow:  10px 10px 25px rgba(0, 0, 0, 0.3),
+                -10px -10px 25px rgba(255, 0, 0, 0.3);
+    transition: transform 0.4s, top 0.4s;
+}
+.open-request-from-box
+{
+    top: 50%;
+    transform: translate(-50%, -50%)scale(1);
+}
+.close-request-from-box
+{
+    background-color: rgb(0, 0, 0);
+    width: 10px;
+    height: 10px;
+    border-radius:100%;
+    position: inherit;
+    right: 0;
+    margin-right: 10px;
+}
+.request-from-content
+{
+    display:flex;
+    flex-direction:column;
+    align-items: center;
+}
+.request-from-item
+{
+    display:flex;
+    flex-direction:column;
+    padding-bottom: 10px;
+}
+.request-from-text
+{
+    font-size: 20px;
+    font-weight: bold;
+}
+.request-input-box
+{
+    width:350px;
+    border-radius: 5px;
+    height:30px;
+    padding-left: 10px;
+    
 }

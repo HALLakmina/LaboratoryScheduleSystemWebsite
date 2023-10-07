@@ -11,6 +11,11 @@
         <!--link rel='stylesheet' type='text/css' media='screen' href='main.css'>
         <script src='main.js'></!--script-->
         <link rel='stylesheet' type='text/css' href='./css/main-style-sheet.css'>
+
+        <script src="./JQuery/jQuery-3.6.4.compressed.production .js"></script>
+        <script src="./JQuery/jQuery-3.6.4.slim.build.compressed.production .js"></script>
+        <script src="./JQuery/jQuery-3.6.4.slim.build.uncompressed.development .js"></script>
+        <script src="./JQuery/jQuery-3.6.4.uncompressed.development .js"></script>
     </head>
     <body>
         <header>
