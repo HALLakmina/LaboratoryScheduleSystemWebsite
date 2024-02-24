@@ -1,7 +1,15 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import SideNavBar from "./SideNavBar";
-
+//import axios from "axios";
 function NewsSrc() {
+    const [newsData, setNewsData] = useState([])
+    useEffect(()=>{
+        fetch('http://localhost:8081/news')
+        .then(res => res.json())
+        .then(data => setNewsData(data))
+        .catch(err=> console.error(err));   
+    }, [])
+
   return (
     <div className="d-flex row-1" style={{minHeight:"100vh"}}>
         <div className="d-flex col-2" style={{position: 'fixed'}}>
@@ -53,18 +61,20 @@ function NewsSrc() {
                         </tr>
                     </thead>
                     <tbody>
-                    <tr>
-                        <td className="px-3 text-center">111</td>
-                        <td className="px-3 text-center">Lahiru</td>
-                        <td className="px-3 text-center">HALLakmina</td>
-                        <td className="px-3 text-center">lahirulakmina@gmail.com</td>
-                        <td className="px-3 text-center">0713245764</td>
-                        <td className="px-3 text-center">kamalD</td>
+                    {newsData.map((d, i)=>(
+                    <tr key={i} >
+                        <td className="px-3 text-center">{d.title}</td>
+                        <td className="px-3 text-center">{d.image}</td>
+                        <td className="px-3 text-center">{d.description}</td>
+                        <td className="px-3 text-center">{d.place}</td>
+                        <td className="px-3 text-center">{d.time}</td>
+                        <td className="px-3 text-center">{d.date}</td>
                         <td className="px-3 d-flex justify-content-center">
                             <button className='btn btn-primary m-2 px-4'>Update</button><br></br>
                             <button className='btn btn-danger m-2 px-4'>Delete</button>
                         </td>
                     </tr>
+                    ))}
                     </tbody>
                 </table>
             </div>

@@ -1,7 +1,15 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import SideNavBar from './SideNavBar'
 
 function SubjectSrc() {
+    const [subjectData, setSubjectData] = useState([]);
+    useEffect(()=>{
+        fetch('http://localhost:8081/practical_subject')
+        .then(res=>res.json())
+        .then(data => setSubjectData(data))
+        .catch(err=>console.error(err));
+    }, [])
+
   return (
     <div className="d-flex row-1" style={{minHeight:"100vh"}}>
         <div className="" style={{position: 'fixed'}}>
@@ -43,16 +51,18 @@ function SubjectSrc() {
                             </tr>
                         </thead>
                         <tbody>
-                        <tr>
-                            <td className="px-3 text-center">1114</td>
-                            <td className="px-3 text-center">Essential of ICT</td>
-                            <td className="px-3 text-center">111</td>
-                            <td className="px-3 text-center">1st Year</td>
-                            <td className="px-3 d-flex justify-content-center">
-                                <button className='btn btn-primary m-2 px-4'>Update</button><br></br>
-                                <button className='btn btn-danger m-2 px-4'>Delete</button>
-                            </td>
-                        </tr>
+                        {subjectData.map((d, i)=>(
+                            <tr key={i}>
+                                <td className="px-3 text-center">{d.Subject_cord}</td>
+                                <td className="px-3 text-center">{d.Subject}</td>
+                                <td className="px-3 text-center">{d.lecture_id}</td>
+                                <td className="px-3 text-center">{d.year}</td>
+                                <td className="px-3 d-flex justify-content-center">
+                                    <button className='btn btn-primary m-2 px-4'>Update</button><br></br>
+                                    <button className='btn btn-danger m-2 px-4'>Delete</button>
+                                </td>
+                            </tr>
+                        ))}
                         </tbody>
                     </table>
                 </div>  

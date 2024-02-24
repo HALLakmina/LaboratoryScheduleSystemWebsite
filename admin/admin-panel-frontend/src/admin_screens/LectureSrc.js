@@ -1,27 +1,39 @@
 import React from 'react'
+import { useEffect, useState } from 'react';
 import SideNavBar from './SideNavBar'
 
-function AdminSrc() {
+function LectureSrc() {
+    const [data, setData] = useState([])
+  useEffect (()=>{
+    fetch('http://localhost:8081/lecture_details')
+    .then(res => res.json())
+    .then(data => setData(data))
+    .catch(err => console.error(err)); 
+  },[])
   return (
-    <div className="d-flex row-1" style={{minHeight:"100vh"}}> 
-        <div className="d-flex col-2" style={{position: 'fixed'}}>
-            <SideNavBar/>
-        </div>
+    <div className="d-flex row-1" style={{minHeight:"100vh"}}>
+      <div className="d-flex col-2" style={{position: 'fixed'}}>
+        <SideNavBar/>
+      </div>
         <div className="col-12 d-flex justify-content-end">
             <div className="d-flex col-10  align-items-center flex-column mt-5 text-light mb-5">
                 <div style={{width:"400px", height:"auto"}} className="text-light">
                     <form className=" bg-dark p-4 d-flex flex-column rounded-5">
                         <div className="form-group mb-3">
-                            <label for="exampleInputAdminID">Admin ID</label>
-                            <input type="text" name="adminId" class="form-control" id="exampleInputAdminID"></input>
+                            <label for="exampleInputLectureID">Lecture ID</label>
+                            <input type="text" name="lectureId" class="form-control" id="exampleInputLectureID"></input>
                         </div>
                         <div className="form-group mb-3">
-                            <label for="exampleInputAdminName">Admin Name</label>
-                            <input type="text" name="adminName" class="form-control" id="exampleInputAdminName"></input>
+                            <label for="exampleInputLectureName">Lecture Name</label>
+                            <input type="text" name="lectureName" class="form-control" id="exampleInputLectureName"></input>
                         </div>
                         <div className="form-group mb-3">
                             <label for="exampleInputUserName">User Name</label>
                             <input type="text" name="userName" class="form-control" id="exampleInputUserName"></input>
+                        </div>
+                        <div className="form-group mb-3">
+                            <label for="exampleInputFaculty">Faculty</label>
+                            <input type="text" name="faculty" class="form-control" id="exampleInputFaculty"></input>
                         </div>
                         <div className="form-group mb-3">
                             <label for="exampleInputEmail">Email</label>
@@ -43,28 +55,33 @@ function AdminSrc() {
                     <table className="table table-hover">
                         <thead className="thead-dark">
                             <tr>
-                                <th className="px-3 text-center">Admin ID</th>
-                                <th className="px-3 text-center">Admin Name</th>
+                                <th className="px-3 text-center">Lecture ID</th>
+                                <th className="px-3 text-center">Lecture Name</th>
                                 <th className="px-3 text-center">User Name</th>
-                                <th className="px-3 text-center">Email</th>
+                                <th className="px-3 text-center">Faculty</th>
+                                {/* <th className="px-3 text-center">Email</th> */}
                                 <th className="px-3 text-center">Mobil No</th>
-                                <th className="px-3 text-center">Password</th>
+                                {/* <th className="px-3 text-center">Password</th> */}
                                 <th className="px-3 text-center">Edit</th>
                             </tr>
                         </thead>
                         <tbody>
-                        <tr>
-                            <td className="px-3 text-center">111</td>
-                            <td className="px-3 text-center">Lahiru</td>
-                            <td className="px-3 text-center">HALLakmina</td>
-                            <td className="px-3 text-center">lahirulakmina@gmail.com</td>
-                            <td className="px-3 text-center">0713245764</td>
-                            <td className="px-3 text-center">kamalD</td>
+                        {data.map((d, i) =>(
+                        <tr key={i}> 
+                            <td className="px-3 text-center">{d.lecture_id}</td>
+                            <td className="px-3 text-center">{d.full_name}</td>
+                            <td className="px-3 text-center">{d.user_name}</td>
+                            <td className="px-3 text-center">{d.faculty}</td>
+                            {/* <td className="px-3 text-center">{d.lecture_id}</td> */}
+                            <td className="px-3 text-center">{d.mobil_number}</td>
+                            {/* <td className="px-3 text-center">{d.lecture_id}</td> */}
                             <td className="px-3 d-flex justify-content-center">
                                 <button className='btn btn-primary m-2 px-4'>Update</button><br></br>
                                 <button className='btn btn-danger m-2 px-4'>Delete</button>
                             </td>
+                            
                         </tr>
+                        ))}
                         </tbody>
                     </table>
                 </div>
@@ -74,4 +91,4 @@ function AdminSrc() {
   )
 }
 
-export default AdminSrc
+export default LectureSrc

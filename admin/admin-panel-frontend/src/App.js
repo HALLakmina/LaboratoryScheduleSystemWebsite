@@ -12,9 +12,10 @@ import LectureSrc from './admin_screens/LectureSrc';
 import SubjectSrc from './admin_screens/SubjectSrc';
 import TimetableSrc from './admin_screens/TimetableSrc';
 import NewsSrc from './admin_screens/NewsSrc';
-
+import AdminUpdate from './admin_screens/update_screen/AdminUpdate';
 
 function App() {
+  
   const backgroundStyle={
     backgroundImage:`url(/img/website_image/Wallpaper.jpg)`,
     backgroundPosition:"center", 
@@ -33,7 +34,7 @@ function App() {
           <Route path="/SubjectSrc"element={<SubjectSrc/>}/>
           <Route path="/TimetableSrc"element={<TimetableSrc/>}/>
           <Route path="/NewsSrc"element={<NewsSrc/>}/>
-            
+          <Route path="*"element={<AdminUpdate/>}/>
         </Routes>
         <FooterBar />
       </div>
