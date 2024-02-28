@@ -18,6 +18,29 @@ app.get('/', (re, res)=>{
     return res.json("From Backend Side");
 })
 
+//==========Login==========//
+
+app.get('/login', (req, res)=>{
+    const sql = "SELECT * FROM admin_details WHERE user_name = ? AND password = ?";
+    const values= [
+        req.body.userName,
+        req.body.password,
+    ]
+
+    db.query(sql, [...values], (err, data)=>{
+        if(err) return res.json(err);
+        if(data.length>0)
+        {
+            return res.json(data, "Login Successful");    
+        }else{
+            return res.json("Ypu are not Admin");
+        }
+        
+    })
+})
+
+//==========Lecture==========//
+
 app.get('/lecture_details', (req, res)=>{
     const sql= "SELECT * FROM lecture_details";
     db.query(sql, (err, data)=>{
@@ -25,6 +48,53 @@ app.get('/lecture_details', (req, res)=>{
         return res.json(data);
     })
 })
+
+app.post('/add_lecture_details', (req,res)=>{
+    const sql = "INSERT INTO lecture_details (lecture_id, full_name, user_name, faculty, email, mobil_number, password) VALUE (?)"
+    const values=[
+        req.body.id,
+        req.body.name,
+        req.body.userName,
+        req.body.faculty,
+        req.body.email,
+        req.body.mobileNo,
+        req.body.password
+    ]
+    db.query(sql, [values], (err, data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+
+app.delete('/remove_lecture_details/:id', (req, res)=>{
+    const sql ="DELETE FROM lecture_details WHERE lecture_id = ?";
+    const id = req.params.id;
+
+    db.query(sql,[id], (err, data)=>{
+        if(err) return res.json(err);
+        return res.json(data);
+    })
+})
+
+app.put('/update_lecture_details/:updateId', (req, res)=>{
+    const sql ="UPDATE lecture_details SET full_name=?, user_name=? , faculty=? , email=? , mobil_number=? , password=? WHERE lecture_id = ?";
+
+    const values = [
+        req.body.newName,
+        req.body.newUserName,
+        req.body.newFaculty,
+        req.body.newEmail,
+        req.body.newMobileNo,
+        req.body.newPassword
+    ];
+    const id = req.params.updateId;
+
+    db.query(sql, [...values, id], (err, data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+//==========Admin==========//
 
 app.get('/admin_details', (req, res)=>{
     const sql="SELECT * FROM admin_details";
@@ -71,7 +141,6 @@ app.get('/search_admin_details/:id', (req, tes)=>{
 })
 
 app.put('/update_admin_details/:updateAdminID', (req, res)=>{
-    //console.log(req.body.adminName,req.body.userName,req.body.mobileNo,req.body.email,req.body.password,);
     const sql = "UPDATE admin_details SET full_name= ?, user_name=?, mobile_number=?, email=?, password=? WHERE nic = ?";
     
     const values =[
@@ -88,6 +157,8 @@ app.put('/update_admin_details/:updateAdminID', (req, res)=>{
     })
 })
 
+//==========Subject==========//
+
 app.get('/practical_subject',(req, res)=>{
     const sql="SELECT * FROM practical_subject";
     db.query(sql, (err, data)=>{
@@ -96,10 +167,97 @@ app.get('/practical_subject',(req, res)=>{
     })
 })
 
+app.post('/add_practical_subject', (req, res)=>{
+    const sql="INSERT INTO practical_subject (Subject_cord, Subject, lecture_id, year) VALUE (?)"
+    const values=[
+        req.body.code,
+        req.body.name,
+        req.body.lectureID,
+        req.body.year
+    ]
+    db.query(sql, [values], (err,data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+
+app.delete('/remove_practical_subject/:cord', (req, res)=>{
+    const sql = "DELETE FROM practical_subject WHERE Subject_cord = ?";
+    const id =req.params.cord;
+
+    db.query(sql, [id], (err, data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+
+app.put('/update_practical_subject/:updateID', (req, res)=>{
+    const sql = "UPDATE practical_subject SET Subject=?, lecture_id=?, year=? WHERE Subject_cord = ?";
+
+    const values =[
+        req.body.newName,
+        req.body.newLecture,
+        req.body.newYear,
+    ]
+
+    const cord = req.params.updateID;
+
+    db.query(sql, [...values, cord], (err, data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+
+//==========News==========//
+
 app.get('/news', (req, res)=>{
     const sql="SELECT * FROM news";
     db.query(sql,(err, data)=>{
         if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+
+app.post('/add_news', (req, res)=>{
+    const sql="INSERT INTO news (title, image, description, place, time, date) VALUE (?)"
+    const values = [
+        req.body.title,
+        req.body.imageName,
+        req.body.description,
+        req.body.location,
+        req.body.time,
+        req.body.date,
+    ];
+
+    db.query(sql, [values], (err, data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+
+app.delete('/remove_news/:id', (req, res)=>{
+    const sql="DELETE FROM news WHERE id=?";
+    const id = req.params.id;
+
+    db.query(sql, [id], (err, data)=>{
+        if(err)return res.json(err);
+        return res.json(data);
+    })
+})
+app.put('/update_news/:id', (req, res)=>{
+    const sql="UPDATE news SET title=?, image=?, description=?, place=?, time=?, date=? WHERE id= ?"
+    const values=[
+        req.body.title,
+        req.body.newImageName,
+        req.body.description,
+        req.body.location,
+        req.body.time,
+        req.body.date,
+    ]
+    const id = req.params.id;
+
+    db.query(sql, [...values, id], (err, data)=>{
+        if (err) return res.json(err);
         return res.json(data);
     })
 })

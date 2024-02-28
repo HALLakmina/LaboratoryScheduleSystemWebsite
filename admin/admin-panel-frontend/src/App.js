@@ -12,7 +12,6 @@ import LectureSrc from './admin_screens/LectureSrc';
 import SubjectSrc from './admin_screens/SubjectSrc';
 import TimetableSrc from './admin_screens/TimetableSrc';
 import NewsSrc from './admin_screens/NewsSrc';
-import AdminUpdate from './admin_screens/update_screen/AdminUpdate';
 
 function App() {
   
@@ -27,14 +26,13 @@ function App() {
   return (
       <div style={backgroundStyle}>
         <Routes>
-          <Route path="/" element={<HomeSrc/>}/>
-          <Route path="/HomeSrc" element={<AdminLogin/>}/>
+          <Route path="/" element={<AdminLogin/>}/>
+          <Route path="/HomeSrc" element={<HomeSrc/>}/>
           <Route path="/AdminSrc"element={<AdminSrc/>}/>
           <Route path="/LectureSrc"element={<LectureSrc/>}/>
           <Route path="/SubjectSrc"element={<SubjectSrc/>}/>
           <Route path="/TimetableSrc"element={<TimetableSrc/>}/>
           <Route path="/NewsSrc"element={<NewsSrc/>}/>
-          <Route path="*"element={<AdminUpdate/>}/>
         </Routes>
         <FooterBar />
       </div>
