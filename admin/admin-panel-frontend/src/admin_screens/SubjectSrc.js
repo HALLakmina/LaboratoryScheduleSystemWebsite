@@ -16,7 +16,7 @@ function SubjectSrc() {
 
     function handleSubmit(e){
         e.preventDefault();
-        axios.post('http://localhost:8081/add_practical_subject', {...takeSubject})
+        axios.post('http://localhost:8081/practical_subject', {...takeSubject})
         .then(res=>{
             console.log(res);
             window.location.reload();
@@ -24,7 +24,7 @@ function SubjectSrc() {
     }
 
     function handleDelete(cord){
-        axios.delete('http://localhost:8081/remove_practical_subject/'+cord)
+        axios.delete('http://localhost:8081/practical_subject/'+cord)
         .then(res=>{
             window.location.reload()
         })
@@ -134,7 +134,7 @@ function UpdateSubject(props){
     function handleUpdate(e){
         console.log(newUpdateSubject);
         e.preventDefault();
-        axios.put('http://localhost:8081/update_practical_subject/'+props.defaultSubject[0], {...newUpdateSubject})
+        axios.put('http://localhost:8081/practical_subject/'+props.defaultSubject[0], {...newUpdateSubject})
         .then(res=>{
             console.log(res);
             window.location.reload();

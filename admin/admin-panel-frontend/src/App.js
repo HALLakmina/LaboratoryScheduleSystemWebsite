@@ -21,7 +21,8 @@ function App() {
     backgroundAttachment:"fixed", 
     backgroundSize:"cover", 
     backgroundRepeat:"no-repeat",
-    miniHeight:"100hv"
+    miniHeight:"100hv",
+    miniWidth:"100wv"
   }
   return (
       <div style={backgroundStyle}>

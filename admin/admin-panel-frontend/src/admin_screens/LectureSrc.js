@@ -12,14 +12,14 @@ function LectureSrc() {
 
     useEffect (()=>{
     fetch('http://localhost:8081/lecture_details')
-    .then(res => res.json())
-    .then(data => setData(data))
-    .catch(err => console.error(err)); 
+        .then(res => res.json())
+        .then(data => setData(data))
+        .catch(err => console.error(err)); 
     },[])
 
     function handleSubmit(e){
         e.preventDefault();
-        axios.post('http://localhost:8081/add_lecture_details', {...takeLecture})
+        axios.post('http://localhost:8081/lecture_details', {...takeLecture})
         .then(res=>{
             console.log(res);
             window.location.reload();
@@ -27,7 +27,7 @@ function LectureSrc() {
     }
 
     function handleDelete(id){
-        axios.delete('http://localhost:8081/remove_lecture_details/'+id)
+        axios.delete('http://localhost:8081/lecture_details/'+id)
         .then(res=>{
             window.location.reload();
         })
@@ -181,7 +181,7 @@ function UpdateLecture(props){
 
     function handleUpdate(e){
         e.preventDefault();
-        axios.put('http://localhost:8081/update_lecture_details/'+props.defaultLecture[0], {...newUpdateLecture})
+        axios.put('http://localhost:8081/lecture_details/'+props.defaultLecture[0], {...newUpdateLecture})
         .then(res=>{
             console.log(res);
             window.location.reload();
