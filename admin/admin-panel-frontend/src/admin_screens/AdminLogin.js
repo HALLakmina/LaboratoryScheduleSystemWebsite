@@ -12,8 +12,8 @@ export default function AdminLogin() {
     e.preventDefault();
     axios.get('http://localhost:8081/login', {...loginInformation})
     .then(res=>{
-        console.log(res);
-        navigate('/HomeSrc')
+      console.log(res);
+      navigate('/HomeSrc')
     }).catch(err=>console.log(err));
   }
 
