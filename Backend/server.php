@@ -11,13 +11,15 @@ class Server {
         $this->server();
     }
     private static function server(){
-        $router = new Route;
+        // $router = new Route;
+        $router = Route::getInstance();
         try{
             $router->accessEndpoint('/api/v1/user', 'routers/users_router.php');
-            // echo json_encode([
-            //     "status"  => "404",
-            //     "message" => 'Endpoint Not Found'
-            // ]);
+            echo json_encode([
+                "status"  => "404",
+                "message" => 'Endpoint Not Found'
+            ]);
+            exit;
         }
         catch(Exception $e){
             echo json_encode([
