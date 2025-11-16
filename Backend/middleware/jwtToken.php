@@ -39,15 +39,13 @@
             $jwt = JWT::encode($payload, $jwt_secret_key, 'HS256');
             return $jwt;
         }
-        public function getJwtToken(){
+        public function getJwtToken($req=null){
             
             $jwt_secret_key = $this->secret_key;
-            
-            if (isset($_COOKIE['auth_token'])) {
-                $jwt = $_COOKIE['auth_token'];
-
+            $jwtToken = $req['cookie']('token');
+            if ($jwtToken) {
                 try {
-                    $decoded = JWT::decode($jwt, new Key($jwt_secret_key, 'HS256'));
+                    $decoded = JWT::decode($jwtToken, new Key($jwt_secret_key, 'HS256'));
                     $userData = (array)$decoded->data;
 
                     echo json_encode([

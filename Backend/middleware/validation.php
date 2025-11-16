@@ -11,7 +11,6 @@ class Validation{
 
     public function userBodyDataValidation($req){
         $payload = $req['body'];
-        echo "validation RUN \n";
         try{
             v::key('full_name', v::stringType()->notEmpty()->length(3, 150))
             ->key('name_with_initials',v::optional( v::stringType()->notEmpty()->length(2, 60)->regex('/^[A-Za-z.\s]+$/')))

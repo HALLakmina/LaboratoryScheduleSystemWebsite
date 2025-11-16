@@ -1,6 +1,9 @@
 <?php
     namespace Backend\Utils;
 
+    require_once __DIR__ . '/httpOnlyCookie.php';
+
+    use Backend\Utils\HttpOnlyCookie;
     use Exception;
 
     class Route{
@@ -10,10 +13,16 @@
             "remainingPath"=>'',
             "body"=>[],
             "params"=>[],
-            "query"=>[]
+            "query"=>[],
+            "cookie"=>null
+        ];
+        public $respond=[
+            "cookie" => null,
+            "status" => []
         ];
         public function __construct(){
             $this->getRequest();
+            $this->setHttpCookie();
         }
         public static function getInstance() {
             if (self::$instance === null) {
@@ -74,6 +83,15 @@
                     }
                 }
             }
+        }
+        private function setHttpCookie (){
+            $httpCookie = new HttpOnlyCookie();
+            $this->respond["cookie"] = function($name, $value, $options = []) use ($httpCookie) {
+                $httpCookie->setCookie($name, $value, $options);
+            };
+            $this->request["cookie"] = function($name) use ($httpCookie) {
+                return $httpCookie->get($name);
+            };
         }
         public function accessEndpoint($basePath, $fileDir){
             $requestUri = $_SERVER['REQUEST_URI'];
@@ -273,12 +291,12 @@
                         foreach ($route['middlewares'] as $middleware) {
                             if (is_callable($middleware)) {
                                 // Direct function call
-                                $middleware($this->request);
+                                $middleware($this->request, $this->respond);
                             } elseif (is_array($middleware) && count($middleware) === 2) {
                                 // [object, method] format
                                 list($object, $methodName) = $middleware;
                                 if (method_exists($object, $methodName)) {
-                                    $object->$methodName($this->request);
+                                    $object->$methodName($this->request, $this->respond);
                                 } else {
                                     throw new Exception("Middleware method not found: " . $methodName);
                                 }
@@ -290,7 +308,7 @@
 
                     // Execute the callback
                     if (is_callable($route['callback'])) {
-                        $route['callback']($this->request);
+                        $route['callback']($this->request, $this->respond); 
                     } else {
                         throw new Exception("Callback is not callable");
                     }
