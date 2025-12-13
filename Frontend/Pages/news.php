@@ -6,12 +6,12 @@
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <!-- <script type="module" src="./Js/main.js"></script>
         <script type="module" src="./Js/pageRouting.js"></script> -->
-        <script type="module" src="./Js/customElements.js"></script>
-        <title>Laboratory Scheduling System</title>
+        <!-- <script type="module" src="./Js/customElements.js"></script> -->
+        <title>Laboratory Scheduling System News</title>
     </head>
-    <body class="w-full bg-[url('./resources/img/Wallpaper.jpg')] bg-cover bg-center w-full bg-no-repeat backdrop-blur-xs h-svh overflow-auto"  id="index-content">
+    <body class="w-full bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center w-full bg-no-repeat backdrop-blur-xs h-svh overflow-auto"  id="index-content">
         <div class="w-full h-screen overflow-y-scroll pb-24">
-            <page-router></page-router>
+            <?php include __DIR__ . '/../Components/NavigationBar.php';?>
             <main>
                 <section class="w-full p-2 flex flex-wrap items-center justify-between">
                     <div class="w-sm md:w-md rounded-lg bg-white p-2 m-2 hover:bg-gray-200 active:bg-blue-200">
@@ -41,7 +41,7 @@
                     </div>
                 </section>
             </main>
-            <page-footer></page-footer>
+            <?php include __DIR__ . '/../Components/FooterBar.php';?>
         </div>        
     </body>
 </html>

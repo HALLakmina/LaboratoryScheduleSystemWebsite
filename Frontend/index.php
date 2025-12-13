@@ -11,7 +11,8 @@
     </head>
     <body class="w-full h-screen bg-[url('./resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs "  id="index-content">
         <div class="w-full h-screen overflow-y-scroll pb-24">
-            <page-router></page-router>
+            <?php include __DIR__ . '/Components/NavigationBar.php';?>
+            <!-- <page-router></page-router> -->
             <main class=" w-full">
                 <section class="flex flex-col w-full justify-between">
                     <article class="w-2/3 p-2 pt-24">
@@ -29,7 +30,8 @@
                     </article>
                 </section>
             </main>
-            <page-footer></page-footer>
+            <?php include __DIR__ . '/Components/FooterBar.php';?>
+            <!-- <page-footer></page-footer> -->
         </div>
     </body>
 </html>
