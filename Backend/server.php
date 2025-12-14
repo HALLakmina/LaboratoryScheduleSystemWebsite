@@ -15,6 +15,7 @@ class Server {
         $router = Route::getInstance();
         try{
             $router->accessEndpoint('/api/v1/user', 'routers/users_router.php');
+            $router->accessEndpoint('/api/v1/timetable', 'routers/timetable_router.php');
             echo json_encode([
                 "status"  => "404",
                 "message" => 'Endpoint Not Found'
