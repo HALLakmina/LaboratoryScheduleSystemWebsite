@@ -9,31 +9,35 @@
             $updated_at= date('Y-m-d H:i:s');
             $hashPassword = password_hash($payload["password"], PASSWORD_DEFAULT);
             $DB_CON = new  DbConnection;
-            $query = "INSERT INTO user_details 
-                        (full_name, name_with_initials, honorifics, nic, email, mobile_number, password, access, created_by, created_at, updated_by, updated_at)
+            $query = "INSERT INTO users 
+                        (initials, initials_stand_for, first_name, last_name, honorifics, nic, email, mobile_number, password, role, created_by, created_at, updated_by, updated_at)
                         VALUES (
-                            :full_name,
-                            :name_with_initials,
+                            :initials,
+                            :initials_stand_for,
+                            :first_name,
+                            :last_name,
                             :honorifics,
                             :nic,
                             :email,
                             :mobile_number,
-                            :hashPassword,
-                            :access,
+                            :password,
+                            :role,
                             :created_by,
                             :created_at,
                             :updated_by,
                             :updated_at
                         )";
             $property=[
-                'full_name'=>$payload['full_name'],
-                'name_with_initials'=>$payload['name_with_initials'],
+                'initials'=>$payload['initials'],
+                'initials_stand_for'=>$payload['initials_stand_for'],
+                'first_name'=>$payload['first_name'],
+                'last_name'=>$payload['last_name'],
                 'honorifics'=>$payload['honorifics'],
                 'nic'=>$payload['nic'],
                 'email'=>$payload['email'],
                 'mobile_number'=>$payload['mobile_number'],
-                'hashPassword'=>$hashPassword,
-                'access'=>$payload['access'],
+                'password'=>$hashPassword,
+                'role'=>$payload['role'],
                 'created_by'=>$payload['created_by'],
                 'created_at'=>$created_at,
                 'updated_by'=>$payload['updated_by'],
@@ -50,7 +54,7 @@
 
         public function getAll(){
             $DB_CON = new  DbConnection;
-            $query = "SELECT * FROM user_details";
+            $query = "SELECT * FROM users";
             $DB_CON->selectData($query);
             $result = $DB_CON->fetchAll(); 
             if($result === false){
@@ -61,11 +65,11 @@
         }
         public function getByEmail($email){
             $DB_CON = new  DbConnection;
-            $query = "SELECT * FROM user_details WHERE email = '$email' LIMIT 1";
+            $query = "SELECT * FROM users WHERE email = :email LIMIT 1";
             $property = [
                 'email'=>$email
             ];
-            $DB_CON->execute($query, $property);
+            $DB_CON->selectDataByProperty($query, $property);
             $result = $DB_CON->fetchAll();
             if($result === false){
                 $error = $DB_CON->getError();

@@ -7,7 +7,7 @@
         public function getAllTimeSchedules(){
             $DB_CON = new  DbConnection;
             $query = "SELECT 
-                t.id,
+                t.cell_id,
                 t.practical_group,
                 t.Action,
                 s.Subject_cord,

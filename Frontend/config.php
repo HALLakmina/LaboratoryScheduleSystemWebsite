@@ -1,3 +1,3 @@
 <?php
-    define("BASE_URL", "/project01/LaboratoryScheduleSystemWebsite/Frontend/");
+    define("BASE_URL", "/LaboratoryScheduleSystemWebsite/Frontend/");
 ?>

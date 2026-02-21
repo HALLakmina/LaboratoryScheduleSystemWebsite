@@ -78,12 +78,12 @@ use Exception;
                         ]);
                         exit;
                     }
-                    echo $req["body"]['password'];
-                    $isMatchPassword = password_verify($req["body"]['password'], $foundUser['password']);
+                    
+                    $isMatchPassword = password_verify($req["body"]['password'], $foundUser[0]['password']);
                     if($isMatchPassword){
                         $isDeployment = false;
                         $jwt = new JwtToken();
-                        $jwtToken = $jwt->createJwtToken($foundUser['name_with_initials'], $foundUser['access'], $foundUser['email']);
+                        $jwtToken = $jwt->createJwtToken($foundUser[0]['initials'].$foundUser[0]['last_name'], $foundUser[0]['role'], $foundUser[0]['email']);
                         $res['cookie']("token",$jwtToken, [
                             'expires' => time() + (60 * 60 * 24), 
                             'path' => '/', 

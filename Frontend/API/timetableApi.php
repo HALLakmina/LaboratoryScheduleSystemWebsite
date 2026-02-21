@@ -27,7 +27,7 @@
         }
         private function getTimetableData(){
 
-            $apiUrl = "http://localhost/project01/LaboratoryScheduleSystemWebsite/Backend/api/v1/user";
+            $apiUrl = "http://localhost/LaboratoryScheduleSystemWebsite/Backend/api/v1/timetable";
 
             $ch = curl_init();
 

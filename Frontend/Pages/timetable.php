@@ -1,9 +1,3 @@
-<?php 
-    include __DIR__ . '/../API/timetableApi.php';
-    use Frontend\API\TimetableApi;
-    $user = new TimetableApi("getTimetableData");
-    $data = $user->getRespond();
-?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -47,23 +41,7 @@
                             <th scope="col" class="px-6 py-3">Friday</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">
-                            <td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">9.00/10.00</td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 1114 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 2234 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 4322 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 2112 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 3253 </button></td>
-                        </tr>
-                        <tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">
-                            <td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">9.00/10.00</td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 1114 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 2234 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 4322 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 2112 </button></td>
-                            <td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> TICT 3253 </button></td>
-                        </tr>
+                    <tbody id="timetable-body">
                     </tbody>
                 </table>
             </section>
@@ -139,4 +117,6 @@
         </main>
         <?php include __DIR__ . '/../Components/FooterBar.php';?>
     </body>
+    <script type="module" src="../API/timetableApi.js"></script>
+    <script type="module" src="../JS/main.js"></script>
 </html>
