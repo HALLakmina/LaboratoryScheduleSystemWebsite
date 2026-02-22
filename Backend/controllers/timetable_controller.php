@@ -46,6 +46,40 @@ use Exception;
                 ]);
             }
         }
+
+        public function getSubjectCodes($req=null, $res=null){
+            try{
+                $respond = $this->timetableService->getSubjectCodes();
+                echo json_encode([
+                    "status"  => "200",
+                    "data" => $respond,
+                    "message" => 'Subject codes fetched successfully'
+                ]);
+                exit;
+            }catch(Exception $e){
+                echo json_encode([
+                    "status"  => "500",
+                    "message" => $e->getMessage()
+                ]);
+            }
+        }
+
+        public function getYears($req=null, $res=null){
+            try{
+                $respond = $this->timetableService->getYears();
+                echo json_encode([
+                    "status"  => "200",
+                    "data" => $respond,
+                    "message" => 'Years fetched successfully'
+                ]);
+                exit;
+            }catch(Exception $e){
+                echo json_encode([
+                    "status"  => "500",
+                    "message" => $e->getMessage()
+                ]);
+            }
+        }
     }
 
 ?>

@@ -12,19 +12,26 @@
     <body class="w-full bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center w-full bg-no-repeat backdrop-blur-xs h-svh overflow-auto"  id="index-content">
         <?php include __DIR__ . '/../Components/NavigationBar.php';?>
         <main class="w- full flex flex-col justify-center items-center p-2 pt-4">
-            <section class="w-full">
-                <form class="max-w-80 bg-white p-2 rounded-lg">
+            <section class="w-full flex flex-row">
+                <form class="max-w-80 min-w-80 bg-white p-2 rounded-lg m-2">
                     <div class="flex flex-col items-left justify-center">
                         <select
                             name="filter" 
-                            id="filter" 
+                            id="filter_by_years" 
                             class="bg-gray-200 w-full rounded-sm"
                         >
-                            <option class="text-center font-bold">--FILTER--</option>`
-                            <option>1st Year</option>
-                            <option>2nd Year</option>
-                            <option>3rd Year</option>
-                            <option>4th Year</option>
+                            <option class="text-center font-bold">--FILTER--</option>
+                        </select>
+                    </div>
+                </form>
+                <form class="max-w-80 min-w-80 bg-white p-2 rounded-lg m-2">
+                    <div class="flex flex-col items-left justify-center">
+                        <select
+                            name="filter" 
+                            id="filter_by_subject" 
+                            class="bg-gray-200 w-full rounded-sm"
+                        >
+                            <option class="text-center font-bold">--FILTER--</option>
                         </select>
                     </div>
                 </form>
@@ -55,7 +62,7 @@
                             id="years" 
                             class="bg-gray-200 w-full p-2 mb-2 rounded-sm"
                         >
-                            <option>--</option>`
+                            <option>--</option>
                             <option>1st Year</option>
                             <option>2nd Year</option>
                             <option>3rd Year</option>
