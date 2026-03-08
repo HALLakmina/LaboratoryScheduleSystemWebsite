@@ -20,6 +20,11 @@
         </li>
     </ul>
     <div class=" flex flex-row justify-between align-center p-2">
-        <a href="<?php echo BASE_URL; ?>pages/login.php" class="bg-white p-2 hover:bg-sky-400 rounded-xs font-bold">LOGIN</a>
+        <a
+            id="auth-nav-btn"
+            href="<?php echo BASE_URL; ?>pages/login.php"
+            data-login-href="<?php echo BASE_URL; ?>pages/login.php"
+            class="bg-white p-2 hover:bg-sky-400 rounded-xs font-bold"
+        >LOGIN</a>
     </div>
 </nav>

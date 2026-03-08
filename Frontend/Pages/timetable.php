@@ -52,9 +52,10 @@
                     </tbody>
                 </table>
             </section>
-            <section class="hidden absolute top-0 bottom-0 left-0 right-0 bg-gray-950/50 flex flex-col justify-center items-center">
+            <section id="scheduling-form" class="hidden absolute top-0 bottom-0 left-0 right-0 bg-gray-950/50 flex flex-col justify-center items-center z-10">
                 <form class=" max-w-xs md:max-w-md w-full p-2 bg-white rounded-lg flex flex-col items-left justify-center">
-                    <button class="self-end bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95">X</button>
+                    <input type="hidden" name="cell_id" id="cell_id" value="" />
+                    <button type="button" id="scheduling-form-close" class="self-end bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
                     <div class="flex flex-col items-left justify-center">
                         <label for="years" class="mb-2 text-lg font-bold">Year's</label>
                         <select
@@ -96,29 +97,37 @@
                     <button class="bg-blue-500 p-2 rounded-lg w-40 font-bold text-white active:scale-95 self-center">SUBMIT</button>
                 </form>
             </section>
-            <section class="hidden absolute top-0 bottom-0 left-0 right-0 bg-gray-950/50 flex flex-col justify-center items-center">
+            <section id="scheduling-form-view" class="hidden absolute top-0 bottom-0 left-0 right-0 bg-gray-950/50 flex flex-col justify-center items-center">
                 <div class=" max-w-xs md:max-w-md w-full p-2 bg-white rounded-lg flex flex-col items-left justify-center">
-                    <button class="self-end bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95">X</button>
-                    <div class="my-4 p-2 bg-purple-800 text-white text-center">
-                        <p class="font-bold">SCHEDULING</p>
+                    <button type="button" id="scheduling-form-view-close" class="self-end bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95">X</button>
+                    <div id="lecture-action-badge" class="my-4 p-2 bg-gray-700 text-white text-center">
+                        <p id="lecture-action" class="font-bold">SCHEDULING</p>
                     </div>
                     <div class="pb-4">
                         <p class="font-bold">Subject Name</p>
-                        <p class="pl-4">Fundamental of ICT</p>
+                        <p id="subject-name" class="pl-4">Fundamental of ICT</p>
                     </div>
                     <div class="pb-4">
                         <p class="font-bold">Subject Code</p>
-                        <p class="pl-4">TICT 1114</p>
+                        <p id="subject-code" class="pl-4">TICT 1114</p>
                     </div>
                     <div class="pb-4">
                         <p class="font-bold">Lecture In Charge</p>
-                        <p class="pl-4">Mis. Rukshani</p>
+                        <p id="lecture-in-charge" class="pl-4">Mis. Rukshani</p>
                     </div>
                     <div class="pb-4">
                         <p class="font-bold">Lecturer's</p>
-                        <p class="pl-4">Miss. Prunthavi</p>
+                        <p id="lecture" class="pl-4">Miss. Prunthavi</p>
                     </div>
-                    <button class="bg-blue-500 p-2 rounded-sm font-bold text-white active:scale-95 self-end text-sm">LECTURE REQUEST</button>
+                    <div class="pb-4">
+                        <p  class="font-bold">Group</p>
+                        <p id="lecture-group" class="pl-4">Group 02</p>
+                    </div>
+                    <div class="pb-4">
+                        <p class="font-bold">Lab</p>
+                        <p id="lab" class="pl-4">-</p>
+                    </div>
+                    <button type="button" id="lecturer-request" class="hidden bg-blue-500 p-2 rounded-sm font-bold text-white active:scale-95 self-end text-sm">LECTURE REQUEST</button>
                 </div>
             </section>
         </main>

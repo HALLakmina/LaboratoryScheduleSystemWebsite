@@ -46,6 +46,7 @@
 // loadFooterBar()
 
 import { getTimetableData, getSubjectCodes, getYears } from '../API/timetableApi.js';
+import { login as loginApi, logout as logoutApi } from '../API/userApi.js';
 
 /**
  * Populates subject code select elements (filter_by_subject, subject_code) from API
@@ -77,22 +78,23 @@ const populateSubjectCodeSelects = async () => {
     }
 };
 
+const isSubjectMatchYear = (subject, year) => {
+    if (!year) return true;
+    return String(subject.year) === String(year) || String(subject.year_id) === String(year);
+};
+
 /**
- * Updates filter_by_subject dropdown based on selected year
- * Shows only subjects for the selected year, or all subjects if no year selected
- * @param {string} year - Selected year value (empty string shows all subjects)
+ * Updates a subject select dropdown based on selected year
+ * Keeps current subject selection if still valid after filtering
  */
-const updateSubjectFilterByYear = (year) => {
-    const subjectSelect = document.getElementById('filter_by_subject');
+const updateSubjectSelectByYear = (subjectSelectId, year, defaultOptionText) => {
+    const subjectSelect = document.getElementById(subjectSelectId);
     if (!subjectSelect) return;
 
-    const defaultOption = '--FILTER--';
-    subjectSelect.innerHTML = `<option class="text-center font-bold" value="">${defaultOption}</option>`;
+    const previousValue = subjectSelect.value || '';
+    const subjectsToShow = fullSubjectCodesData.filter(item => isSubjectMatchYear(item, year));
 
-    const subjectsToShow = year
-        ? fullSubjectCodesData.filter(item => String(item.year) === String(year))
-        : fullSubjectCodesData;
-
+    subjectSelect.innerHTML = `<option class="text-center font-bold" value="">${defaultOptionText}</option>`;
     subjectsToShow.forEach(item => {
         const option = document.createElement('option');
         option.value = item.subject_cord || '';
@@ -100,7 +102,50 @@ const updateSubjectFilterByYear = (year) => {
         subjectSelect.appendChild(option);
     });
 
-    subjectSelect.value = '';
+    const isPreviousValueStillValid = subjectsToShow.some(item => String(item.subject_cord) === String(previousValue));
+    subjectSelect.value = isPreviousValueStillValid ? previousValue : '';
+};
+
+/**
+ * Updates timetable filter subject dropdown from filter_by_years
+ */
+const updateSubjectFilterByYear = (year) => {
+    updateSubjectSelectByYear('filter_by_subject', year, '--FILTER--');
+};
+
+/**
+ * Initialize year/subject dependency in scheduling form
+ * years -> subject_code and subject_code -> years sync
+ */
+const initSchedulingFormFilters = () => {
+    const yearSelect = document.getElementById('years');
+    const subjectSelect = document.getElementById('subject_code');
+    if (!yearSelect || !subjectSelect) return;
+
+    yearSelect.addEventListener('change', () => {
+        const selectedYear = yearSelect.value || '';
+        updateSubjectSelectByYear('subject_code', selectedYear, '--');
+    });
+
+    subjectSelect.addEventListener('change', () => {
+        const selectedSubjectCode = subjectSelect.value || '';
+        if (!selectedSubjectCode) {
+            yearSelect.value = '';
+            return;
+        }
+
+        const matchedSubject = fullSubjectCodesData.find(item => String(item.subject_cord) === String(selectedSubjectCode));
+        if (!matchedSubject) return;
+
+        const matchedYear = String(matchedSubject.year || '');
+        if (!matchedYear) return;
+
+        if (String(yearSelect.value) !== matchedYear) {
+            yearSelect.value = matchedYear;
+            updateSubjectSelectByYear('subject_code', matchedYear, '--');
+            subjectSelect.value = selectedSubjectCode;
+        }
+    });
 };
 
 /**
@@ -175,8 +220,8 @@ const renderTimetableTable = (data) => {
                 tableRow += `<td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${TABLE_TIMES[i]}</td>`;
             }
             tableRow += cellData
-                ? `<td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300"> ${cellData.subject_cord || ''} </button></td>`
-                : `<td class=""><button class="px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300">  </button></td>`;
+                ? `<td class=""><button type="button" class="timetable-cell-btn px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300" data-cell-id="${cellId}"> ${cellData.subject_cord || ''} </button></td>`
+                : `<td class=""><button type="button" class="timetable-cell-btn px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300" data-cell-id="${cellId}">  </button></td>`;
         }
         tableRow += `</tr>`;
         tableBody.innerHTML += tableRow;
@@ -205,6 +250,154 @@ const filterTimetableTable = (year, subjectCode) => {
     renderTimetableTable(filteredData);
 };
 
+/**
+ * Get current user role from sessionStorage (set on login)
+ */
+const getCurrentUserRole = () => {
+    try {
+        return sessionStorage.getItem('userRole') || '';
+    } catch {
+        return '';
+    }
+};
+
+/**
+ * Toggle navbar auth button between login/logout and handle logout click
+ */
+const initAuthNavButton = () => {
+    const authBtn = document.getElementById('auth-nav-btn');
+    if (!authBtn) return;
+
+    const loginHref = authBtn.getAttribute('data-login-href') || authBtn.getAttribute('href') || 'login.php';
+    const userRole = getCurrentUserRole();
+    const isLoggedIn = Boolean(userRole);
+
+    authBtn.textContent = isLoggedIn ? 'LOGOUT' : 'LOGIN';
+    authBtn.setAttribute('href', isLoggedIn ? '#' : loginHref);
+    authBtn.classList.remove('bg-white', 'hover:bg-sky-400', 'bg-red-600', 'hover:bg-red-700', 'text-white');
+    if (isLoggedIn) {
+        authBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'text-white');
+    } else {
+        authBtn.classList.add('bg-white', 'hover:bg-sky-400');
+    }
+
+    authBtn.addEventListener('click', async (e) => {
+        if (!Boolean(getCurrentUserRole())) return;
+
+        e.preventDefault();
+        const lastVisitedPage = window.location.href;
+        try {
+            await logoutApi();
+        } catch (error) {
+            console.error('Logout request failed:', error);
+        } finally {
+            sessionStorage.removeItem('user');
+            sessionStorage.removeItem('userRole');
+            window.location.href = lastVisitedPage;
+        }
+    });
+};
+
+/**
+ * Always show scheduling-form-view on timetable cell click.
+ * Logged users can open scheduling-form from lecturer-request button.
+ */
+const initSchedulingForm = () => {
+    const formSection = document.getElementById('scheduling-form');
+    const viewSection = document.getElementById('scheduling-form-view');
+    const cellIdInput = document.getElementById('cell_id');
+    const closeBtn = document.getElementById('scheduling-form-close');
+    const viewCloseBtn = document.getElementById('scheduling-form-view-close');
+    const lecturerRequestBtn = document.getElementById('lecturer-request');
+    const tableBody = document.getElementById('timetable-body');
+
+    if (!formSection || !viewSection || !cellIdInput || !tableBody || !lecturerRequestBtn) return;
+
+    let selectedCellId = '';
+
+    const setViewText = (id, value) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = value && String(value).trim() !== '' ? String(value) : '-';
+    };
+
+    const setLectureActionBadge = (action) => {
+        const badge = document.getElementById('lecture-action-badge');
+        if (!badge) return;
+
+        badge.classList.remove('bg-green-700', 'bg-purple-800', 'bg-red-700', 'bg-gray-700');
+
+        const normalized = String(action || '').toLowerCase();
+        if (normalized === 'free') {
+            badge.classList.add('bg-green-700');
+            return;
+        }
+        if (normalized === 'active') {
+            badge.classList.add('bg-purple-800');
+            return;
+        }
+        if (normalized === 'cancel') {
+            badge.classList.add('bg-red-700');
+            return;
+        }
+        badge.classList.add('bg-gray-700');
+    };
+
+    const populateSchedulingFormView = (cellId) => {
+        const cellData = fullTimetableData.find(item => String(item.cell_id) === String(cellId));
+        const action = cellData?.action || 'free';
+
+        setViewText('lecture-action', String(action).toUpperCase());
+        setLectureActionBadge(action);
+        setViewText('subject-name', cellData?.subject || '');
+        setViewText('subject-code', cellData?.subject_cord || '');
+        setViewText('lecture-in-charge', cellData?.lecturer_name || '');
+        setViewText('lecture', cellData?.year || '');
+        setViewText('lecture-group', cellData?.group_name || '');
+        setViewText('lab', cellData?.lab || '');
+    };
+
+    tableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.timetable-cell-btn');
+        if (!btn) return;
+
+        const isLoggedIn = Boolean(getCurrentUserRole());
+        const cellId = btn.getAttribute('data-cell-id') || '';
+        selectedCellId = cellId;
+        populateSchedulingFormView(cellId);
+
+        if (isLoggedIn) {
+            lecturerRequestBtn.classList.remove('hidden');
+        } else {
+            lecturerRequestBtn.classList.add('hidden');
+        }
+
+        viewSection.classList.remove('hidden');
+        formSection.classList.add('hidden');
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            formSection.classList.add('hidden');
+            if (cellIdInput) cellIdInput.value = '';
+        });
+    }
+
+    if (viewCloseBtn) {
+        viewCloseBtn.addEventListener('click', () => {
+            viewSection.classList.add('hidden');
+        });
+    }
+
+    lecturerRequestBtn.addEventListener('click', () => {
+        if (!Boolean(getCurrentUserRole())) return;
+
+        cellIdInput.value = selectedCellId;
+        viewSection.classList.add('hidden');
+        formSection.classList.remove('hidden');
+    });
+};
+
 const loadTimetableData = async () => {
     try {
         const timetableData = await getTimetableData();
@@ -221,6 +414,9 @@ const loadTimetableData = async () => {
             });
         }
         if (subjectSelect) subjectSelect.addEventListener('change', () => filterTimetableTable());
+
+        initSchedulingFormFilters();
+        initSchedulingForm();
     } catch (error) {
         console.error('Error fetching timetable data:', error);
     }
@@ -228,6 +424,70 @@ const loadTimetableData = async () => {
 
 
 
-loadTimetableData();
-populateSubjectCodeSelects();
-populateYearsSelects();
+/**
+ * Initialize login form: call login API on submit, show error or redirect on success
+ */
+const initLoginForm = () => {
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('login-error');
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const access = document.getElementById('access')?.value?.trim() || '';
+        const email = document.getElementById('email')?.value?.trim() || '';
+        const password = document.getElementById('password')?.value || '';
+
+        if (errorEl) {
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+        }
+
+        if (!email || !password || access === '-') {
+            if (errorEl) {
+                errorEl.textContent = 'Please select access, and enter email and password.';
+                errorEl.classList.remove('hidden');
+            }
+            return;
+        }
+
+        try {
+            const result = await loginApi(email, password);
+            if (result.status === '200') {
+                if (result.user) {
+                    const selectedAccess = access.toLowerCase();
+                    const apiRole = String(result.user.role || '').toLowerCase();
+                    if (selectedAccess && selectedAccess !== apiRole) {
+                        if (errorEl) {
+                            errorEl.textContent = 'Selected access does not match your account role.';
+                            errorEl.classList.remove('hidden');
+                        }
+                        return;
+                    }
+                    sessionStorage.setItem('user', JSON.stringify(result.user));
+                    sessionStorage.setItem('userRole', result.user.role || '');
+                }
+                window.location.href = 'timetable.php';
+            } else {
+                if (errorEl) {
+                    errorEl.textContent = result.message || 'Login failed.';
+                    errorEl.classList.remove('hidden');
+                }
+            }
+        } catch (err) {
+            if (errorEl) {
+                errorEl.textContent = err.message || 'Network error. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        }
+    });
+};
+
+initAuthNavButton();
+initLoginForm();
+
+if (document.getElementById('timetable-body')) {
+    loadTimetableData();
+    populateSubjectCodeSelects();
+    populateYearsSelects();
+}

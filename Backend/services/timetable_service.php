@@ -6,9 +6,10 @@
     class TimetableService{
         public function getAllTimeSchedules(){
             $DB_CON = new  DbConnection;
-            $query = "SELECT 
+                    $query = "SELECT 
                         tc.cell_number AS cell_id,
                         lg.group_name,
+                        l.lab_name AS lab,
                         t.action,
                         ps.subject_cord,
                         ps.subject,
@@ -21,6 +22,9 @@
 
                     LEFT JOIN lecture_groups lg 
                         ON t.lecture_group_id = lg.id
+
+                    LEFT JOIN labs l
+                        ON t.lab_id = l.id
 
                     LEFT JOIN practical_subjects ps 
                         ON t.subject_cord = ps.subject_cord
@@ -48,6 +52,7 @@
             $query = "SELECT 
                         tc.cell_number AS cell_id,
                         lg.group_name,
+                        l.lab_name AS lab,
                         t.action,
                         ps.subject_cord,
                         ps.subject,
@@ -56,6 +61,7 @@
                     FROM timetable t
                     LEFT JOIN timetable_cells tc ON t.cell_id = tc.id
                     LEFT JOIN lecture_groups lg ON t.lecture_group_id = lg.id
+                    LEFT JOIN labs l ON t.lab_id = l.id
                     INNER JOIN practical_subjects ps ON t.subject_cord = ps.subject_cord
                     INNER JOIN years y ON ps.year_id = y.id
                     LEFT JOIN subject_lecture_relations sl ON ps.subject_cord = sl.subject_cord
