@@ -53,7 +53,7 @@
                 foreach($_GET as $key => $value){
                     $queryStringParameters[$key] =$value; 
                 }
-                $this->request['query'] =$queryStringParameters; 
+                $this->request['query'] =$queryStringParameters;
             }
             if($_POST){
                 foreach($_POST as $key => $value){

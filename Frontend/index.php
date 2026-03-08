@@ -34,4 +34,5 @@
             <!-- <page-footer></page-footer> -->
         </div>
     </body>
+    <script type="module" src="./JS/main.js"></script>
 </html>

@@ -19,7 +19,6 @@
         public function createJwtToken($userName, $role, $email){
 
             $jwt_secret_key = $this->secret_key;
-            echo "$role  $email \n";
 
             // Payload
             $payload = [

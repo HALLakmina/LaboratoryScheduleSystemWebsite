@@ -9,48 +9,73 @@
             $updated_at= date('Y-m-d H:i:s');
             $hashPassword = password_hash($payload["password"], PASSWORD_DEFAULT);
             $DB_CON = new  DbConnection;
-            $query = "INSERT INTO user_details 
-                        (full_name, name_with_initials, honorifics, nic, email, mobile_number, password, access, created_by, created_at, updated_by, updated_at)
+            $query = "INSERT INTO users 
+                        (initials, initials_stand_for, first_name, last_name, honorifics, nic, email, mobile_number, password, role, created_by, created_at, updated_by, updated_at)
                         VALUES (
-                            '{$payload['full_name']}',
-                            '{$payload['name_with_initials']}',
-                            '{$payload['honorifics']}',
-                            '{$payload['nic']}',
-                            '{$payload['email']}',
-                            '{$payload['mobile_number']}',
-                            '$hashPassword',
-                            '{$payload['access']}',
-                            '{$payload['created_by']}',
-                            '$created_at',
-                            '{$payload['updated_by']}',
-                            '$updated_at'
+                            :initials,
+                            :initials_stand_for,
+                            :first_name,
+                            :last_name,
+                            :honorifics,
+                            :nic,
+                            :email,
+                            :mobile_number,
+                            :password,
+                            :role,
+                            :created_by,
+                            :created_at,
+                            :updated_by,
+                            :updated_at
                         )";
-            $result = mysqli_query($DB_CON->getDbCon(),  $query);
+            $property=[
+                'initials'=>$payload['initials'],
+                'initials_stand_for'=>$payload['initials_stand_for'],
+                'first_name'=>$payload['first_name'],
+                'last_name'=>$payload['last_name'],
+                'honorifics'=>$payload['honorifics'],
+                'nic'=>$payload['nic'],
+                'email'=>$payload['email'],
+                'mobile_number'=>$payload['mobile_number'],
+                'password'=>$hashPassword,
+                'role'=>$payload['role'],
+                'created_by'=>$payload['created_by'],
+                'created_at'=>$created_at,
+                'updated_by'=>$payload['updated_by'],
+                'updated_at'=>$updated_at,
+            ];
+            $result = $DB_CON->execute($query, $property);
+
             if($result === false){
-                throw new Exception('Sql server sql query error');
+                $error = $DB_CON->getError();
+                throw new Exception($error ? $error : 'Sql server sql query error');
             }
             return 'User insert successfully';
         }
 
         public function getAll(){
             $DB_CON = new  DbConnection;
-            $query = "SELECT * FROM user_details";
-            $result = mysqli_query($DB_CON->getDbCon(),  $query);
+            $query = "SELECT * FROM users";
+            $DB_CON->selectData($query);
+            $result = $DB_CON->fetchAll(); 
             if($result === false){
-                throw new Exception('Sql server sql query error');
+                $error = $DB_CON->getError();
+                throw new Exception($error ? $error : 'Sql server sql query error');
             }
-            $all_data = mysqli_fetch_all($result, MYSQLI_ASSOC);
-            return $all_data;
+            return $result;
         }
         public function getByEmail($email){
             $DB_CON = new  DbConnection;
-            $query = "SELECT * FROM user_details WHERE email = '$email' LIMIT 1";
-            $result = mysqli_query($DB_CON->getDbCon(),  $query);
+            $query = "SELECT * FROM users WHERE email = :email LIMIT 1";
+            $property = [
+                'email'=>$email
+            ];
+            $DB_CON->selectDataByProperty($query, $property);
+            $result = $DB_CON->fetchAll();
             if($result === false){
-                throw new Exception('Sql server sql query error');
+                $error = $DB_CON->getError();
+                throw new Exception($error ? $error : 'Sql server sql query error');
             }
-            $data = mysqli_fetch_assoc($result);
-            return $data;
+            return $result;
         }
     }
 ?>

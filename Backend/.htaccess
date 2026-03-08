@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /project01/LaboratoryScheduleSystemWebsite/Backend/
+    RewriteBase /LaboratoryScheduleSystemWebsite/Backend/
 
     # Redirect everything to server.php except existing files/folders
     RewriteCond %{REQUEST_FILENAME} !-f

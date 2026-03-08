@@ -44,4 +44,5 @@
             <?php include __DIR__ . '/../Components/FooterBar.php';?>
         </div>        
     </body>
+    <script type="module" src="../JS/main.js"></script>
 </html>
