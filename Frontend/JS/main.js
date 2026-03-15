@@ -45,7 +45,8 @@
 // loadNavigationBar()
 // loadFooterBar()
 
-import { getTimetableData, getSubjectCodes, getYears } from '../API/timetableApi.js';
+import { getTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings } from '../API/timetableApi.js';
+import { sendLecturerRequest } from '../API/lecturerRequestApi.js';
 import { login as loginApi, logout as logoutApi } from '../API/userApi.js';
 
 /**
@@ -155,6 +156,7 @@ const populateYearsSelects = async () => {
     try {
         const response = await getYears();
         if (response.status !== '200' || !response.data) return;
+        fullYearsData = response.data;
 
         const selectIds = ['filter_by_years', 'years'];
         selectIds.forEach(id => {
@@ -176,23 +178,114 @@ const populateYearsSelects = async () => {
     }
 };
 
-const TABLE_CELLS = [
-    [1,2,3,4,5],
-    [6,7,8,9,10],
-    [11,12,13,14,15],
-    [16,17,18,19,20],
-    [21,22,23,24,25],
-    [26,27,28,29,30],
-    [31,32,33,34,35],
-    [36,37,38,39,40]
-];
-const TABLE_TIMES = [
-    '8.00/9.00', '9.00/10.00', '10.00/11.00', '11.00/12.00',
-    '1.00/2.00', '2.00/4.00', '3.00/4.00', '4.00/5.00'
-];
+const loadSchedulingReferenceData = async () => {
+    try {
+        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse] = await Promise.all([
+            getTimeSlots(),
+            getColumnHeadings(),
+            getTimetableSettings(),
+        ]);
+
+        fullTimeSlotsData = timeSlotsResponse.status === '200' && timeSlotsResponse.data ? timeSlotsResponse.data : [];
+        fullColumnHeadingsData = columnHeadingsResponse.status === '200' && columnHeadingsResponse.data ? columnHeadingsResponse.data : [];
+        fullTimetableSettingsData = settingsResponse.status === '200' ? settingsResponse.data : null;
+
+        renderTimetableHead();
+        populateTimeSlotSelect();
+        populateDaySelect();
+    } catch (error) {
+        console.error('Error loading scheduling reference data:', error);
+    }
+};
+
+const renderTimetableHead = () => {
+    const tableHead = document.getElementById('timetable-head');
+    if (!tableHead) return;
+
+    tableHead.innerHTML = `
+        <tr>
+            <th scope="col" class="px-6 py-3">Time</th>
+            ${fullColumnHeadingsData.map(item => `<th scope="col" class="px-6 py-3">${item.column_heading}</th>`).join('')}
+        </tr>
+    `;
+};
+
+const populateTimeSlotSelect = () => {
+    const timeSlotSelect = document.getElementById('time_slot');
+    if (!timeSlotSelect) return;
+
+    timeSlotSelect.innerHTML = `<option value="">--</option>`;
+    getActiveTimeSlots().forEach(item => {
+        const option = document.createElement('option');
+        option.value = formatTimeSlotLabel(item.start_time, item.end_time);
+        option.textContent = formatTimeSlotLabel(item.start_time, item.end_time);
+        timeSlotSelect.appendChild(option);
+    });
+};
+
+const populateDaySelect = () => {
+    const daySelect = document.getElementById('day');
+    if (!daySelect) return;
+
+    daySelect.innerHTML = `<option value="">--</option>`;
+    fullColumnHeadingsData.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.column_heading;
+        option.textContent = item.column_heading;
+        daySelect.appendChild(option);
+    });
+};
 
 let fullTimetableData = [];
 let fullSubjectCodesData = [];
+let fullYearsData = [];
+let fullTimeSlotsData = [];
+let fullColumnHeadingsData = [];
+let fullTimetableSettingsData = null;
+
+const formatTimePart = (timeValue) => {
+    if (!timeValue) return '';
+
+    const [rawHours, rawMinutes] = String(timeValue).split(':');
+    const hours = Number(rawHours);
+    const minutes = rawMinutes ?? '00';
+    const displayHours = hours > 12 ? hours - 12 : hours;
+    return `${displayHours}.${minutes}`;
+};
+
+const formatTimeSlotLabel = (startTime, endTime) => `${formatTimePart(startTime)}/${formatTimePart(endTime)}`;
+
+const getActiveTimeSlots = () => {
+    if (!fullTimetableSettingsData || !Array.isArray(fullTimeSlotsData)) return fullTimeSlotsData;
+
+    const breakRowNumber = Number(fullTimetableSettingsData.break_row_number || 0);
+    if (!breakRowNumber) return fullTimeSlotsData;
+
+    return fullTimeSlotsData.filter((_, index) => index !== breakRowNumber - 1);
+};
+
+const getCellNumberGrid = () => {
+    if (!fullTimetableSettingsData) return [];
+
+    const columnCount = Number(fullTimetableSettingsData.table_column_count || 0);
+    const cellCount = Number(fullTimetableSettingsData.table_cell_count || 0);
+    if (!columnCount || !cellCount) return [];
+
+    const totalRows = Math.ceil(cellCount / columnCount);
+    const grid = [];
+    let currentCell = 1;
+
+    for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
+        const row = [];
+        for (let columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+            row.push(currentCell);
+            currentCell += 1;
+        }
+        grid.push(row);
+    }
+
+    return grid;
+};
 
 /**
  * Renders the timetable table with the given data
@@ -202,30 +295,37 @@ const renderTimetableTable = (data) => {
     const tableBody = document.getElementById('timetable-body');
     if (!tableBody) return;
 
+    const activeTimeSlots = getActiveTimeSlots();
+    const columnCount = fullColumnHeadingsData.length;
+    const cellGrid = getCellNumberGrid();
+    const breakRowNumber = Number(fullTimetableSettingsData?.break_row_number || 0);
+    const breakTimeSlot = breakRowNumber ? fullTimeSlotsData[breakRowNumber - 1] : null;
+    const breakLabel = breakTimeSlot ? formatTimeSlotLabel(breakTimeSlot.start_time, breakTimeSlot.end_time) : 'Interval';
+
     tableBody.innerHTML = '';
-    for (let i = 0; i < 8; i++) {
+    activeTimeSlots.forEach((timeSlot, rowIndex) => {
         let tableRow = '';
-        if (i === 4) {
+        if (breakRowNumber && rowIndex === breakRowNumber - 1) {
             tableRow += `
                 <tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">
-                    <td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">12.00/1.00</td>
-                    <td colspan="5" class=""><p class="px-6 py-6 font-bold text-lg w-full h-full hover:bg-gray-400 text-center"> Interval </p></td>
+                    <td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${breakLabel}</td>
+                    <td colspan="${columnCount}" class=""><p class="px-6 py-6 font-bold text-lg w-full h-full hover:bg-gray-400 text-center"> Interval </p></td>
                 </tr>`;
         }
         tableRow += `<tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">`;
-        for (let j = 0; j < 5; j++) {
-            const cellId = TABLE_CELLS[i][j];
+        const currentRow = cellGrid[rowIndex] || [];
+        currentRow.forEach((cellId, columnIndex) => {
             const cellData = data.find(item => item.cell_id === cellId);
-            if (j === 0) {
-                tableRow += `<td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${TABLE_TIMES[i]}</td>`;
+            if (columnIndex === 0) {
+                tableRow += `<td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${formatTimeSlotLabel(timeSlot.start_time, timeSlot.end_time)}</td>`;
             }
             tableRow += cellData
                 ? `<td class=""><button type="button" class="timetable-cell-btn px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300" data-cell-id="${cellId}"> ${cellData.subject_cord || ''} </button></td>`
                 : `<td class=""><button type="button" class="timetable-cell-btn px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300" data-cell-id="${cellId}">  </button></td>`;
-        }
+        });
         tableRow += `</tr>`;
         tableBody.innerHTML += tableRow;
-    }
+    });
 };
 
 /**
@@ -305,13 +405,20 @@ const initAuthNavButton = () => {
 const initSchedulingForm = () => {
     const formSection = document.getElementById('scheduling-form');
     const viewSection = document.getElementById('scheduling-form-view');
+    const formElement = document.querySelector('#scheduling-form form');
     const cellIdInput = document.getElementById('cell_id');
+    const yearSelect = document.getElementById('years');
+    const subjectCodeSelect = document.getElementById('subject_code');
+    const timeSlotSelect = document.getElementById('time_slot');
+    const daySelect = document.getElementById('day');
+    const requestTextarea = document.getElementById('request');
     const closeBtn = document.getElementById('scheduling-form-close');
     const viewCloseBtn = document.getElementById('scheduling-form-view-close');
     const lecturerRequestBtn = document.getElementById('lecturer-request');
+    const lecturerRequestFormBtn = document.getElementById('lecturer-request-form');
     const tableBody = document.getElementById('timetable-body');
 
-    if (!formSection || !viewSection || !cellIdInput || !tableBody || !lecturerRequestBtn) return;
+    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn) return;
 
     let selectedCellId = '';
 
@@ -357,6 +464,55 @@ const initSchedulingForm = () => {
         setViewText('lab', cellData?.lab || '');
     };
 
+    const getCellScheduleMeta = (cellId) => {
+        const cellGrid = getCellNumberGrid();
+        const activeTimeSlots = getActiveTimeSlots();
+
+        for (let rowIndex = 0; rowIndex < cellGrid.length; rowIndex++) {
+            const columnIndex = cellGrid[rowIndex].indexOf(Number(cellId));
+            if (columnIndex !== -1) {
+                return {
+                    timeSlot: activeTimeSlots[rowIndex] ? formatTimeSlotLabel(activeTimeSlots[rowIndex].start_time, activeTimeSlots[rowIndex].end_time) : '',
+                    day: fullColumnHeadingsData[columnIndex]?.column_heading || '',
+                };
+            }
+        }
+
+        return {
+            timeSlot: '',
+            day: '',
+        };
+    };
+
+    const resetSchedulingForm = () => {
+        formElement.reset();
+        cellIdInput.value = '';
+        timeSlotSelect.value = '';
+        daySelect.value = '';
+    };
+
+    const syncLecturerRequestButtons = (isLoggedIn) => {
+        if (isLoggedIn) {
+            lecturerRequestBtn.classList.remove('hidden');
+            lecturerRequestFormBtn.classList.remove('hidden');
+            return;
+        }
+
+        lecturerRequestBtn.classList.add('hidden');
+        lecturerRequestFormBtn.classList.add('hidden');
+    };
+
+    const openSchedulingForm = () => {
+        if (!Boolean(getCurrentUserRole())) return;
+
+        const scheduleMeta = getCellScheduleMeta(selectedCellId);
+        cellIdInput.value = selectedCellId;
+        timeSlotSelect.value = scheduleMeta.timeSlot;
+        daySelect.value = scheduleMeta.day;
+        viewSection.classList.add('hidden');
+        formSection.classList.remove('hidden');
+    };
+
     tableBody.addEventListener('click', (e) => {
         const btn = e.target.closest('.timetable-cell-btn');
         if (!btn) return;
@@ -365,12 +521,7 @@ const initSchedulingForm = () => {
         const cellId = btn.getAttribute('data-cell-id') || '';
         selectedCellId = cellId;
         populateSchedulingFormView(cellId);
-
-        if (isLoggedIn) {
-            lecturerRequestBtn.classList.remove('hidden');
-        } else {
-            lecturerRequestBtn.classList.add('hidden');
-        }
+        syncLecturerRequestButtons(isLoggedIn);
 
         viewSection.classList.remove('hidden');
         formSection.classList.add('hidden');
@@ -379,7 +530,7 @@ const initSchedulingForm = () => {
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
             formSection.classList.add('hidden');
-            if (cellIdInput) cellIdInput.value = '';
+            resetSchedulingForm();
         });
     }
 
@@ -389,19 +540,73 @@ const initSchedulingForm = () => {
         });
     }
 
-    lecturerRequestBtn.addEventListener('click', () => {
-        if (!Boolean(getCurrentUserRole())) return;
+    lecturerRequestBtn.addEventListener('click', openSchedulingForm);
+    lecturerRequestFormBtn.addEventListener('click', openSchedulingForm);
+    syncLecturerRequestButtons(Boolean(getCurrentUserRole()));
 
-        cellIdInput.value = selectedCellId;
-        viewSection.classList.add('hidden');
-        formSection.classList.remove('hidden');
+    formElement.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const storedUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+        const lecturerId = storedUser?.id;
+        const yearValue = yearSelect.value || '';
+        const subjectCodeValue = subjectCodeSelect.value || '';
+        const timeSlotValue = timeSlotSelect.value || '';
+        const dayValue = daySelect.value || '';
+        const lecturerRequestValue = requestTextarea.value.trim();
+
+        const selectedYear = fullYearsData.find(item => String(item.year) === String(yearValue));
+        const selectedSubject = fullSubjectCodesData.find(item => (
+            String(item.subject_cord) === String(subjectCodeValue) &&
+            isSubjectMatchYear(item, yearValue)
+        ));
+        const selectedTimeSlot = fullTimeSlotsData.find(item => (
+            formatTimeSlotLabel(item.start_time, item.end_time) === timeSlotValue
+        ));
+        const selectedColumnHeading = fullColumnHeadingsData.find(item => (
+            String(item.column_heading).toLowerCase() === String(dayValue).toLowerCase()
+        ));
+
+        if (!lecturerId) {
+            window.alert('Please log in again before sending a lecturer request.');
+            return;
+        }
+
+        if (!selectedYear || !selectedSubject || !selectedTimeSlot || !selectedColumnHeading || !lecturerRequestValue) {
+            window.alert('Please fill in year, subject code, time slot, day, and lecturer request.');
+            return;
+        }
+
+        try {
+            const result = await sendLecturerRequest({
+                lecturer_id: lecturerId,
+                subject_id: selectedSubject.subject_cord,
+                year_id: selectedYear.id,
+                timetable_time_slot_id: selectedTimeSlot.id,
+                timetable_column_heading_id: selectedColumnHeading.id,
+                lecturer_request: lecturerRequestValue,
+            });
+
+            if (result.status === '200') {
+                window.alert(result.message || 'Lecturer request sent successfully.');
+                formSection.classList.add('hidden');
+                resetSchedulingForm();
+                return;
+            }
+
+            window.alert(result.message || 'Failed to send lecturer request.');
+        } catch (error) {
+            window.alert(error.message || 'Network error. Please try again.');
+        }
     });
 };
 
 const loadTimetableData = async () => {
     try {
+        await loadSchedulingReferenceData();
         const timetableData = await getTimetableData();
         fullTimetableData = timetableData.data || [];
+        renderTimetableHead();
         renderTimetableTable(fullTimetableData);
 
         const yearSelect = document.getElementById('filter_by_years');

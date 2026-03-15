@@ -35,19 +35,19 @@
                         </select>
                     </div>
                 </form>
+                <div class="bg-white p-2 rounded-lg m-2 flex items-center">
+                    <button
+                        type="button"
+                        id="lecturer-request-form"
+                        class="hidden bg-blue-500 p-2 rounded-sm font-bold text-white active:scale-95 text-sm"
+                    >
+                        LECTURE REQUEST
+                    </button>
+                </div>
             </section>
             <section class="w-screen overflow-x-scroll p-2" style="scrollbar-width: none;">
-                <table class="w-full bg-white shadow-md rounded-lg text-sm text-left rtl:text-right">
-                    <thead class="text-xs text-white uppercase bg-gray-900 ">
-                        <tr>
-                            <th scope="col" class="px-6 py-3">Time</th>
-                            <th scope="col" class="px-6 py-3">Monday</th>
-                            <th scope="col" class="px-6 py-3">Tuesday</th>
-                            <th scope="col" class="px-6 py-3">Wednesday</th>
-                            <th scope="col" class="px-6 py-3">Thursday</th>
-                            <th scope="col" class="px-6 py-3">Friday</th>
-                        </tr>
-                    </thead>
+                <table id="timetable" class="w-full bg-white shadow-md rounded-lg text-sm text-left rtl:text-right">
+                    <thead id="timetable-head" class="text-xs text-white uppercase bg-gray-900 "></thead>
                     <tbody id="timetable-body">
                     </tbody>
                 </table>
@@ -82,6 +82,39 @@
                             <option>TICT 2212</option>
                             <option>TICT 2121</option>
                             <option>TICT 3134</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col items-left justify-center">
+                        <label for="time_slot" class="mb-2 text-lg font-bold">Time Slot</label>
+                        <select
+                            name="time_slot"
+                            id="time_slot"
+                            class="bg-gray-200 w-full p-2 mb-2 rounded-sm"
+                        >
+                            <option value="">--</option>
+                            <option value="8.00/9.00">8.00/9.00</option>
+                            <option value="9.00/10.00">9.00/10.00</option>
+                            <option value="10.00/11.00">10.00/11.00</option>
+                            <option value="11.00/12.00">11.00/12.00</option>
+                            <option value="1.00/2.00">1.00/2.00</option>
+                            <option value="2.00/4.00">2.00/4.00</option>
+                            <option value="3.00/4.00">3.00/4.00</option>
+                            <option value="4.00/5.00">4.00/5.00</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col items-left justify-center">
+                        <label for="day" class="mb-2 text-lg font-bold">Day</label>
+                        <select
+                            name="day"
+                            id="day"
+                            class="bg-gray-200 w-full p-2 mb-2 rounded-sm"
+                        >
+                            <option value="">--</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
                         </select>
                     </div>
                     <div class="flex flex-col items-left justify-center">
