@@ -82,7 +82,7 @@
 
         public function getSubjectCodes(){
             $DB_CON = new DbConnection;
-            $query = "SELECT DISTINCT ps.subject_cord, ps.subject, ps.year_id, y.year 
+            $query = "SELECT DISTINCT ps.id AS subject_id, ps.subject_cord, ps.subject, ps.year_id, y.year 
                       FROM practical_subjects ps 
                       LEFT JOIN years y ON ps.year_id = y.id 
                       ORDER BY ps.subject_cord";
@@ -100,6 +100,42 @@
             $query = "SELECT id, year FROM years ORDER BY year";
             $DB_CON->selectData($query);
             $result = $DB_CON->fetchAll();
+            if($result === false){
+                $error = $DB_CON->getError();
+                throw new Exception($error ? $error : 'Sql server sql query error');
+            }
+            return $result;
+        }
+
+        public function getTimeSlots(){
+            $DB_CON = new DbConnection;
+            $query = "SELECT id, start_time, end_time FROM timetable_time_slots ORDER BY start_time";
+            $DB_CON->selectData($query);
+            $result = $DB_CON->fetchAll();
+            if($result === false){
+                $error = $DB_CON->getError();
+                throw new Exception($error ? $error : 'Sql server sql query error');
+            }
+            return $result;
+        }
+
+        public function getColumnHeadings(){
+            $DB_CON = new DbConnection;
+            $query = "SELECT id, column_heading, column_number FROM timetable_column_headings ORDER BY column_number";
+            $DB_CON->selectData($query);
+            $result = $DB_CON->fetchAll();
+            if($result === false){
+                $error = $DB_CON->getError();
+                throw new Exception($error ? $error : 'Sql server sql query error');
+            }
+            return $result;
+        }
+
+        public function getTimetableSettings(){
+            $DB_CON = new DbConnection;
+            $query = "SELECT * FROM timetable_settings ORDER BY id DESC LIMIT 1";
+            $DB_CON->selectData($query);
+            $result = $DB_CON->fetchRow();
             if($result === false){
                 $error = $DB_CON->getError();
                 throw new Exception($error ? $error : 'Sql server sql query error');

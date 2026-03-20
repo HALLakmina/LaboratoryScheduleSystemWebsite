@@ -80,6 +80,57 @@ use Exception;
                 ]);
             }
         }
+
+        public function getTimeSlots($req=null, $res=null){
+            try{
+                $respond = $this->timetableService->getTimeSlots();
+                echo json_encode([
+                    "status"  => "200",
+                    "data" => $respond,
+                    "message" => 'Time slots fetched successfully'
+                ]);
+                exit;
+            }catch(Exception $e){
+                echo json_encode([
+                    "status"  => "500",
+                    "message" => $e->getMessage()
+                ]);
+            }
+        }
+
+        public function getColumnHeadings($req=null, $res=null){
+            try{
+                $respond = $this->timetableService->getColumnHeadings();
+                echo json_encode([
+                    "status"  => "200",
+                    "data" => $respond,
+                    "message" => 'Column headings fetched successfully'
+                ]);
+                exit;
+            }catch(Exception $e){
+                echo json_encode([
+                    "status"  => "500",
+                    "message" => $e->getMessage()
+                ]);
+            }
+        }
+
+        public function getTimetableSettings($req=null, $res=null){
+            try{
+                $respond = $this->timetableService->getTimetableSettings();
+                echo json_encode([
+                    "status"  => "200",
+                    "data" => $respond,
+                    "message" => 'Timetable settings fetched successfully'
+                ]);
+                exit;
+            }catch(Exception $e){
+                echo json_encode([
+                    "status"  => "500",
+                    "message" => $e->getMessage()
+                ]);
+            }
+        }
     }
 
 ?>

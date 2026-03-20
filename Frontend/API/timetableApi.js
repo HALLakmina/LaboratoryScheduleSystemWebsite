@@ -48,8 +48,59 @@ const getYears = async () => {
     }
 };
 
+const getTimeSlots = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/timeSlots`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching time slots:', error);
+        throw error;
+    }
+};
+
+const getColumnHeadings = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/columnHeadings`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching column headings:', error);
+        throw error;
+    }
+};
+
+const getTimetableSettings = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/settings`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching timetable settings:', error);
+        throw error;
+    }
+};
+
 export {
     getTimetableData,
     getSubjectCodes,
-    getYears
+    getYears,
+    getTimeSlots,
+    getColumnHeadings,
+    getTimetableSettings
 }
