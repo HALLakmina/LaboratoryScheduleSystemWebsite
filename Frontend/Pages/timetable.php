@@ -118,6 +118,15 @@
                         </select>
                     </div>
                     <div class="flex flex-col items-left justify-center">
+                        <label for="request_date" class="mb-2 text-lg font-bold">Date</label>
+                        <input
+                            type="date"
+                            name="request_date"
+                            id="request_date"
+                            class="bg-gray-200 w-full p-2 mb-2 rounded-sm"
+                        />
+                    </div>
+                    <div class="flex flex-col items-left justify-center">
                         <label for="request" class="mb-2 text-lg font-bold">Lecture Request</label>
                         <textarea 
                             name="request" 

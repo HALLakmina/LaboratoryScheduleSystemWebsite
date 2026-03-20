@@ -254,6 +254,7 @@ const formatTimePart = (timeValue) => {
 };
 
 const formatTimeSlotLabel = (startTime, endTime) => `${formatTimePart(startTime)}/${formatTimePart(endTime)}`;
+const getTodayDateValue = () => new Date().toISOString().split('T')[0];
 
 const getActiveTimeSlots = () => {
     if (!fullTimetableSettingsData || !Array.isArray(fullTimeSlotsData)) return fullTimeSlotsData;
@@ -411,6 +412,7 @@ const initSchedulingForm = () => {
     const subjectCodeSelect = document.getElementById('subject_code');
     const timeSlotSelect = document.getElementById('time_slot');
     const daySelect = document.getElementById('day');
+    const requestDateInput = document.getElementById('request_date');
     const requestTextarea = document.getElementById('request');
     const closeBtn = document.getElementById('scheduling-form-close');
     const viewCloseBtn = document.getElementById('scheduling-form-view-close');
@@ -418,7 +420,7 @@ const initSchedulingForm = () => {
     const lecturerRequestFormBtn = document.getElementById('lecturer-request-form');
     const tableBody = document.getElementById('timetable-body');
 
-    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn) return;
+    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn) return;
 
     let selectedCellId = '';
 
@@ -489,6 +491,7 @@ const initSchedulingForm = () => {
         cellIdInput.value = '';
         timeSlotSelect.value = '';
         daySelect.value = '';
+        requestDateInput.value = getTodayDateValue();
     };
 
     const syncLecturerRequestButtons = (isLoggedIn) => {
@@ -543,6 +546,8 @@ const initSchedulingForm = () => {
     lecturerRequestBtn.addEventListener('click', openSchedulingForm);
     lecturerRequestFormBtn.addEventListener('click', openSchedulingForm);
     syncLecturerRequestButtons(Boolean(getCurrentUserRole()));
+    requestDateInput.min = getTodayDateValue();
+    requestDateInput.value = getTodayDateValue();
 
     formElement.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -553,6 +558,7 @@ const initSchedulingForm = () => {
         const subjectCodeValue = subjectCodeSelect.value || '';
         const timeSlotValue = timeSlotSelect.value || '';
         const dayValue = daySelect.value || '';
+        const requestDateValue = requestDateInput.value || '';
         const lecturerRequestValue = requestTextarea.value.trim();
 
         const selectedYear = fullYearsData.find(item => String(item.year) === String(yearValue));
@@ -572,8 +578,8 @@ const initSchedulingForm = () => {
             return;
         }
 
-        if (!selectedYear || !selectedSubject || !selectedTimeSlot || !selectedColumnHeading || !lecturerRequestValue) {
-            window.alert('Please fill in year, subject code, time slot, day, and lecturer request.');
+        if (!selectedYear || !selectedSubject || !selectedTimeSlot || !selectedColumnHeading || !requestDateValue || !lecturerRequestValue) {
+            window.alert('Please fill in year, subject code, time slot, day, date, and lecturer request.');
             return;
         }
 
@@ -584,6 +590,8 @@ const initSchedulingForm = () => {
                 year_id: selectedYear.id,
                 timetable_time_slot_id: selectedTimeSlot.id,
                 timetable_column_heading_id: selectedColumnHeading.id,
+                date: requestDateValue,
+                action: 'requested',
                 lecturer_request: lecturerRequestValue,
             });
 
