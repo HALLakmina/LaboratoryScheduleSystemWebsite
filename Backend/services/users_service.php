@@ -116,6 +116,48 @@ class UsersService {
         return 'User deleted successfully';
     }
 
+    public function resetPassword($payload) {
+        $DB_CON = new DbConnection;
+
+        $actor = $this->getById($payload['actor_user_id']);
+        if (!$actor) {
+            throw new Exception('Authorized user account not found.');
+        }
+
+        if (($actor['role'] ?? '') !== 'admin') {
+            throw new Exception('Only admin users can reset passwords.');
+        }
+
+        if (!password_verify($payload['current_password'], $actor['password'] ?? '')) {
+            throw new Exception('Current login password is incorrect.');
+        }
+
+        $targetUser = $this->getById($payload['target_user_id']);
+        if (!$targetUser) {
+            throw new Exception('Target user account not found.');
+        }
+
+        $query = "UPDATE users
+                    SET password = :password,
+                        updated_by = :updated_by,
+                        updated_at = :updated_at
+                    WHERE id = :id";
+
+        $result = $DB_CON->execute($query, [
+            'id' => $payload['target_user_id'],
+            'password' => password_hash($payload['new_password'], PASSWORD_DEFAULT),
+            'updated_by' => $payload['updated_by'],
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'User password reset successfully';
+    }
+
     public function getAll() {
         $DB_CON = new DbConnection;
         $query = "SELECT * FROM users";
@@ -141,6 +183,22 @@ class UsersService {
             throw new Exception($error ? $error : 'Sql server sql query error');
         }
         return $result;
+    }
+
+    public function getById($id) {
+        $DB_CON = new DbConnection;
+        $query = "SELECT * FROM users WHERE id = :id LIMIT 1";
+        $property = [
+            'id' => $id
+        ];
+        $DB_CON->selectDataByProperty($query, $property);
+        $result = $DB_CON->fetchAll();
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return $result[0] ?? null;
     }
 }
 ?>

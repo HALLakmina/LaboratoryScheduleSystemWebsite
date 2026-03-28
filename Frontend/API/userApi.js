@@ -78,6 +78,24 @@ const deleteUser = async (id) => {
     }
 };
 
+const resetUserPassword = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error resetting user password:', error);
+        throw error;
+    }
+};
+
 /**
  * User login - POST /api/v1/user/login
  * @param {string} email - User email
@@ -126,6 +144,7 @@ export {
     createUser,
     updateUser,
     deleteUser,
+    resetUserPassword,
     login,
     logout,
 };

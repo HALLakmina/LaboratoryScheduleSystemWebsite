@@ -149,6 +149,58 @@ class UsersController {
         }
     }
 
+    public function resetPassword($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+
+            if (trim((string)($payload['target_user_id'] ?? '')) === '') {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => 'target_user_id is required.'
+                ]);
+                exit;
+            }
+
+            if (trim((string)($payload['actor_user_id'] ?? '')) === '') {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => 'actor_user_id is required.'
+                ]);
+                exit;
+            }
+
+            if (trim((string)($payload['current_password'] ?? '')) === '') {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => 'current_password is required.'
+                ]);
+                exit;
+            }
+
+            if (trim((string)($payload['new_password'] ?? '')) === '') {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => 'new_password is required.'
+                ]);
+                exit;
+            }
+
+            $this->usersService->resetPassword($payload);
+            echo json_encode([
+                'status' => '200',
+                'data' => 'Password reset',
+                'message' => 'User password reset successfully'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => '500',
+                'message' => $e->getMessage()
+            ]);
+            exit;
+        }
+    }
+
     /**
      * User login - POST /api/v1/user/login
      * Body: { "email": "...", "password": "..." }

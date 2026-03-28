@@ -51,6 +51,10 @@ class UsersRouter {
             $this->usersController->delete($req, $res);
         });
 
+        $this->router->post('/reset-password', [$authorMiddleware], function ($req = null, $res = null) {
+            $this->usersController->resetPassword($req, $res);
+        });
+
         $this->router->post('/login', function ($req = null, $res = null) {
             $this->usersController->login($req, $res);
         });

@@ -9,10 +9,15 @@
     <body class="w-full bg-[url('../../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs min-h-svh overflow-auto" id="index-content">
         <?php include __DIR__ . '/../../Components/NavigationBar.php';?>
         <main id="admin-panel" class="w-full p-4 md:p-6">
-            <section class="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6">
-                <aside class="bg-white/90 rounded-2xl p-4 h-fit sticky top-4 shadow-lg">
-                    <p class="text-sm font-black uppercase tracking-[0.25em] text-gray-500">Navigation</p>
-                    <nav class="pt-4 flex flex-col gap-2 text-sm font-bold">
+            <section class="w-full">
+                <aside id="admin-side-nav" class="fixed left-0 top-18 bottom-0 z-10 w-[320px] -translate-x-[70%] overflow-y-auto bg-transparent p-4 shadow-none transition-all duration-300 xl:translate-x-0 xl:bg-white/95 xl:shadow-2xl">
+                    <div class="relative flex items-center justify-between gap-3 pt-4">
+                        <p id="admin-side-nav-label" class="text-sm font-black uppercase tracking-[0.25em] text-gray-500 opacity-0 xl:opacity-100 transition-opacity duration-300">Navigation</p>
+                        <button id="admin-nav-toggle" type="button" class=" absolute right-0 ml-auto rounded-xl bg-gray-950 px-4 py-3 text-sm font-black text-white shadow-lg pointer-events-auto hover:bg-sky-700 xl:hidden">
+                            MENU
+                        </button>
+                    </div>
+                    <nav id="admin-side-nav-menu" class="pt-4 flex flex-col gap-2 text-sm font-bold opacity-0 pointer-events-none xl:opacity-100 xl:pointer-events-auto transition-opacity duration-300">
                         <button type="button" data-admin-target="admin-overview-section" class="admin-nav-btn bg-gray-950 text-white hover:bg-sky-700 rounded-lg px-4 py-3 text-left">Overview</button>
                         <button type="button" data-admin-target="admin-timetable-settings" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Timetable Settings</button>
                         <button type="button" data-admin-target="admin-manage-timetable" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Manage Timetable</button>
@@ -23,8 +28,8 @@
                     </nav>
                 </aside>
 
-                <div class="flex flex-col gap-6">
-                    <section id="admin-overview-section" data-admin-section class="bg-white/92 rounded-2xl p-5 shadow-lg">
+                <div class="flex flex-col gap-6 xl:ml-[344px]">
+                    <section id="admin-overview-section" data-admin-section class="bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <div class="w-full rounded-2xl bg-gray-950/90 text-white p-6 shadow-xl mb-6">
                             <p class="text-sm uppercase tracking-[0.3em] text-sky-300">Admin Workspace</p>
                             <h1 class="text-3xl md:text-5xl font-black pt-2">Laboratory Scheduling Control Panel</h1>
@@ -38,7 +43,7 @@
                         <div id="admin-stats" class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-5"></div>
                     </section>
 
-                    <section id="admin-timetable-settings" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg xl:h-[calc(100svh-3rem)] xl:overflow-y-auto">
+                    <section id="admin-timetable-settings" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <div class="flex items-center justify-between gap-4">
                             <div>
                                 <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Timetable</p>
@@ -84,7 +89,7 @@
                         </div>
                     </section>
 
-                    <section id="admin-manage-timetable" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg">
+                    <section id="admin-manage-timetable" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Timetable Records</p>
@@ -96,14 +101,14 @@
                         <div id="admin-manage-timetable-list" class="pt-5 overflow-x-auto"></div>
                     </section>
 
-                    <section id="admin-requests" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg">
+                    <section id="admin-requests" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Lecturer Requests</p>
                         <h2 class="text-2xl font-black">Incoming Lecturer Requests</h2>
                         <p class="pt-2 text-sm text-gray-600">Review each request, confirm or cancel it, or remove it if needed.</p>
                         <div id="admin-requests-list" class="pt-5 overflow-x-auto"></div>
                     </section>
 
-                    <section id="admin-news" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg">
+                    <section id="admin-news" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">News</p>
@@ -115,7 +120,7 @@
                         <div id="admin-news-list" class="pt-5 overflow-x-auto"></div>
                     </section>
 
-                    <section id="admin-subjects" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg">
+                    <section id="admin-subjects" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Subjects</p>
@@ -127,7 +132,7 @@
                         <div id="admin-subjects-list" class="pt-5 overflow-x-auto"></div>
                     </section>
 
-                    <section id="admin-users" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg">
+                    <section id="admin-users" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
                         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Users</p>
@@ -323,7 +328,10 @@
                 <input type="text" id="admin-user-nic" name="nic" placeholder="NIC" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
                 <input type="email" id="admin-user-email" name="email" placeholder="Email" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
                 <input type="text" id="admin-user-mobile" name="mobile_number" placeholder="Mobile number" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
-                <input type="password" id="admin-user-password" name="password" placeholder="Password (leave blank to keep current on update)" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
+                <div id="admin-user-password-fields" class="contents">
+                    <input type="password" id="admin-user-password" name="password" placeholder="Password" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
+                    <input type="password" id="admin-user-confirm-password" name="confirm_password" placeholder="Confirm password" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
+                </div>
                 <div class="md:col-span-2 flex gap-3 justify-end">
                     <button id="admin-user-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
                     <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Save User</button>

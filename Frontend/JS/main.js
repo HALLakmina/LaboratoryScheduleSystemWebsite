@@ -48,7 +48,7 @@
 import { getTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getLabs, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
 import { sendLecturerRequest, getLecturerRequests, updateLecturerRequest, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
-import { getUsers, createUser, updateUser, deleteUser, login as loginApi, logout as logoutApi } from '../API/userApi.js';
+import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, login as loginApi, logout as logoutApi } from '../API/userApi.js';
 
 /**
  * Populates subject code select elements (filter_by_subject, subject_code) from API
@@ -504,6 +504,72 @@ const initNewsPage = async () => {
     }
 };
 
+const initAdminSideNav = () => {
+    const adminSideNav = document.getElementById('admin-side-nav');
+    const adminNavToggle = document.getElementById('admin-nav-toggle');
+    const adminSideNavLabel = document.getElementById('admin-side-nav-label');
+    const adminSideNavMenu = document.getElementById('admin-side-nav-menu');
+
+    if (!adminSideNav || !adminNavToggle || !adminSideNavLabel || !adminSideNavMenu) {
+        return;
+    }
+
+    const syncAdminNavToggle = (isOpen) => {
+        adminNavToggle.textContent = isOpen ? 'CLOSE' : 'MENU';
+        adminNavToggle.classList.toggle('bg-red-600', isOpen);
+        adminNavToggle.classList.toggle('hover:bg-red-700', isOpen);
+        adminNavToggle.classList.toggle('bg-gray-950', !isOpen);
+        adminNavToggle.classList.toggle('hover:bg-sky-700', !isOpen);
+        adminSideNav.classList.toggle('-translate-x-[70%]', !isOpen);
+        adminSideNav.classList.toggle('bg-transparent', !isOpen);
+        adminSideNav.classList.toggle('shadow-none', !isOpen);
+        adminSideNav.classList.toggle('bg-white/95', isOpen);
+        adminSideNav.classList.toggle('shadow-2xl', isOpen);
+        adminSideNavLabel.classList.toggle('opacity-0', !isOpen);
+        adminSideNavMenu.classList.toggle('opacity-0', !isOpen);
+        adminSideNavMenu.classList.toggle('pointer-events-none', !isOpen);
+        adminSideNavMenu.classList.toggle('pointer-events-auto', isOpen);
+    };
+
+    const isAdminNavOpen = () => !adminSideNav.classList.contains('-translate-x-[70%]');
+
+    const openAdminNav = () => {
+        syncAdminNavToggle(true);
+    };
+
+    const closeAdminNav = () => {
+        syncAdminNavToggle(false);
+    };
+
+    adminNavToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (isAdminNavOpen()) {
+            closeAdminNav();
+            return;
+        }
+
+        openAdminNav();
+    });
+
+    document.addEventListener('admin-nav-close', closeAdminNav);
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1280) {
+            adminSideNav.classList.remove('-translate-x-[70%]', 'bg-white/20', 'shadow-none');
+            adminSideNav.classList.add('bg-white/95', 'shadow-2xl');
+            adminSideNavLabel.classList.remove('opacity-0');
+            adminSideNavMenu.classList.remove('opacity-0', 'pointer-events-none');
+            adminSideNavMenu.classList.add('pointer-events-auto');
+            return;
+        }
+
+        if (!isAdminNavOpen()) {
+            syncAdminNavToggle(false);
+        }
+    });
+
+    syncAdminNavToggle(false);
+};
+
 const initAdminPanel = async () => {
     const adminPanel = document.getElementById('admin-panel');
     if (!adminPanel) return;
@@ -554,7 +620,9 @@ const initAdminPanel = async () => {
     const userNicInput = document.getElementById('admin-user-nic');
     const userEmailInput = document.getElementById('admin-user-email');
     const userMobileInput = document.getElementById('admin-user-mobile');
+    const userPasswordFields = document.getElementById('admin-user-password-fields');
     const userPasswordInput = document.getElementById('admin-user-password');
+    const userConfirmPasswordInput = document.getElementById('admin-user-confirm-password');
     const subjectCreateButton = document.getElementById('admin-subject-create-btn');
     const subjectFormModal = document.getElementById('admin-subject-form-modal');
     const subjectForm = document.getElementById('admin-subject-form');
@@ -608,7 +676,7 @@ const initAdminPanel = async () => {
     const adminNavButtons = Array.from(document.querySelectorAll('.admin-nav-btn'));
     const adminSections = Array.from(document.querySelectorAll('[data-admin-section]'));
 
-    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
+    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
         return;
     }
 
@@ -718,6 +786,7 @@ const initAdminPanel = async () => {
         button.addEventListener('click', () => {
             const targetSectionId = button.getAttribute('data-admin-target') || 'admin-overview-section';
             showAdminSection(targetSectionId);
+            if (window.innerWidth < 1280) document.dispatchEvent(new CustomEvent('admin-nav-close'));
         });
     });
 
@@ -858,6 +927,11 @@ const initAdminPanel = async () => {
         userForm.reset();
         userIdInput.value = '';
         userRoleSelect.value = '';
+        userPasswordInput.value = '';
+        userConfirmPasswordInput.value = '';
+        userPasswordFields.classList.remove('hidden');
+        userPasswordInput.required = true;
+        userConfirmPasswordInput.required = true;
     };
 
     const openUserForm = (record = null) => {
@@ -874,6 +948,9 @@ const initAdminPanel = async () => {
             userNicInput.value = record.nic || '';
             userEmailInput.value = record.email || '';
             userMobileInput.value = record.mobile_number || '';
+            userPasswordFields.classList.add('hidden');
+            userPasswordInput.required = false;
+            userConfirmPasswordInput.required = false;
         } else {
             userFormTitle.textContent = 'New User';
         }
@@ -1271,6 +1348,7 @@ const initAdminPanel = async () => {
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" data-user-action="update" data-user-id="${escapeHtml(user.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-user-action="reset-password" data-user-id="${escapeHtml(user.id)}" class="bg-amber-500 text-white px-3 py-2 rounded-lg font-black hover:bg-amber-600">Reset Password</button>
                                     <button type="button" data-user-action="delete" data-user-id="${escapeHtml(user.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
                                 </div>
                             </td>
@@ -1768,6 +1846,22 @@ const initAdminPanel = async () => {
         e.preventDefault();
 
         const auditValue = getAuditValue();
+        const isUpdateMode = Boolean(userIdInput.value);
+        const passwordValue = userPasswordInput.value || '';
+        const confirmPasswordValue = userConfirmPasswordInput.value || '';
+
+        if (!isUpdateMode) {
+            if (!passwordValue) {
+                window.alert('Password is required for a new user.');
+                return;
+            }
+
+            if (passwordValue !== confirmPasswordValue) {
+                window.alert('Password and confirm password must match.');
+                return;
+            }
+        }
+
         const userPayload = {
             id: userIdInput.value || '',
             initials: userInitialsInput.value.trim(),
@@ -1778,7 +1872,6 @@ const initAdminPanel = async () => {
             nic: userNicInput.value.trim(),
             email: userEmailInput.value.trim(),
             mobile_number: userMobileInput.value.trim(),
-            password: userPasswordInput.value || '',
             role: userRoleSelect.value || '',
             created_by: auditValue,
             updated_by: auditValue,
@@ -1787,7 +1880,10 @@ const initAdminPanel = async () => {
         try {
             const result = userPayload.id
                 ? await updateUser(userPayload)
-                : await createUser(userPayload);
+                : await createUser({
+                    ...userPayload,
+                    password: passwordValue,
+                });
             if (result.status !== '200') {
                 const validationErrors = Array.isArray(result.errors) ? result.errors.join('\n') : '';
                 window.alert(validationErrors || result.message || 'Failed to save user.');
@@ -1814,6 +1910,50 @@ const initAdminPanel = async () => {
 
         if (userAction === 'update') {
             openUserForm(selectedUser);
+            return;
+        }
+
+        if (userAction === 'reset-password') {
+            const currentPassword = window.prompt('Enter your current login password to authorize this reset:');
+            if (currentPassword === null) return;
+
+            const newPassword = window.prompt(`Enter a new password for ${selectedUser.email || selectedUser.first_name || 'this user'}:`);
+            if (newPassword === null) return;
+
+            const confirmNewPassword = window.prompt('Confirm the new password:');
+            if (confirmNewPassword === null) return;
+
+            if (!newPassword.trim()) {
+                window.alert('New password is required.');
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                window.alert('New password and confirm password must match.');
+                return;
+            }
+
+            try {
+                const result = await resetUserPassword({
+                    target_user_id: selectedUser.id,
+                    actor_user_id: currentUser.id,
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                    updated_by: getAuditValue(),
+                });
+
+                if (result.status !== '200') {
+                    window.alert(result.message || 'Failed to reset password.');
+                    return;
+                }
+
+                window.alert(result.message || 'Password reset successfully.');
+                await reloadAdminPanel();
+                showAdminSection('admin-users');
+            } catch (error) {
+                window.alert(error.message || 'Failed to reset password.');
+            }
+
             return;
         }
 
@@ -2153,6 +2293,7 @@ const initLoginForm = () => {
 initAuthNavButton();
 initLoginForm();
 initNewsPage();
+initAdminSideNav();
 initAdminPanel();
 
 if (document.getElementById('timetable-body')) {
