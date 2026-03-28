@@ -149,6 +149,10 @@ class LecturerRequestsController {
             return 'action must be requested, confirmed, or canceled.';
         }
 
+        if (($payload['action'] ?? '') === 'confirmed' && trim((string)($payload['lab_id'] ?? '')) === '') {
+            return 'lab_id is required when confirming a lecturer request.';
+        }
+
         return null;
     }
 }

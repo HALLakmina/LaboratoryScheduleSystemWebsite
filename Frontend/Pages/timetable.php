@@ -118,6 +118,16 @@
                         </select>
                     </div>
                     <div class="flex flex-col items-left justify-center">
+                        <label for="lecture_group_select" class="mb-2 text-lg font-bold">Group</label>
+                        <select
+                            name="lecture_group_select"
+                            id="lecture_group_select"
+                            class="bg-gray-200 w-full p-2 mb-2 rounded-sm"
+                        >
+                            <option value="">--</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col items-left justify-center">
                         <label for="request_date" class="mb-2 text-lg font-bold">Date</label>
                         <input
                             type="date"

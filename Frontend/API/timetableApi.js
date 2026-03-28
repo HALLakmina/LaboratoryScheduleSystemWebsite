@@ -96,6 +96,60 @@ const getTimetableSettings = async () => {
     }
 };
 
+const createYear = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/years`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating year:', error);
+        throw error;
+    }
+};
+
+const updateYear = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/years/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating year:', error);
+        throw error;
+    }
+};
+
+const deleteYear = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/years/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting year:', error);
+        throw error;
+    }
+};
+
 const getLectureGroups = async () => {
     try {
         const response = await fetch(`${BASE_URL}/lectureGroups`, {
@@ -400,6 +454,9 @@ export {
     getTimetableData,
     getSubjectCodes,
     getYears,
+    createYear,
+    updateYear,
+    deleteYear,
     getTimeSlots,
     getColumnHeadings,
     getTimetableSettings,

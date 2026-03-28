@@ -23,6 +23,7 @@
                         <button type="button" data-admin-target="admin-manage-timetable" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Manage Timetable</button>
                         <button type="button" data-admin-target="admin-requests" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Incoming Requests</button>
                         <button type="button" data-admin-target="admin-news" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">News</button>
+                        <button type="button" data-admin-target="admin-years" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Years</button>
                         <button type="button" data-admin-target="admin-subjects" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Subjects</button>
                         <button type="button" data-admin-target="admin-users" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Users</button>
                     </nav>
@@ -118,6 +119,18 @@
                             <button id="admin-news-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-xl hover:bg-sky-700">New News</button>
                         </div>
                         <div id="admin-news-list" class="pt-5 overflow-x-auto"></div>
+                    </section>
+
+                    <section id="admin-years" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Years</p>
+                                <h2 class="text-2xl font-black">Manage Years</h2>
+                                <p class="pt-2 text-sm text-gray-600">Create, update, and delete academic year records.</p>
+                            </div>
+                            <button id="admin-year-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-xl hover:bg-sky-700">New Year</button>
+                        </div>
+                        <div id="admin-years-list" class="pt-5 overflow-x-auto"></div>
                     </section>
 
                     <section id="admin-subjects" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
@@ -275,6 +288,42 @@
             </form>
         </section>
 
+        <section id="admin-request-confirm-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-request-confirm-form" class="w-full max-w-4xl bg-white rounded-2xl p-5 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-4 my-8 mx-auto">
+                <div class="md:col-span-2 flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Lecturer Request</p>
+                        <h3 class="text-2xl font-black">Confirm Lecturer Request</h3>
+                    </div>
+                    <button type="button" id="admin-request-confirm-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <input type="hidden" id="admin-request-confirm-id" name="id">
+                <input type="hidden" id="admin-request-confirm-lecturer-id" name="lecturer_id">
+                <input type="hidden" id="admin-request-confirm-subject-id" name="subject_id">
+                <input type="hidden" id="admin-request-confirm-year-id" name="year_id">
+                <input type="hidden" id="admin-request-confirm-time-slot-id" name="timetable_time_slot_id">
+                <input type="hidden" id="admin-request-confirm-column-id" name="timetable_column_heading_id">
+                <input type="hidden" id="admin-request-confirm-group-id" name="lecture_group_id">
+
+                <input type="text" id="admin-request-confirm-time-slot" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Time Slot" readonly>
+                <input type="text" id="admin-request-confirm-day" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Column Heading Name" readonly>
+                <input type="text" id="admin-request-confirm-lecturer-name" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Lecturer Name" readonly>
+                <input type="text" id="admin-request-confirm-year" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Year" readonly>
+                <input type="text" id="admin-request-confirm-subject" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Subject" readonly>
+                <input type="text" id="admin-request-confirm-group" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Group" readonly>
+                <select id="admin-request-confirm-lab" name="lab_id" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
+                    <option value="">Select lab</option>
+                </select>
+                <input type="date" id="admin-request-confirm-date" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" readonly>
+                <textarea id="admin-request-confirm-description" class="md:col-span-2 min-h-[120px] rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Description" readonly></textarea>
+
+                <div class="md:col-span-2 flex gap-3 justify-end">
+                    <button id="admin-request-confirm-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="bg-green-600 text-white font-black px-5 py-3 rounded-xl hover:bg-green-700">Confirm Request</button>
+                </div>
+            </form>
+        </section>
+
         <section id="admin-subject-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
             <form id="admin-subject-form" class="w-full max-w-3xl bg-white rounded-2xl p-5 shadow-2xl grid grid-cols-1 md:grid-cols-3 gap-4 my-8 mx-auto">
                 <div class="md:col-span-3 flex items-start justify-between gap-4">
@@ -293,6 +342,23 @@
                 <div class="md:col-span-3 flex gap-3 justify-end">
                     <button id="admin-subject-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
                     <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Save Subject</button>
+                </div>
+            </form>
+        </section>
+        <section id="admin-year-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-year-form" class="w-full max-w-2xl bg-white rounded-2xl p-5 shadow-2xl grid grid-cols-1 gap-4 my-8 mx-auto">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Year</p>
+                        <h3 id="admin-year-form-title" class="text-2xl font-black">New Year</h3>
+                    </div>
+                    <button type="button" id="admin-year-form-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <input type="hidden" id="admin-year-id" name="id">
+                <input type="text" id="admin-year-name" name="year" placeholder="Year name" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
+                <div class="flex gap-3 justify-end">
+                    <button id="admin-year-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Save Year</button>
                 </div>
             </form>
         </section>

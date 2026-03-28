@@ -45,7 +45,7 @@
 // loadNavigationBar()
 // loadFooterBar()
 
-import { getTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getLabs, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
+import { getTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getLabs, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
 import { sendLecturerRequest, getLecturerRequests, updateLecturerRequest, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, login as loginApi, logout as logoutApi } from '../API/userApi.js';
@@ -181,19 +181,22 @@ const populateYearsSelects = async () => {
 
 const loadSchedulingReferenceData = async () => {
     try {
-        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse] = await Promise.all([
+        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse, lectureGroupsResponse] = await Promise.all([
             getTimeSlots(),
             getColumnHeadings(),
             getTimetableSettings(),
+            getLectureGroups(),
         ]);
 
         fullTimeSlotsData = timeSlotsResponse.status === '200' && timeSlotsResponse.data ? timeSlotsResponse.data : [];
         fullColumnHeadingsData = columnHeadingsResponse.status === '200' && columnHeadingsResponse.data ? columnHeadingsResponse.data : [];
         fullTimetableSettingsData = settingsResponse.status === '200' ? settingsResponse.data : null;
+        fullLectureGroupsData = lectureGroupsResponse.status === '200' && lectureGroupsResponse.data ? lectureGroupsResponse.data : [];
 
         renderTimetableHead();
         populateTimeSlotSelect();
         populateDaySelect();
+        populateLectureGroupSelect();
     } catch (error) {
         console.error('Error loading scheduling reference data:', error);
     }
@@ -237,12 +240,26 @@ const populateDaySelect = () => {
     });
 };
 
+const populateLectureGroupSelect = () => {
+    const lectureGroupSelect = document.getElementById('lecture_group_select');
+    if (!lectureGroupSelect) return;
+
+    lectureGroupSelect.innerHTML = `<option value="">--</option>`;
+    fullLectureGroupsData.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id || '';
+        option.textContent = item.group_name || '';
+        lectureGroupSelect.appendChild(option);
+    });
+};
+
 let fullTimetableData = [];
 let fullSubjectCodesData = [];
 let fullYearsData = [];
 let fullTimeSlotsData = [];
 let fullColumnHeadingsData = [];
 let fullTimetableSettingsData = null;
+let fullLectureGroupsData = [];
 
 const formatTimePart = (timeValue) => {
     if (!timeValue) return '';
@@ -587,6 +604,7 @@ const initAdminPanel = async () => {
     const timeSlotsContainer = document.getElementById('admin-time-slots');
     const requestsContainer = document.getElementById('admin-requests-list');
     const newsContainer = document.getElementById('admin-news-list');
+    const yearsContainer = document.getElementById('admin-years-list');
     const subjectsContainer = document.getElementById('admin-subjects-list');
     const usersContainer = document.getElementById('admin-users-list');
     const manageTimetableContainer = document.getElementById('admin-manage-timetable-list');
@@ -604,6 +622,34 @@ const initAdminPanel = async () => {
     const newsEndDateInput = document.getElementById('admin-news-end-date');
     const newsStartAtInput = document.getElementById('admin-news-start-at');
     const newsEndAtInput = document.getElementById('admin-news-end-at');
+    const requestConfirmModal = document.getElementById('admin-request-confirm-modal');
+    const requestConfirmForm = document.getElementById('admin-request-confirm-form');
+    const requestConfirmCloseButton = document.getElementById('admin-request-confirm-close');
+    const requestConfirmCancelButton = document.getElementById('admin-request-confirm-cancel');
+    const requestConfirmIdInput = document.getElementById('admin-request-confirm-id');
+    const requestConfirmLecturerIdInput = document.getElementById('admin-request-confirm-lecturer-id');
+    const requestConfirmSubjectIdInput = document.getElementById('admin-request-confirm-subject-id');
+    const requestConfirmYearIdInput = document.getElementById('admin-request-confirm-year-id');
+    const requestConfirmTimeSlotIdInput = document.getElementById('admin-request-confirm-time-slot-id');
+    const requestConfirmColumnIdInput = document.getElementById('admin-request-confirm-column-id');
+    const requestConfirmGroupIdInput = document.getElementById('admin-request-confirm-group-id');
+    const requestConfirmTimeSlotInput = document.getElementById('admin-request-confirm-time-slot');
+    const requestConfirmDayInput = document.getElementById('admin-request-confirm-day');
+    const requestConfirmLecturerNameInput = document.getElementById('admin-request-confirm-lecturer-name');
+    const requestConfirmYearInput = document.getElementById('admin-request-confirm-year');
+    const requestConfirmSubjectInput = document.getElementById('admin-request-confirm-subject');
+    const requestConfirmGroupInput = document.getElementById('admin-request-confirm-group');
+    const requestConfirmLabSelect = document.getElementById('admin-request-confirm-lab');
+    const requestConfirmDateInput = document.getElementById('admin-request-confirm-date');
+    const requestConfirmDescriptionInput = document.getElementById('admin-request-confirm-description');
+    const yearCreateButton = document.getElementById('admin-year-create-btn');
+    const yearFormModal = document.getElementById('admin-year-form-modal');
+    const yearForm = document.getElementById('admin-year-form');
+    const yearFormCloseButton = document.getElementById('admin-year-form-close');
+    const yearFormCancelButton = document.getElementById('admin-year-form-cancel');
+    const yearFormTitle = document.getElementById('admin-year-form-title');
+    const yearIdInput = document.getElementById('admin-year-id');
+    const yearNameInput = document.getElementById('admin-year-name');
     const userCreateButton = document.getElementById('admin-user-create-btn');
     const userFormModal = document.getElementById('admin-user-form-modal');
     const userForm = document.getElementById('admin-user-form');
@@ -676,7 +722,7 @@ const initAdminPanel = async () => {
     const adminNavButtons = Array.from(document.querySelectorAll('.admin-nav-btn'));
     const adminSections = Array.from(document.querySelectorAll('[data-admin-section]'));
 
-    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
+    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
         return;
     }
 
@@ -735,6 +781,8 @@ const initAdminPanel = async () => {
 
     const getOpenAdminModalCount = () => ([
         newsFormModal,
+        requestConfirmModal,
+        yearFormModal,
         userFormModal,
         subjectFormModal,
         settingsFormModal,
@@ -886,6 +934,76 @@ const initAdminPanel = async () => {
     const hideNewsForm = () => {
         hideAdminModal(newsFormModal);
         resetNewsForm();
+    };
+
+    const populateRequestConfirmLabOptions = () => {
+        requestConfirmLabSelect.innerHTML = `<option value="">Select lab</option>`;
+        adminState.labs.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id || '';
+            option.textContent = `${item.lab_name || ''}${item.lab_location ? ` - ${item.lab_location}` : ''}`;
+            requestConfirmLabSelect.appendChild(option);
+        });
+    };
+
+    const resetRequestConfirmForm = () => {
+        requestConfirmForm.reset();
+        requestConfirmIdInput.value = '';
+        requestConfirmLecturerIdInput.value = '';
+        requestConfirmSubjectIdInput.value = '';
+        requestConfirmYearIdInput.value = '';
+        requestConfirmTimeSlotIdInput.value = '';
+        requestConfirmColumnIdInput.value = '';
+        requestConfirmGroupIdInput.value = '';
+        requestConfirmLabSelect.value = '';
+    };
+
+    const openRequestConfirmForm = (record) => {
+        populateRequestConfirmLabOptions();
+        resetRequestConfirmForm();
+        requestConfirmIdInput.value = record.id || '';
+        requestConfirmLecturerIdInput.value = record.lecturer_id || '';
+        requestConfirmSubjectIdInput.value = record.subject_id || '';
+        requestConfirmYearIdInput.value = record.year_id || '';
+        requestConfirmTimeSlotIdInput.value = record.timetable_time_slot_id || '';
+        requestConfirmColumnIdInput.value = record.timetable_column_heading_id || '';
+        requestConfirmGroupIdInput.value = record.group_id || '';
+        requestConfirmTimeSlotInput.value = record.start_time && record.end_time ? formatTimeSlotRange(record) : '';
+        requestConfirmDayInput.value = record.column_heading || '';
+        requestConfirmLecturerNameInput.value = record.lecturer_name || '';
+        requestConfirmYearInput.value = record.year || '';
+        requestConfirmSubjectInput.value = record.subject || record.subject_id || '';
+        requestConfirmGroupInput.value = record.group_name || '';
+        requestConfirmDateInput.value = record.date || '';
+        requestConfirmDescriptionInput.value = record.lecturer_request || '';
+        showAdminModal(requestConfirmModal);
+    };
+
+    const hideRequestConfirmForm = () => {
+        hideAdminModal(requestConfirmModal);
+        resetRequestConfirmForm();
+    };
+
+    const resetYearForm = () => {
+        yearForm.reset();
+        yearIdInput.value = '';
+    };
+
+    const openYearForm = (record = null) => {
+        resetYearForm();
+        if (record) {
+            yearFormTitle.textContent = 'Update Year';
+            yearIdInput.value = record.id || '';
+            yearNameInput.value = record.year || '';
+        } else {
+            yearFormTitle.textContent = 'New Year';
+        }
+        showAdminModal(yearFormModal);
+    };
+
+    const hideYearForm = () => {
+        hideAdminModal(yearFormModal);
+        resetYearForm();
     };
 
     const populateSubjectYearOptions = () => {
@@ -1091,6 +1209,7 @@ const initAdminPanel = async () => {
             timetableRecords,
             lecturerRequests,
             newsItems,
+            years,
             subjects,
             users,
         } = adminState;
@@ -1297,6 +1416,30 @@ const initAdminPanel = async () => {
             </table>
         ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No news available.</div>`;
 
+        yearsContainer.innerHTML = years.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Year</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${years.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.year || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-year-action="update" data-year-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-year-action="delete" data-year-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No years available.</div>`;
+
         subjectsContainer.innerHTML = subjects.length ? `
             <table class="w-full text-sm text-left">
                 <thead class="bg-gray-100 uppercase text-gray-600">
@@ -1426,6 +1569,11 @@ const initAdminPanel = async () => {
     newsCreateButton.addEventListener('click', openNewsForm);
     newsFormCancelButton.addEventListener('click', hideNewsForm);
     newsFormCloseButton.addEventListener('click', hideNewsForm);
+    yearCreateButton.addEventListener('click', openYearForm);
+    yearFormCancelButton.addEventListener('click', hideYearForm);
+    yearFormCloseButton.addEventListener('click', hideYearForm);
+    requestConfirmCancelButton.addEventListener('click', hideRequestConfirmForm);
+    requestConfirmCloseButton.addEventListener('click', hideRequestConfirmForm);
     userCreateButton.addEventListener('click', openUserForm);
     userFormCancelButton.addEventListener('click', hideUserForm);
     userFormCloseButton.addEventListener('click', hideUserForm);
@@ -1704,6 +1852,9 @@ const initAdminPanel = async () => {
             if (requestAction === 'delete') {
                 const result = await deleteLecturerRequest(requestId);
                 window.alert(result.message || 'Lecturer request deleted successfully.');
+            } else if (requestAction === 'confirmed') {
+                openRequestConfirmForm(selectedRequest);
+                return;
             } else {
                 const result = await updateLecturerRequest({
                     id: selectedRequest.id,
@@ -1715,6 +1866,8 @@ const initAdminPanel = async () => {
                     date: selectedRequest.date,
                     action: requestAction,
                     lecturer_request: selectedRequest.lecturer_request,
+                    created_by: selectedRequest.lecturer_name || getAuditValue(),
+                    updated_by: getAuditValue(),
                 });
                 window.alert(result.message || 'Lecturer request updated successfully.');
             }
@@ -1722,6 +1875,45 @@ const initAdminPanel = async () => {
             await reloadAdminPanel();
         } catch (error) {
             window.alert(error.message || 'Failed to update lecturer request.');
+        }
+    });
+
+    requestConfirmForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!requestConfirmLabSelect.value) {
+            window.alert('Please select a lab before confirming this lecturer request.');
+            return;
+        }
+
+        try {
+            const result = await updateLecturerRequest({
+                id: requestConfirmIdInput.value || '',
+                lecturer_id: requestConfirmLecturerIdInput.value || '',
+                subject_id: requestConfirmSubjectIdInput.value || '',
+                year_id: requestConfirmYearIdInput.value || '',
+                timetable_time_slot_id: requestConfirmTimeSlotIdInput.value || '',
+                timetable_column_heading_id: requestConfirmColumnIdInput.value || '',
+                lecture_group_id: requestConfirmGroupIdInput.value || '',
+                lab_id: requestConfirmLabSelect.value || '',
+                date: requestConfirmDateInput.value || '',
+                action: 'confirmed',
+                lecturer_request: requestConfirmDescriptionInput.value || '',
+                created_by: requestConfirmLecturerNameInput.value || getAuditValue(),
+                updated_by: getAuditValue(),
+            });
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to confirm lecturer request.');
+                return;
+            }
+
+            window.alert(result.message || 'Lecturer request confirmed successfully.');
+            hideRequestConfirmForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-requests');
+        } catch (error) {
+            window.alert(error.message || 'Failed to confirm lecturer request.');
         }
     });
 
@@ -1781,6 +1973,62 @@ const initAdminPanel = async () => {
             showAdminSection('admin-news');
         } catch (error) {
             window.alert(error.message || 'Failed to delete news.');
+        }
+    });
+
+    yearForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: yearIdInput.value || '',
+            year: yearNameInput.value.trim(),
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateYear(payload)
+                : await createYear(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save year.');
+                return;
+            }
+
+            window.alert(result.message || 'Year saved successfully.');
+            hideYearForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-years');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save year.');
+        }
+    });
+
+    yearsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-year-action]');
+        if (!actionButton) return;
+
+        const yearId = actionButton.getAttribute('data-year-id') || '';
+        const yearAction = actionButton.getAttribute('data-year-action') || '';
+        const selectedYear = adminState.years.find(item => String(item.id) === String(yearId));
+        if (!selectedYear) return;
+
+        if (yearAction === 'update') {
+            openYearForm(selectedYear);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this year record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteYear(yearId);
+            window.alert(result.message || 'Year deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-years');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete year.');
         }
     });
 
@@ -1991,6 +2239,7 @@ const initSchedulingForm = () => {
     const subjectCodeSelect = document.getElementById('subject_code');
     const timeSlotSelect = document.getElementById('time_slot');
     const daySelect = document.getElementById('day');
+    const lectureGroupSelect = document.getElementById('lecture_group_select');
     const requestDateInput = document.getElementById('request_date');
     const requestTextarea = document.getElementById('request');
     const closeBtn = document.getElementById('scheduling-form-close');
@@ -1999,7 +2248,7 @@ const initSchedulingForm = () => {
     const lecturerRequestFormBtn = document.getElementById('lecturer-request-form');
     const tableBody = document.getElementById('timetable-body');
 
-    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn) return;
+    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn) return;
 
     let selectedCellId = '';
 
@@ -2070,6 +2319,7 @@ const initSchedulingForm = () => {
         cellIdInput.value = '';
         timeSlotSelect.value = '';
         daySelect.value = '';
+        lectureGroupSelect.value = '';
         requestDateInput.value = getTodayDateValue();
     };
 

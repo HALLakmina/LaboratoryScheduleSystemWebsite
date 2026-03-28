@@ -106,6 +106,59 @@ class TimetableService {
         return $this->fetchAllRows($query);
     }
 
+    public function createYear($payload) {
+        $DB_CON = new DbConnection();
+        $query = "INSERT INTO years
+                    (year, created_by, updated_by)
+                    VALUES
+                    (:year, :created_by, :updated_by)";
+        $result = $DB_CON->execute($query, [
+            'year' => $payload['year'],
+            'created_by' => $payload['created_by'],
+            'updated_by' => $payload['updated_by'],
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Year created successfully';
+    }
+
+    public function updateYear($payload) {
+        $DB_CON = new DbConnection();
+        $query = "UPDATE years
+                    SET
+                        year = :year,
+                        updated_by = :updated_by
+                    WHERE id = :id";
+        $result = $DB_CON->execute($query, [
+            'id' => $payload['id'],
+            'year' => $payload['year'],
+            'updated_by' => $payload['updated_by'],
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Year updated successfully';
+    }
+
+    public function deleteYear($id) {
+        $DB_CON = new DbConnection();
+        $query = "DELETE FROM years WHERE id = :id";
+        $result = $DB_CON->execute($query, ['id' => $id]);
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Year deleted successfully';
+    }
+
     public function getTimeSlots() {
         $query = "SELECT id, start_time, end_time FROM timetable_time_slots ORDER BY start_time";
         return $this->fetchAllRows($query);

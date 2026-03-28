@@ -147,6 +147,18 @@ class TimetableController {
         return null;
     }
 
+    private function validateYearPayload($payload, $requireId = false) {
+        if ($requireId && (!isset($payload['id']) || trim((string)$payload['id']) === '')) {
+            return 'id is required.';
+        }
+
+        if (!isset($payload['year']) || trim((string)$payload['year']) === '') {
+            return 'year is required.';
+        }
+
+        return null;
+    }
+
     public function getAllTimeSchedules($req = null, $res = null) {
         try {
             $respond = $this->timetableService->getAllTimeSchedules();
@@ -179,6 +191,55 @@ class TimetableController {
         try {
             $respond = $this->timetableService->getYears();
             $this->jsonResponse("200", 'Years fetched successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function createYear($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $payload['created_by'] = $this->normalizeNullableValue($payload['created_by'] ?? null);
+            $payload['updated_by'] = $this->normalizeNullableValue($payload['updated_by'] ?? null);
+
+            $validationMessage = $this->validateYearPayload($payload);
+            if ($validationMessage !== null) {
+                $this->jsonResponse("400", $validationMessage);
+            }
+
+            $respond = $this->timetableService->createYear($payload);
+            $this->jsonResponse("200", 'Year created successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function updateYear($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $payload['updated_by'] = $this->normalizeNullableValue($payload['updated_by'] ?? null);
+
+            $validationMessage = $this->validateYearPayload($payload, true);
+            if ($validationMessage !== null) {
+                $this->jsonResponse("400", $validationMessage);
+            }
+
+            $respond = $this->timetableService->updateYear($payload);
+            $this->jsonResponse("200", 'Year updated successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function deleteYear($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            if (!isset($payload['id']) || trim((string)$payload['id']) === '') {
+                $this->jsonResponse("400", 'id is required.');
+            }
+
+            $respond = $this->timetableService->deleteYear($payload['id']);
+            $this->jsonResponse("200", 'Year deleted successfully', $respond);
         } catch (Exception $e) {
             $this->jsonResponse("500", $e->getMessage());
         }

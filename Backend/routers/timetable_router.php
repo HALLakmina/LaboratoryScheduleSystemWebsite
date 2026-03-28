@@ -19,6 +19,9 @@
             $this->router->get('/getByYear',function ($req, $res){$this->timetableController->getTimeSchedulesByYear($req, $res);});
             $this->router->get('/subjectCodes',function($req, $res){ $this->timetableController->getSubjectCodes($req, $res);});
             $this->router->get('/years',function($req, $res){ $this->timetableController->getYears($req, $res);});
+            $this->router->post('/years',function($req, $res){ $this->timetableController->createYear($req, $res);});
+            $this->router->post('/years/update',function($req, $res){ $this->timetableController->updateYear($req, $res);});
+            $this->router->post('/years/delete',function($req, $res){ $this->timetableController->deleteYear($req, $res);});
             $this->router->get('/timeSlots',function($req, $res){ $this->timetableController->getTimeSlots($req, $res);});
             $this->router->get('/columnHeadings',function($req, $res){ $this->timetableController->getColumnHeadings($req, $res);});
             $this->router->get('/settings',function($req, $res){ $this->timetableController->getTimetableSettings($req, $res);});
