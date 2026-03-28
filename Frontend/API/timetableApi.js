@@ -96,11 +96,328 @@ const getTimetableSettings = async () => {
     }
 };
 
+const getLectureGroups = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/lectureGroups`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching lecture groups:', error);
+        throw error;
+    }
+};
+
+const getLabs = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/labs`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching labs:', error);
+        throw error;
+    }
+};
+
+const getTimetableCells = async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/cells`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching timetable cells:', error);
+        throw error;
+    }
+};
+
+const createTimetableRecord = async (payload) => {
+    try {
+        const response = await fetch(BASE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating timetable record:', error);
+        throw error;
+    }
+};
+
+const updateTimetableRecord = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating timetable record:', error);
+        throw error;
+    }
+};
+
+const deleteTimetableRecord = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting timetable record:', error);
+        throw error;
+    }
+};
+
+const updateTimetableSettings = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/settings/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating timetable settings:', error);
+        throw error;
+    }
+};
+
+const resetTimetableSettings = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/settings/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error resetting timetable settings:', error);
+        throw error;
+    }
+};
+
+const createColumnHeading = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/columnHeadings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating column heading:', error);
+        throw error;
+    }
+};
+
+const updateColumnHeading = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/columnHeadings/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating column heading:', error);
+        throw error;
+    }
+};
+
+const deleteColumnHeading = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/columnHeadings/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting column heading:', error);
+        throw error;
+    }
+};
+
+const createTimeSlot = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/timeSlots`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating time slot:', error);
+        throw error;
+    }
+};
+
+const updateTimeSlot = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/timeSlots/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating time slot:', error);
+        throw error;
+    }
+};
+
+const deleteTimeSlot = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/timeSlots/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting time slot:', error);
+        throw error;
+    }
+};
+
+const createSubject = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/subjects`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating subject:', error);
+        throw error;
+    }
+};
+
+const updateSubject = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/subjects/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating subject:', error);
+        throw error;
+    }
+};
+
+const deleteSubject = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/subjects/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting subject:', error);
+        throw error;
+    }
+};
+
 export {
     getTimetableData,
     getSubjectCodes,
     getYears,
     getTimeSlots,
     getColumnHeadings,
-    getTimetableSettings
+    getTimetableSettings,
+    getLectureGroups,
+    getLabs,
+    getTimetableCells,
+    createTimetableRecord,
+    updateTimetableRecord,
+    deleteTimetableRecord,
+    updateTimetableSettings,
+    resetTimetableSettings,
+    createColumnHeading,
+    updateColumnHeading,
+    deleteColumnHeading,
+    createTimeSlot,
+    updateTimeSlot,
+    deleteTimeSlot,
+    createSubject,
+    updateSubject,
+    deleteSubject,
 }

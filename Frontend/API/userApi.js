@@ -42,6 +42,42 @@ const createUser = async (payload) => {
     }
 };
 
+const updateUser = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating user:', error);
+        throw error;
+    }
+};
+
+const deleteUser = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        throw error;
+    }
+};
+
 /**
  * User login - POST /api/v1/user/login
  * @param {string} email - User email
@@ -88,6 +124,8 @@ const logout = async () => {
 export {
     getUsers,
     createUser,
+    updateUser,
+    deleteUser,
     login,
     logout,
 };

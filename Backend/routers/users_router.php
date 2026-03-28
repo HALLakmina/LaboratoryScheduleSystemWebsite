@@ -43,6 +43,14 @@ class UsersRouter {
             $this->usersController->create($req, $res);
         });
 
+        $this->router->post('/update', [$authorMiddleware], function ($req = null, $res = null) {
+            $this->usersController->update($req, $res);
+        });
+
+        $this->router->post('/delete', [$authorMiddleware], function ($req = null, $res = null) {
+            $this->usersController->delete($req, $res);
+        });
+
         $this->router->post('/login', function ($req = null, $res = null) {
             $this->usersController->login($req, $res);
         });

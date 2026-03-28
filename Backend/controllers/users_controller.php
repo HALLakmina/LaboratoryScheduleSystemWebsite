@@ -57,6 +57,98 @@ class UsersController {
         }
     }
 
+    private function validateUserPayload($payload, $requirePassword = true) {
+        $requiredFields = [
+            'initials',
+            'initials_stand_for',
+            'first_name',
+            'last_name',
+            'nic',
+            'email',
+            'mobile_number',
+            'role',
+        ];
+
+        foreach ($requiredFields as $field) {
+            if (trim((string)($payload[$field] ?? '')) === '') {
+                return $field . ' is required.';
+            }
+        }
+
+        if ($requirePassword && trim((string)($payload['password'] ?? '')) === '') {
+            return 'password is required.';
+        }
+
+        if (!in_array($payload['role'] ?? '', ['admin', 'lecturer'], true)) {
+            return 'role must be admin or lecturer.';
+        }
+
+        return null;
+    }
+
+    public function update($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            if (trim((string)($payload['id'] ?? '')) === '') {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => 'id is required.'
+                ]);
+                exit;
+            }
+
+            $validationMessage = $this->validateUserPayload($payload, false);
+            if ($validationMessage !== null) {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => $validationMessage,
+                ]);
+                exit;
+            }
+
+            $this->usersService->update($payload);
+            echo json_encode([
+                'status' => '200',
+                'data' => 'User updated',
+                'message' => 'User updated successfully'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => '500',
+                'message' => $e->getMessage()
+            ]);
+            exit;
+        }
+    }
+
+    public function delete($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            if (trim((string)($payload['id'] ?? '')) === '') {
+                echo json_encode([
+                    'status' => '400',
+                    'message' => 'id is required.'
+                ]);
+                exit;
+            }
+
+            $this->usersService->delete($payload['id']);
+            echo json_encode([
+                'status' => '200',
+                'data' => 'User deleted',
+                'message' => 'User deleted successfully'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => '500',
+                'message' => $e->getMessage()
+            ]);
+            exit;
+        }
+    }
+
     /**
      * User login - POST /api/v1/user/login
      * Body: { "email": "...", "password": "..." }

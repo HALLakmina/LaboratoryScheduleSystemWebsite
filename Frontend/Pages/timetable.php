@@ -52,8 +52,8 @@
                     </tbody>
                 </table>
             </section>
-            <section id="scheduling-form" class="hidden absolute top-0 bottom-0 left-0 right-0 bg-gray-950/50 flex flex-col justify-center items-center z-10">
-                <form class=" max-w-xs md:max-w-md w-full p-2 bg-white rounded-lg flex flex-col items-left justify-center">
+            <section id="scheduling-form" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+                <form class=" max-w-xs md:max-w-md w-full p-2 bg-white rounded-lg flex flex-col items-left justify-center my-8 mx-auto">
                     <input type="hidden" name="cell_id" id="cell_id" value="" />
                     <button type="button" id="scheduling-form-close" class="self-end bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
                     <div class="flex flex-col items-left justify-center">
@@ -139,8 +139,8 @@
                     <button class="bg-blue-500 p-2 rounded-lg w-40 font-bold text-white active:scale-95 self-center">SUBMIT</button>
                 </form>
             </section>
-            <section id="scheduling-form-view" class="hidden absolute top-0 bottom-0 left-0 right-0 bg-gray-950/50 flex flex-col justify-center items-center">
-                <div class=" max-w-xs md:max-w-md w-full p-2 bg-white rounded-lg flex flex-col items-left justify-center">
+            <section id="scheduling-form-view" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+                <div class=" max-w-xs md:max-w-md w-full p-2 bg-white rounded-lg flex flex-col items-left justify-center my-8 mx-auto">
                     <button type="button" id="scheduling-form-view-close" class="self-end bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95">X</button>
                     <div id="lecture-action-badge" class="my-4 p-2 bg-gray-700 text-white text-center">
                         <p id="lecture-action" class="font-bold">SCHEDULING</p>
