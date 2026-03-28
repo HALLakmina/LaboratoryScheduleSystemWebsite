@@ -179,9 +179,118 @@ class TimetableService {
         return $this->fetchAllRows($query);
     }
 
+    public function createLectureGroup($payload) {
+        $DB_CON = new DbConnection();
+        $query = "INSERT INTO lecture_groups
+                    (group_name, created_by, updated_by)
+                    VALUES
+                    (:group_name, :created_by, :updated_by)";
+        $result = $DB_CON->execute($query, [
+            'group_name' => $payload['group_name'],
+            'created_by' => $payload['created_by'],
+            'updated_by' => $payload['updated_by'],
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Group created successfully';
+    }
+
+    public function updateLectureGroup($payload) {
+        $DB_CON = new DbConnection();
+        $query = "UPDATE lecture_groups
+                    SET
+                        group_name = :group_name,
+                        updated_by = :updated_by
+                    WHERE id = :id";
+        $result = $DB_CON->execute($query, [
+            'id' => $payload['id'],
+            'group_name' => $payload['group_name'],
+            'updated_by' => $payload['updated_by'],
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Group updated successfully';
+    }
+
+    public function deleteLectureGroup($id) {
+        $DB_CON = new DbConnection();
+        $query = "DELETE FROM lecture_groups WHERE id = :id";
+        $result = $DB_CON->execute($query, ['id' => $id]);
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Group deleted successfully';
+    }
+
     public function getLabs() {
         $query = "SELECT id, lab_name, lab_location FROM labs ORDER BY lab_name";
         return $this->fetchAllRows($query);
+    }
+
+    public function createLab($payload) {
+        $DB_CON = new DbConnection();
+        $query = "INSERT INTO labs
+                    (lab_name, lab_location, created_by, updated_by)
+                    VALUES
+                    (:lab_name, :lab_location, :created_by, :updated_by)";
+        $result = $DB_CON->execute($query, [
+            'lab_name' => $payload['lab_name'],
+            'lab_location' => $payload['lab_location'],
+            'created_by' => $payload['created_by'],
+            'updated_by' => $payload['updated_by'],
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Lab created successfully';
+    }
+
+    public function updateLab($payload) {
+        $DB_CON = new DbConnection();
+        $query = "UPDATE labs
+                    SET
+                        lab_name = :lab_name,
+                        lab_location = :lab_location,
+                        updated_by = :updated_by
+                    WHERE id = :id";
+        $result = $DB_CON->execute($query, [
+            'id' => $payload['id'],
+            'lab_name' => $payload['lab_name'],
+            'lab_location' => $payload['lab_location'],
+            'updated_by' => $payload['updated_by'],
+        ]);
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Lab updated successfully';
+    }
+
+    public function deleteLab($id) {
+        $DB_CON = new DbConnection();
+        $query = "DELETE FROM labs WHERE id = :id";
+        $result = $DB_CON->execute($query, ['id' => $id]);
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Sql server sql query error');
+        }
+
+        return 'Lab deleted successfully';
     }
 
     public function getTimetableCells() {

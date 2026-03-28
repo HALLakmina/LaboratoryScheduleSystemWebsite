@@ -159,6 +159,34 @@ class TimetableController {
         return null;
     }
 
+    private function validateLectureGroupPayload($payload, $requireId = false) {
+        if ($requireId && (!isset($payload['id']) || trim((string)$payload['id']) === '')) {
+            return 'id is required.';
+        }
+
+        if (!isset($payload['group_name']) || trim((string)$payload['group_name']) === '') {
+            return 'group_name is required.';
+        }
+
+        return null;
+    }
+
+    private function validateLabPayload($payload, $requireId = false) {
+        if ($requireId && (!isset($payload['id']) || trim((string)$payload['id']) === '')) {
+            return 'id is required.';
+        }
+
+        if (!isset($payload['lab_name']) || trim((string)$payload['lab_name']) === '') {
+            return 'lab_name is required.';
+        }
+
+        if (!isset($payload['lab_location']) || trim((string)$payload['lab_location']) === '') {
+            return 'lab_location is required.';
+        }
+
+        return null;
+    }
+
     public function getAllTimeSchedules($req = null, $res = null) {
         try {
             $respond = $this->timetableService->getAllTimeSchedules();
@@ -281,10 +309,108 @@ class TimetableController {
         }
     }
 
+    public function createLectureGroup($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $payload['created_by'] = $this->normalizeNullableValue($payload['created_by'] ?? null);
+            $payload['updated_by'] = $this->normalizeNullableValue($payload['updated_by'] ?? null);
+
+            $validationMessage = $this->validateLectureGroupPayload($payload);
+            if ($validationMessage !== null) {
+                $this->jsonResponse("400", $validationMessage);
+            }
+
+            $respond = $this->timetableService->createLectureGroup($payload);
+            $this->jsonResponse("200", 'Group created successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function updateLectureGroup($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $payload['updated_by'] = $this->normalizeNullableValue($payload['updated_by'] ?? null);
+
+            $validationMessage = $this->validateLectureGroupPayload($payload, true);
+            if ($validationMessage !== null) {
+                $this->jsonResponse("400", $validationMessage);
+            }
+
+            $respond = $this->timetableService->updateLectureGroup($payload);
+            $this->jsonResponse("200", 'Group updated successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function deleteLectureGroup($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            if (!isset($payload['id']) || trim((string)$payload['id']) === '') {
+                $this->jsonResponse("400", 'id is required.');
+            }
+
+            $respond = $this->timetableService->deleteLectureGroup($payload['id']);
+            $this->jsonResponse("200", 'Group deleted successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
     public function getLabs($req = null, $res = null) {
         try {
             $respond = $this->timetableService->getLabs();
             $this->jsonResponse("200", 'Labs fetched successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function createLab($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $payload['created_by'] = $this->normalizeNullableValue($payload['created_by'] ?? null);
+            $payload['updated_by'] = $this->normalizeNullableValue($payload['updated_by'] ?? null);
+
+            $validationMessage = $this->validateLabPayload($payload);
+            if ($validationMessage !== null) {
+                $this->jsonResponse("400", $validationMessage);
+            }
+
+            $respond = $this->timetableService->createLab($payload);
+            $this->jsonResponse("200", 'Lab created successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function updateLab($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $payload['updated_by'] = $this->normalizeNullableValue($payload['updated_by'] ?? null);
+
+            $validationMessage = $this->validateLabPayload($payload, true);
+            if ($validationMessage !== null) {
+                $this->jsonResponse("400", $validationMessage);
+            }
+
+            $respond = $this->timetableService->updateLab($payload);
+            $this->jsonResponse("200", 'Lab updated successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function deleteLab($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            if (!isset($payload['id']) || trim((string)$payload['id']) === '') {
+                $this->jsonResponse("400", 'id is required.');
+            }
+
+            $respond = $this->timetableService->deleteLab($payload['id']);
+            $this->jsonResponse("200", 'Lab deleted successfully', $respond);
         } catch (Exception $e) {
             $this->jsonResponse("500", $e->getMessage());
         }

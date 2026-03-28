@@ -26,7 +26,13 @@
             $this->router->get('/columnHeadings',function($req, $res){ $this->timetableController->getColumnHeadings($req, $res);});
             $this->router->get('/settings',function($req, $res){ $this->timetableController->getTimetableSettings($req, $res);});
             $this->router->get('/lectureGroups',function($req, $res){ $this->timetableController->getLectureGroups($req, $res);});
+            $this->router->post('/lectureGroups',function($req, $res){ $this->timetableController->createLectureGroup($req, $res);});
+            $this->router->post('/lectureGroups/update',function($req, $res){ $this->timetableController->updateLectureGroup($req, $res);});
+            $this->router->post('/lectureGroups/delete',function($req, $res){ $this->timetableController->deleteLectureGroup($req, $res);});
             $this->router->get('/labs',function($req, $res){ $this->timetableController->getLabs($req, $res);});
+            $this->router->post('/labs',function($req, $res){ $this->timetableController->createLab($req, $res);});
+            $this->router->post('/labs/update',function($req, $res){ $this->timetableController->updateLab($req, $res);});
+            $this->router->post('/labs/delete',function($req, $res){ $this->timetableController->deleteLab($req, $res);});
             $this->router->get('/cells',function($req, $res){ $this->timetableController->getTimetableCells($req, $res);});
             $this->router->post('/',function($req, $res){ $this->timetableController->createTimetableRecord($req, $res);});
             $this->router->post('/update',function($req, $res){ $this->timetableController->updateTimetableRecord($req, $res);});

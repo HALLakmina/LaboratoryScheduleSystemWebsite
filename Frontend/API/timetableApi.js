@@ -166,6 +166,60 @@ const getLectureGroups = async () => {
     }
 };
 
+const createLectureGroup = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/lectureGroups`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating lecture group:', error);
+        throw error;
+    }
+};
+
+const updateLectureGroup = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/lectureGroups/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating lecture group:', error);
+        throw error;
+    }
+};
+
+const deleteLectureGroup = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/lectureGroups/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting lecture group:', error);
+        throw error;
+    }
+};
+
 const getLabs = async () => {
     try {
         const response = await fetch(`${BASE_URL}/labs`, {
@@ -178,6 +232,60 @@ const getLabs = async () => {
         return data;
     } catch (error) {
         console.error('Error fetching labs:', error);
+        throw error;
+    }
+};
+
+const createLab = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/labs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating lab:', error);
+        throw error;
+    }
+};
+
+const updateLab = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/labs/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error updating lab:', error);
+        throw error;
+    }
+};
+
+const deleteLab = async (id) => {
+    try {
+        const response = await fetch(`${BASE_URL}/labs/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting lab:', error);
         throw error;
     }
 };
@@ -461,7 +569,13 @@ export {
     getColumnHeadings,
     getTimetableSettings,
     getLectureGroups,
+    createLectureGroup,
+    updateLectureGroup,
+    deleteLectureGroup,
     getLabs,
+    createLab,
+    updateLab,
+    deleteLab,
     getTimetableCells,
     createTimetableRecord,
     updateTimetableRecord,

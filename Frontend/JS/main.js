@@ -45,8 +45,8 @@
 // loadNavigationBar()
 // loadFooterBar()
 
-import { getTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getLabs, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
-import { sendLecturerRequest, getLecturerRequests, updateLecturerRequest, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
+import { getTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, createLectureGroup, updateLectureGroup, deleteLectureGroup, getLabs, createLab, updateLab, deleteLab, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
+import { sendLecturerRequest, getLecturerRequests, updateLecturerRequest, checkLecturerRequestAvailability, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, login as loginApi, logout as logoutApi } from '../API/userApi.js';
 
@@ -605,6 +605,8 @@ const initAdminPanel = async () => {
     const requestsContainer = document.getElementById('admin-requests-list');
     const newsContainer = document.getElementById('admin-news-list');
     const yearsContainer = document.getElementById('admin-years-list');
+    const groupsContainer = document.getElementById('admin-groups-list');
+    const labsContainer = document.getElementById('admin-labs-list');
     const subjectsContainer = document.getElementById('admin-subjects-list');
     const usersContainer = document.getElementById('admin-users-list');
     const manageTimetableContainer = document.getElementById('admin-manage-timetable-list');
@@ -642,6 +644,8 @@ const initAdminPanel = async () => {
     const requestConfirmLabSelect = document.getElementById('admin-request-confirm-lab');
     const requestConfirmDateInput = document.getElementById('admin-request-confirm-date');
     const requestConfirmDescriptionInput = document.getElementById('admin-request-confirm-description');
+    const requestCheckAvailabilityButton = document.getElementById('admin-request-check-availability');
+    const requestCheckResult = document.getElementById('admin-request-check-result');
     const yearCreateButton = document.getElementById('admin-year-create-btn');
     const yearFormModal = document.getElementById('admin-year-form-modal');
     const yearForm = document.getElementById('admin-year-form');
@@ -650,6 +654,23 @@ const initAdminPanel = async () => {
     const yearFormTitle = document.getElementById('admin-year-form-title');
     const yearIdInput = document.getElementById('admin-year-id');
     const yearNameInput = document.getElementById('admin-year-name');
+    const groupCreateButton = document.getElementById('admin-group-create-btn');
+    const groupFormModal = document.getElementById('admin-group-form-modal');
+    const groupForm = document.getElementById('admin-group-form');
+    const groupFormCloseButton = document.getElementById('admin-group-form-close');
+    const groupFormCancelButton = document.getElementById('admin-group-form-cancel');
+    const groupFormTitle = document.getElementById('admin-group-form-title');
+    const groupIdInput = document.getElementById('admin-group-id');
+    const groupNameInput = document.getElementById('admin-group-name');
+    const labCreateButton = document.getElementById('admin-lab-create-btn');
+    const labFormModal = document.getElementById('admin-lab-form-modal');
+    const labForm = document.getElementById('admin-lab-form');
+    const labFormCloseButton = document.getElementById('admin-lab-form-close');
+    const labFormCancelButton = document.getElementById('admin-lab-form-cancel');
+    const labFormTitle = document.getElementById('admin-lab-form-title');
+    const labIdInput = document.getElementById('admin-lab-id');
+    const labNameInput = document.getElementById('admin-lab-name');
+    const labLocationInput = document.getElementById('admin-lab-location');
     const userCreateButton = document.getElementById('admin-user-create-btn');
     const userFormModal = document.getElementById('admin-user-form-modal');
     const userForm = document.getElementById('admin-user-form');
@@ -722,7 +743,7 @@ const initAdminPanel = async () => {
     const adminNavButtons = Array.from(document.querySelectorAll('.admin-nav-btn'));
     const adminSections = Array.from(document.querySelectorAll('[data-admin-section]'));
 
-    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
+    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !groupsContainer || !labsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !requestCheckAvailabilityButton || !requestCheckResult || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !groupCreateButton || !groupFormModal || !groupForm || !groupFormCloseButton || !groupFormCancelButton || !groupFormTitle || !groupIdInput || !groupNameInput || !labCreateButton || !labFormModal || !labForm || !labFormCloseButton || !labFormCancelButton || !labFormTitle || !labIdInput || !labNameInput || !labLocationInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
         return;
     }
 
@@ -783,6 +804,8 @@ const initAdminPanel = async () => {
         newsFormModal,
         requestConfirmModal,
         yearFormModal,
+        groupFormModal,
+        labFormModal,
         userFormModal,
         subjectFormModal,
         settingsFormModal,
@@ -956,6 +979,8 @@ const initAdminPanel = async () => {
         requestConfirmColumnIdInput.value = '';
         requestConfirmGroupIdInput.value = '';
         requestConfirmLabSelect.value = '';
+        requestCheckResult.textContent = '';
+        requestCheckResult.className = 'text-sm font-bold text-gray-600 text-right';
     };
 
     const openRequestConfirmForm = (record) => {
@@ -1004,6 +1029,51 @@ const initAdminPanel = async () => {
     const hideYearForm = () => {
         hideAdminModal(yearFormModal);
         resetYearForm();
+    };
+
+    const resetGroupForm = () => {
+        groupForm.reset();
+        groupIdInput.value = '';
+    };
+
+    const openGroupForm = (record = null) => {
+        resetGroupForm();
+        if (record) {
+            groupFormTitle.textContent = 'Update Group';
+            groupIdInput.value = record.id || '';
+            groupNameInput.value = record.group_name || '';
+        } else {
+            groupFormTitle.textContent = 'New Group';
+        }
+        showAdminModal(groupFormModal);
+    };
+
+    const hideGroupForm = () => {
+        hideAdminModal(groupFormModal);
+        resetGroupForm();
+    };
+
+    const resetLabForm = () => {
+        labForm.reset();
+        labIdInput.value = '';
+    };
+
+    const openLabForm = (record = null) => {
+        resetLabForm();
+        if (record) {
+            labFormTitle.textContent = 'Update Lab';
+            labIdInput.value = record.id || '';
+            labNameInput.value = record.lab_name || '';
+            labLocationInput.value = record.lab_location || '';
+        } else {
+            labFormTitle.textContent = 'New Lab';
+        }
+        showAdminModal(labFormModal);
+    };
+
+    const hideLabForm = () => {
+        hideAdminModal(labFormModal);
+        resetLabForm();
     };
 
     const populateSubjectYearOptions = () => {
@@ -1210,6 +1280,8 @@ const initAdminPanel = async () => {
             lecturerRequests,
             newsItems,
             years,
+            lectureGroups,
+            labs,
             subjects,
             users,
         } = adminState;
@@ -1440,6 +1512,56 @@ const initAdminPanel = async () => {
             </table>
         ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No years available.</div>`;
 
+        groupsContainer.innerHTML = lectureGroups.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Group Name</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${lectureGroups.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.group_name || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-group-action="update" data-group-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-group-action="delete" data-group-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No groups available.</div>`;
+
+        labsContainer.innerHTML = labs.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Lab Name</th>
+                        <th class="px-4 py-3">Location</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${labs.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.lab_name || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.lab_location || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-lab-action="update" data-lab-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-lab-action="delete" data-lab-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No labs available.</div>`;
+
         subjectsContainer.innerHTML = subjects.length ? `
             <table class="w-full text-sm text-left">
                 <thead class="bg-gray-100 uppercase text-gray-600">
@@ -1572,6 +1694,12 @@ const initAdminPanel = async () => {
     yearCreateButton.addEventListener('click', openYearForm);
     yearFormCancelButton.addEventListener('click', hideYearForm);
     yearFormCloseButton.addEventListener('click', hideYearForm);
+    groupCreateButton.addEventListener('click', openGroupForm);
+    groupFormCancelButton.addEventListener('click', hideGroupForm);
+    groupFormCloseButton.addEventListener('click', hideGroupForm);
+    labCreateButton.addEventListener('click', openLabForm);
+    labFormCancelButton.addEventListener('click', hideLabForm);
+    labFormCloseButton.addEventListener('click', hideLabForm);
     requestConfirmCancelButton.addEventListener('click', hideRequestConfirmForm);
     requestConfirmCloseButton.addEventListener('click', hideRequestConfirmForm);
     userCreateButton.addEventListener('click', openUserForm);
@@ -1917,6 +2045,38 @@ const initAdminPanel = async () => {
         }
     });
 
+    requestCheckAvailabilityButton.addEventListener('click', async () => {
+        requestCheckResult.textContent = 'Checking...';
+        requestCheckResult.className = 'text-sm font-bold text-sky-700 text-right';
+
+        try {
+            const result = await checkLecturerRequestAvailability({
+                timetable_time_slot_id: requestConfirmTimeSlotIdInput.value || '',
+                timetable_column_heading_id: requestConfirmColumnIdInput.value || '',
+                date: requestConfirmDateInput.value || '',
+            });
+
+            if (result.status !== '200') {
+                requestCheckResult.textContent = result.message || 'Failed to check booking.';
+                requestCheckResult.className = 'text-sm font-bold text-red-700 text-right';
+                return;
+            }
+
+            if (result.data?.is_booked) {
+                const bookedRecord = result.data.record || {};
+                requestCheckResult.textContent = `Already booked: ${bookedRecord.subject_cord || '-'}${bookedRecord.group_name ? ` / ${bookedRecord.group_name}` : ''}${bookedRecord.lab_name ? ` / ${bookedRecord.lab_name}` : ''}`;
+                requestCheckResult.className = 'text-sm font-bold text-red-700 text-right';
+                return;
+            }
+
+            requestCheckResult.textContent = 'This request date is available.';
+            requestCheckResult.className = 'text-sm font-bold text-green-700 text-right';
+        } catch (error) {
+            requestCheckResult.textContent = error.message || 'Failed to check booking.';
+            requestCheckResult.className = 'text-sm font-bold text-red-700 text-right';
+        }
+    });
+
     newsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -2029,6 +2189,119 @@ const initAdminPanel = async () => {
             showAdminSection('admin-years');
         } catch (error) {
             window.alert(error.message || 'Failed to delete year.');
+        }
+    });
+
+    groupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: groupIdInput.value || '',
+            group_name: groupNameInput.value.trim(),
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateLectureGroup(payload)
+                : await createLectureGroup(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save group.');
+                return;
+            }
+
+            window.alert(result.message || 'Group saved successfully.');
+            hideGroupForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-groups');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save group.');
+        }
+    });
+
+    groupsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-group-action]');
+        if (!actionButton) return;
+
+        const groupId = actionButton.getAttribute('data-group-id') || '';
+        const groupAction = actionButton.getAttribute('data-group-action') || '';
+        const selectedGroup = adminState.lectureGroups.find(item => String(item.id) === String(groupId));
+        if (!selectedGroup) return;
+
+        if (groupAction === 'update') {
+            openGroupForm(selectedGroup);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this group record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteLectureGroup(groupId);
+            window.alert(result.message || 'Group deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-groups');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete group.');
+        }
+    });
+
+    labForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: labIdInput.value || '',
+            lab_name: labNameInput.value.trim(),
+            lab_location: labLocationInput.value.trim(),
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateLab(payload)
+                : await createLab(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save lab.');
+                return;
+            }
+
+            window.alert(result.message || 'Lab saved successfully.');
+            hideLabForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-labs');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save lab.');
+        }
+    });
+
+    labsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-lab-action]');
+        if (!actionButton) return;
+
+        const labId = actionButton.getAttribute('data-lab-id') || '';
+        const labAction = actionButton.getAttribute('data-lab-action') || '';
+        const selectedLab = adminState.labs.find(item => String(item.id) === String(labId));
+        if (!selectedLab) return;
+
+        if (labAction === 'update') {
+            openLabForm(selectedLab);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this lab record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteLab(labId);
+            window.alert(result.message || 'Lab deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-labs');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete lab.');
         }
     });
 

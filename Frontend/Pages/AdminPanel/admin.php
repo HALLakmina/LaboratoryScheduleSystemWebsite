@@ -24,6 +24,8 @@
                         <button type="button" data-admin-target="admin-requests" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Incoming Requests</button>
                         <button type="button" data-admin-target="admin-news" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">News</button>
                         <button type="button" data-admin-target="admin-years" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Years</button>
+                        <button type="button" data-admin-target="admin-groups" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Groups</button>
+                        <button type="button" data-admin-target="admin-labs" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Labs</button>
                         <button type="button" data-admin-target="admin-subjects" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Subjects</button>
                         <button type="button" data-admin-target="admin-users" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Users</button>
                     </nav>
@@ -131,6 +133,30 @@
                             <button id="admin-year-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-xl hover:bg-sky-700">New Year</button>
                         </div>
                         <div id="admin-years-list" class="pt-5 overflow-x-auto"></div>
+                    </section>
+
+                    <section id="admin-groups" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Groups</p>
+                                <h2 class="text-2xl font-black">Manage Lecture Groups</h2>
+                                <p class="pt-2 text-sm text-gray-600">Create, update, and delete lecture group records.</p>
+                            </div>
+                            <button id="admin-group-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-xl hover:bg-sky-700">New Group</button>
+                        </div>
+                        <div id="admin-groups-list" class="pt-5 overflow-x-auto"></div>
+                    </section>
+
+                    <section id="admin-labs" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Labs</p>
+                                <h2 class="text-2xl font-black">Manage Labs</h2>
+                                <p class="pt-2 text-sm text-gray-600">Create, update, and delete lab records with their location details.</p>
+                            </div>
+                            <button id="admin-lab-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-xl hover:bg-sky-700">New Lab</button>
+                        </div>
+                        <div id="admin-labs-list" class="pt-5 overflow-x-auto"></div>
                     </section>
 
                     <section id="admin-subjects" data-admin-section class="hidden bg-white/92 rounded-2xl p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
@@ -316,6 +342,10 @@
                 </select>
                 <input type="date" id="admin-request-confirm-date" class="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" readonly>
                 <textarea id="admin-request-confirm-description" class="md:col-span-2 min-h-[120px] rounded-xl border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Description" readonly></textarea>
+                <div class="md:col-span-2 flex items-center justify-between gap-3">
+                    <button id="admin-request-check-availability" type="button" class="bg-sky-600 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Check Booking</button>
+                    <p id="admin-request-check-result" class="text-sm font-bold text-gray-600 text-right"></p>
+                </div>
 
                 <div class="md:col-span-2 flex gap-3 justify-end">
                     <button id="admin-request-confirm-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
@@ -359,6 +389,41 @@
                 <div class="flex gap-3 justify-end">
                     <button id="admin-year-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
                     <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Save Year</button>
+                </div>
+            </form>
+        </section>
+        <section id="admin-group-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-group-form" class="w-full max-w-2xl bg-white rounded-2xl p-5 shadow-2xl grid grid-cols-1 gap-4 my-8 mx-auto">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Group</p>
+                        <h3 id="admin-group-form-title" class="text-2xl font-black">New Group</h3>
+                    </div>
+                    <button type="button" id="admin-group-form-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <input type="hidden" id="admin-group-id" name="id">
+                <input type="text" id="admin-group-name" name="group_name" placeholder="Group name" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
+                <div class="flex gap-3 justify-end">
+                    <button id="admin-group-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Save Group</button>
+                </div>
+            </form>
+        </section>
+        <section id="admin-lab-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-lab-form" class="w-full max-w-3xl bg-white rounded-2xl p-5 shadow-2xl grid grid-cols-1 gap-4 my-8 mx-auto">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Lab</p>
+                        <h3 id="admin-lab-form-title" class="text-2xl font-black">New Lab</h3>
+                    </div>
+                    <button type="button" id="admin-lab-form-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <input type="hidden" id="admin-lab-id" name="id">
+                <input type="text" id="admin-lab-name" name="lab_name" placeholder="Lab name" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
+                <input type="text" id="admin-lab-location" name="lab_location" placeholder="Lab location" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3" required>
+                <div class="flex gap-3 justify-end">
+                    <button id="admin-lab-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-xl hover:bg-sky-700">Save Lab</button>
                 </div>
             </form>
         </section>

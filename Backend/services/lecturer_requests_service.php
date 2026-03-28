@@ -185,6 +185,37 @@ class LecturerRequestsService {
         }
     }
 
+    public function checkTemporaryTimetableAvailability($payload) {
+        $cellId = $this->resolveCellReferenceId($payload['timetable_time_slot_id'], $payload['timetable_column_heading_id']);
+        $record = $this->fetchSingleRow(
+            "SELECT
+                tt.id,
+                tt.action,
+                tt.lecturer_date,
+                tt.subject_cord,
+                lg.group_name,
+                l.lab_name
+             FROM temporary_timetable tt
+             LEFT JOIN lecture_groups lg ON tt.lecture_group_id = lg.id
+             LEFT JOIN labs l ON tt.lab_id = l.id
+             WHERE tt.cell_id = :cell_id
+               AND tt.lecturer_date = :lecturer_date
+               AND tt.action != 'canceled'
+             ORDER BY tt.id DESC
+             LIMIT 1",
+            [
+                'cell_id' => $cellId,
+                'lecturer_date' => $payload['date'],
+            ]
+        );
+
+        return [
+            'is_booked' => !empty($record),
+            'cell_id' => $cellId,
+            'record' => $record,
+        ];
+    }
+
     public function getAll() {
         $DB_CON = new DbConnection();
         $query = "SELECT
