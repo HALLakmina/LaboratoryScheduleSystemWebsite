@@ -18,6 +18,9 @@
         <li class="p-2 hover:bg-sky-400 rounded-xs flex align-center">
             <a href="<?php echo BASE_URL; ?>pages/news.php" class="<?php echo isActive('news.php'); ?>">NEWS</a>
         </li>
+        <li id="admin-nav-item" class="hidden p-2 hover:bg-sky-400 rounded-xs flex align-center">
+            <a href="<?php echo BASE_URL; ?>pages/adminpanel/admin.php" class="<?php echo isActive('admin.php'); ?>">ADMIN</a>
+        </li>
     </ul>
     <div class=" flex flex-row justify-between align-center p-2">
         <a

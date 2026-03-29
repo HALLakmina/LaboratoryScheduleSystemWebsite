@@ -122,6 +122,37 @@ class LecturerRequestsController {
         }
     }
 
+    public function checkAvailability($req = null, $res = null) {
+        try {
+            $payload = $req['body'] ?? [];
+            $requiredFields = ['timetable_time_slot_id', 'timetable_column_heading_id', 'date'];
+
+            foreach ($requiredFields as $field) {
+                if (!isset($payload[$field]) || trim((string)$payload[$field]) === '') {
+                    echo json_encode([
+                        'status' => '400',
+                        'message' => $field . ' is required.',
+                    ]);
+                    exit;
+                }
+            }
+
+            $respond = $this->lecturerRequestsService->checkTemporaryTimetableAvailability($payload);
+            echo json_encode([
+                'status' => '200',
+                'data' => $respond,
+                'message' => $respond['is_booked'] ? 'Lecture request date is already booked.' : 'Lecture request date is available.'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => '500',
+                'message' => $e->getMessage()
+            ]);
+            exit;
+        }
+    }
+
     private function validatePayload($payload) {
         $requiredFields = [
             'lecturer_id',
@@ -147,6 +178,10 @@ class LecturerRequestsController {
 
         if (isset($payload['action']) && !in_array($payload['action'], ['requested', 'confirmed', 'canceled'], true)) {
             return 'action must be requested, confirmed, or canceled.';
+        }
+
+        if (($payload['action'] ?? '') === 'confirmed' && trim((string)($payload['lab_id'] ?? '')) === '') {
+            return 'lab_id is required when confirming a lecturer request.';
         }
 
         return null;

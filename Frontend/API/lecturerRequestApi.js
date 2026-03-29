@@ -53,6 +53,24 @@ const updateLecturerRequest = async (payload) => {
     }
 };
 
+const checkLecturerRequestAvailability = async (payload) => {
+    try {
+        const response = await fetch(`${BASE_URL}/check-availability`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error checking lecturer request availability:', error);
+        throw error;
+    }
+};
+
 const deleteLecturerRequest = async (id) => {
     try {
         const response = await fetch(`${BASE_URL}/delete`, {
@@ -75,5 +93,6 @@ export {
     sendLecturerRequest,
     getLecturerRequests,
     updateLecturerRequest,
+    checkLecturerRequestAvailability,
     deleteLecturerRequest,
 };

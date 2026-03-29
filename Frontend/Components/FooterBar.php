@@ -1,3 +1,3 @@
-<footer class="text-center fixed bottom-0 left-0 right-0 p-2 bg-gray-950">
+<footer class="text-center fixed z-30 bottom-0 left-0 right-0 p-2 bg-gray-950">
     <p class="text-white font-bold">Copyright <span class="text-sky-400">&copy;</span> 2025 My Website. All rights reserved.</p>
 </footer>

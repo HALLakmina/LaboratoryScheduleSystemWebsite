@@ -30,6 +30,10 @@ class LecturerRequestsRouter {
             $this->lecturerRequestsController->update($req, $res);
         });
 
+        $this->router->post('/check-availability', function ($req = null, $res = null) {
+            $this->lecturerRequestsController->checkAvailability($req, $res);
+        });
+
         $this->router->post('/delete', function ($req = null, $res = null) {
             $this->lecturerRequestsController->delete($req, $res);
         });
