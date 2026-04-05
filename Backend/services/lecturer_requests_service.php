@@ -223,6 +223,7 @@ class LecturerRequestsService {
                     lr.lecturer_id,
                     lr.subject_id,
                     lr.year_id,
+                    lr.lecture_group_id,
                     lr.timetable_time_slot_id,
                     lr.timetable_column_heading_id,
                     lr.date,
@@ -232,7 +233,6 @@ class LecturerRequestsService {
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
                     ps.subject,
                     y.year,
-                    sgr.group_id,
                     lg.group_name,
                     tts.start_time,
                     tts.end_time,
@@ -241,12 +241,7 @@ class LecturerRequestsService {
                 LEFT JOIN users u ON lr.lecturer_id = u.id
                 LEFT JOIN practical_subjects ps ON lr.subject_id = ps.subject_cord
                 LEFT JOIN years y ON lr.year_id = y.id
-                LEFT JOIN (
-                    SELECT subject_cord, MIN(group_id) AS group_id
-                    FROM subject_group_relations
-                    GROUP BY subject_cord
-                ) sgr ON lr.subject_id = sgr.subject_cord
-                LEFT JOIN lecture_groups lg ON sgr.group_id = lg.id
+                LEFT JOIN lecture_groups lg ON lr.lecture_group_id = lg.id
                 LEFT JOIN timetable_time_slots tts ON lr.timetable_time_slot_id = tts.id
                 LEFT JOIN timetable_column_headings tch ON lr.timetable_column_heading_id = tch.id
                 ORDER BY lr.send_at DESC";
@@ -263,12 +258,16 @@ class LecturerRequestsService {
     public function create($payload) {
         $DB_CON = new DbConnection();
         $sendAt = date('Y-m-d H:i:s');
+        $lectureGroupId = !empty($payload['lecture_group_id'])
+            ? $payload['lecture_group_id']
+            : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "INSERT INTO lecturer_requests
                     (
                         lecturer_id,
                         subject_id,
                         year_id,
+                        lecture_group_id,
                         timetable_time_slot_id,
                         timetable_column_heading_id,
                         date,
@@ -281,6 +280,7 @@ class LecturerRequestsService {
                         :lecturer_id,
                         :subject_id,
                         :year_id,
+                        :lecture_group_id,
                         :timetable_time_slot_id,
                         :timetable_column_heading_id,
                         :date,
@@ -293,6 +293,7 @@ class LecturerRequestsService {
             'lecturer_id' => $payload['lecturer_id'],
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
+            'lecture_group_id' => $lectureGroupId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
@@ -312,12 +313,16 @@ class LecturerRequestsService {
 
     public function update($payload) {
         $DB_CON = new DbConnection();
+        $lectureGroupId = !empty($payload['lecture_group_id'])
+            ? $payload['lecture_group_id']
+            : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "UPDATE lecturer_requests
                     SET
                         lecturer_id = :lecturer_id,
                         subject_id = :subject_id,
                         year_id = :year_id,
+                        lecture_group_id = :lecture_group_id,
                         timetable_time_slot_id = :timetable_time_slot_id,
                         timetable_column_heading_id = :timetable_column_heading_id,
                         date = :date,
@@ -330,6 +335,7 @@ class LecturerRequestsService {
             'lecturer_id' => $payload['lecturer_id'],
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
+            'lecture_group_id' => $lectureGroupId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],

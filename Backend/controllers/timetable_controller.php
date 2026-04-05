@@ -206,6 +206,18 @@ class TimetableController {
         }
     }
 
+    public function getTemporaryTimeSchedules($req = null, $res = null) {
+        $dateFrom = $req['query']['date_from'] ?? null;
+        $dateTo = $req['query']['date_to'] ?? null;
+
+        try {
+            $respond = $this->timetableService->getTemporaryTimeSchedules($dateFrom, $dateTo);
+            $this->jsonResponse("200", 'Temporary timetable fetched successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
     public function getSubjectCodes($req = null, $res = null) {
         try {
             $respond = $this->timetableService->getSubjectCodes();

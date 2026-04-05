@@ -86,6 +86,45 @@ class TimetableService {
         return $this->fetchAllRows($query);
     }
 
+    public function getTemporaryTimeSchedules($dateFrom = null, $dateTo = null) {
+        $query = "SELECT
+                    tt.id AS temporary_timetable_id,
+                    tt.cell_id AS timetable_cell_reference_id,
+                    tc.cell_number AS cell_id,
+                    tt.lecture_group_id,
+                    tt.lab_id,
+                    tt.subject_cord,
+                    tt.action,
+                    tt.lecturer_date,
+                    lg.group_name,
+                    l.lab_name AS lab,
+                    l.lab_location,
+                    ps.subject,
+                    ps.year_id,
+                    y.year,
+                    sl.lecturer_id,
+                    CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
+                FROM temporary_timetable tt
+                LEFT JOIN timetable_cells tc ON tt.cell_id = tc.id
+                LEFT JOIN lecture_groups lg ON tt.lecture_group_id = lg.id
+                LEFT JOIN labs l ON tt.lab_id = l.id
+                LEFT JOIN practical_subjects ps ON tt.subject_cord = ps.subject_cord
+                LEFT JOIN years y ON ps.year_id = y.id
+                LEFT JOIN subject_lecture_relations sl ON ps.subject_cord = sl.subject_cord
+                LEFT JOIN users u ON sl.lecturer_id = u.id
+                WHERE tt.action != 'canceled'";
+
+        $property = [];
+        if ($dateFrom !== null && $dateTo !== null) {
+            $query .= " AND tt.lecturer_date BETWEEN :date_from AND :date_to";
+            $property['date_from'] = $dateFrom;
+            $property['date_to'] = $dateTo;
+        }
+
+        $query .= " ORDER BY tt.lecturer_date ASC, tc.cell_number ASC, tt.id DESC";
+        return $this->fetchAllRows($query, $property ?: null);
+    }
+
     public function getTimeSchedulesByYear($year) {
         $query = $this->getBaseTimeScheduleQuery() . " WHERE y.year = :year ORDER BY tc.cell_number ASC";
         return $this->fetchAllRows($query, [

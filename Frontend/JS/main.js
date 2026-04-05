@@ -45,7 +45,7 @@
 // loadNavigationBar()
 // loadFooterBar()
 
-import { getTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, createLectureGroup, updateLectureGroup, deleteLectureGroup, getLabs, createLab, updateLab, deleteLab, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
+import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, createLectureGroup, updateLectureGroup, deleteLectureGroup, getLabs, createLab, updateLab, deleteLab, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
 import { sendLecturerRequest, getLecturerRequests, updateLecturerRequest, checkLecturerRequestAvailability, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, login as loginApi, logout as logoutApi } from '../API/userApi.js';
@@ -254,6 +254,8 @@ const populateLectureGroupSelect = () => {
 };
 
 let fullTimetableData = [];
+let permanentTimetableData = [];
+let temporaryTimetableData = [];
 let fullSubjectCodesData = [];
 let fullYearsData = [];
 let fullTimeSlotsData = [];
@@ -304,6 +306,74 @@ const getCellNumberGrid = () => {
     }
 
     return grid;
+};
+
+const formatDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getCurrentWeekDateRange = () => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(today.getDate() + mondayOffset);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    return {
+        start: formatDateKey(monday),
+        end: formatDateKey(sunday),
+    };
+};
+
+const getThisWeekHeadingDateMap = () => {
+    const { start } = getCurrentWeekDateRange();
+    const monday = new Date(`${start}T00:00:00`);
+    const map = {};
+
+    fullColumnHeadingsData.forEach((heading, index) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + index);
+        map[String(heading.column_heading || '').toLowerCase()] = formatDateKey(date);
+    });
+
+    return map;
+};
+
+const buildEffectiveTimetableData = (permanentData, temporaryData) => {
+    const headingDateMap = getThisWeekHeadingDateMap();
+    const cellGrid = getCellNumberGrid();
+    const mergedByReferenceId = new Map();
+
+    (permanentData || []).forEach(item => {
+        mergedByReferenceId.set(String(item.timetable_cell_reference_id || ''), { ...item, data_source: 'permanent' });
+    });
+
+    (temporaryData || []).forEach(item => {
+        const displayCellNumber = Number(item.cell_id);
+        const rowIndex = cellGrid.findIndex(row => row.includes(displayCellNumber));
+        const columnIndex = rowIndex >= 0 ? cellGrid[rowIndex].indexOf(displayCellNumber) : -1;
+        const heading = columnIndex >= 0 ? fullColumnHeadingsData[columnIndex] : null;
+        const expectedDate = heading ? headingDateMap[String(heading.column_heading || '').toLowerCase()] : '';
+
+        if (!expectedDate || String(item.lecturer_date || '') !== expectedDate) {
+            return;
+        }
+
+        mergedByReferenceId.set(String(item.timetable_cell_reference_id || ''), {
+            ...item,
+            action: item.subject_cord ? 'active' : (item.action || 'free'),
+            data_source: 'temporary',
+        });
+    });
+
+    return Array.from(mergedByReferenceId.values()).sort((left, right) => Number(left.cell_id || 0) - Number(right.cell_id || 0));
 };
 
 /**
@@ -992,7 +1062,7 @@ const initAdminPanel = async () => {
         requestConfirmYearIdInput.value = record.year_id || '';
         requestConfirmTimeSlotIdInput.value = record.timetable_time_slot_id || '';
         requestConfirmColumnIdInput.value = record.timetable_column_heading_id || '';
-        requestConfirmGroupIdInput.value = record.group_id || '';
+        requestConfirmGroupIdInput.value = record.lecture_group_id || record.group_id || '';
         requestConfirmTimeSlotInput.value = record.start_time && record.end_time ? formatTimeSlotRange(record) : '';
         requestConfirmDayInput.value = record.column_heading || '';
         requestConfirmLecturerNameInput.value = record.lecturer_name || '';
@@ -1989,6 +2059,7 @@ const initAdminPanel = async () => {
                     lecturer_id: selectedRequest.lecturer_id,
                     subject_id: selectedRequest.subject_id,
                     year_id: selectedRequest.year_id,
+                    lecture_group_id: selectedRequest.lecture_group_id || selectedRequest.group_id || '',
                     timetable_time_slot_id: selectedRequest.timetable_time_slot_id,
                     timetable_column_heading_id: selectedRequest.timetable_column_heading_id,
                     date: selectedRequest.date,
@@ -2675,6 +2746,7 @@ const initSchedulingForm = () => {
         const subjectCodeValue = subjectCodeSelect.value || '';
         const timeSlotValue = timeSlotSelect.value || '';
         const dayValue = daySelect.value || '';
+        const lectureGroupValue = lectureGroupSelect.value || '';
         const requestDateValue = requestDateInput.value || '';
         const lecturerRequestValue = requestTextarea.value.trim();
 
@@ -2695,8 +2767,8 @@ const initSchedulingForm = () => {
             return;
         }
 
-        if (!selectedYear || !selectedSubject || !selectedTimeSlot || !selectedColumnHeading || !requestDateValue || !lecturerRequestValue) {
-            window.alert('Please fill in year, subject code, time slot, day, date, and lecturer request.');
+        if (!selectedYear || !selectedSubject || !selectedTimeSlot || !selectedColumnHeading || !lectureGroupValue || !requestDateValue || !lecturerRequestValue) {
+            window.alert('Please fill in year, subject code, time slot, day, group, date, and lecturer request.');
             return;
         }
 
@@ -2705,6 +2777,7 @@ const initSchedulingForm = () => {
                 lecturer_id: lecturerId,
                 subject_id: selectedSubject.subject_cord,
                 year_id: selectedYear.id,
+                lecture_group_id: lectureGroupValue,
                 timetable_time_slot_id: selectedTimeSlot.id,
                 timetable_column_heading_id: selectedColumnHeading.id,
                 date: requestDateValue,
@@ -2729,11 +2802,18 @@ const initSchedulingForm = () => {
 const loadTimetableData = async () => {
     try {
         await loadSchedulingReferenceData();
-        const timetableData = await getTimetableData();
-        fullTimetableData = timetableData.data || [];
+        const currentWeek = getCurrentWeekDateRange();
+        const [timetableData, temporaryDataResponse] = await Promise.all([
+            getTimetableData(),
+            getTemporaryTimetableData(currentWeek.start, currentWeek.end),
+        ]);
+
+        permanentTimetableData = Array.isArray(timetableData.data) ? timetableData.data : [];
+        temporaryTimetableData = Array.isArray(temporaryDataResponse.data) ? temporaryDataResponse.data : [];
+        fullTimetableData = buildEffectiveTimetableData(permanentTimetableData, temporaryTimetableData);
         renderTimetableHead();
         renderTimetableTable(fullTimetableData);
-
+        console.log(fullTimetableData)
         const yearSelect = document.getElementById('filter_by_years');
         const subjectSelect = document.getElementById('filter_by_subject');
         if (yearSelect) {
