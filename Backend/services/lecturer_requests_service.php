@@ -35,7 +35,7 @@ class LecturerRequestsService {
     private function getActiveTimeSlots() {
         $settings = $this->getTimetableSettings();
         $breakRowNumber = (int)($settings['break_row_number'] ?? 0);
-        $timeSlots = $this->fetchAllRows("SELECT id, start_time, end_time FROM timetable_time_slots ORDER BY start_time");
+        $timeSlots = $this->fetchAllRows("SELECT id, time_slot_number, start_time, end_time FROM timetable_time_slots ORDER BY time_slot_number ASC, start_time ASC");
 
         if ($breakRowNumber <= 0) {
             return $timeSlots;
@@ -54,15 +54,8 @@ class LecturerRequestsService {
         }
 
         $columnHeadings = $this->fetchAllRows("SELECT id, column_number FROM timetable_column_headings ORDER BY column_number");
+        $timetableCells = $this->fetchAllRows("SELECT id, column_heading_id FROM timetable_cells ORDER BY id ASC");
         $activeTimeSlots = $this->getActiveTimeSlots();
-
-        $columnIndex = -1;
-        foreach ($columnHeadings as $index => $heading) {
-            if ((string)$heading['id'] === (string)$columnHeadingId) {
-                $columnIndex = $index;
-                break;
-            }
-        }
 
         $rowIndex = -1;
         foreach ($activeTimeSlots as $index => $timeSlot) {
@@ -72,17 +65,23 @@ class LecturerRequestsService {
             }
         }
 
-        if ($columnIndex === -1 || $rowIndex === -1) {
+        $selectedHeading = null;
+        foreach ($columnHeadings as $heading) {
+            if ((string)$heading['id'] === (string)$columnHeadingId) {
+                $selectedHeading = $heading;
+                break;
+            }
+        }
+
+        if ($selectedHeading === null || $rowIndex === -1) {
             throw new Exception('Unable to match timetable cell for the lecturer request.');
         }
 
-        $cellNumber = ($rowIndex * $columnCount) + ($columnIndex + 1);
-        $cell = $this->fetchSingleRow(
-            "SELECT id FROM timetable_cells WHERE cell_number = :cell_number LIMIT 1",
-            ['cell_number' => $cellNumber]
-        );
+        $dayIndex = max(((int)$selectedHeading['column_number']) - 1, -1);
+        $offset = ($rowIndex * $columnCount) + $dayIndex;
+        $cell = $timetableCells[$offset] ?? null;
 
-        if (!$cell || empty($cell['id'])) {
+        if (!$cell || empty($cell['id']) || (string)($cell['column_heading_id'] ?? '') !== (string)$columnHeadingId) {
             throw new Exception('Timetable cell was not found for the lecturer request.');
         }
 

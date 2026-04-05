@@ -1,4 +1,4 @@
-import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups } from '../API/timetableApi.js';
+import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getTimetableCells } from '../API/timetableApi.js';
 import { sendLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getCurrentUserRole, getStoredUser } from './loginUser.js';
 
@@ -133,17 +133,19 @@ const populateYearsSelects = async () => {
 
 const loadSchedulingReferenceData = async () => {
     try {
-        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse, lectureGroupsResponse] = await Promise.all([
+        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse, lectureGroupsResponse, timetableCellsResponse] = await Promise.all([
             getTimeSlots(),
             getColumnHeadings(),
             getTimetableSettings(),
             getLectureGroups(),
+            getTimetableCells(),
         ]);
 
         fullTimeSlotsData = timeSlotsResponse.status === '200' && timeSlotsResponse.data ? timeSlotsResponse.data : [];
         fullColumnHeadingsData = columnHeadingsResponse.status === '200' && columnHeadingsResponse.data ? columnHeadingsResponse.data : [];
         fullTimetableSettingsData = settingsResponse.status === '200' ? settingsResponse.data : null;
         fullLectureGroupsData = lectureGroupsResponse.status === '200' && lectureGroupsResponse.data ? lectureGroupsResponse.data : [];
+        fullTimetableCellsData = timetableCellsResponse.status === '200' && timetableCellsResponse.data ? timetableCellsResponse.data : [];
 
         renderTimetableHead();
         populateTimeSlotSelect();
@@ -214,6 +216,7 @@ let fullTimeSlotsData = [];
 let fullColumnHeadingsData = [];
 let fullTimetableSettingsData = null;
 let fullLectureGroupsData = [];
+let fullTimetableCellsData = [];
 
 const formatTimePart = (timeValue) => {
     if (!timeValue) return '';
@@ -237,24 +240,21 @@ const getActiveTimeSlots = () => {
     return fullTimeSlotsData.filter((_, index) => index !== breakRowNumber - 1);
 };
 
-const getCellNumberGrid = () => {
-    if (!fullTimetableSettingsData) return [];
+const getTimetableCellGrid = () => {
+    if (!fullTimetableSettingsData || !Array.isArray(fullTimetableCellsData)) return [];
 
     const columnCount = Number(fullTimetableSettingsData.table_column_count || 0);
-    const cellCount = Number(fullTimetableSettingsData.table_cell_count || 0);
-    if (!columnCount || !cellCount) return [];
+    if (!columnCount || !fullTimetableCellsData.length) return [];
 
-    const totalRows = Math.ceil(cellCount / columnCount);
+    const orderedCellIds = fullTimetableCellsData
+        .slice()
+        .sort((left, right) => Number(left.id || 0) - Number(right.id || 0))
+        .map((item) => Number(item.id || 0))
+        .filter((value) => value > 0);
+
     const grid = [];
-    let currentCell = 1;
-
-    for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
-        const row = [];
-        for (let columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-            row.push(currentCell);
-            currentCell += 1;
-        }
-        grid.push(row);
+    for (let index = 0; index < orderedCellIds.length; index += columnCount) {
+        grid.push(orderedCellIds.slice(index, index + columnCount));
     }
 
     return grid;
@@ -300,7 +300,7 @@ const getThisWeekHeadingDateMap = () => {
 
 const buildEffectiveTimetableData = (permanentData, temporaryData) => {
     const headingDateMap = getThisWeekHeadingDateMap();
-    const cellGrid = getCellNumberGrid();
+    const cellGrid = getTimetableCellGrid();
     const mergedByReferenceId = new Map();
 
     (permanentData || []).forEach(item => {
@@ -308,9 +308,9 @@ const buildEffectiveTimetableData = (permanentData, temporaryData) => {
     });
 
     (temporaryData || []).forEach(item => {
-        const displayCellNumber = Number(item.cell_id);
-        const rowIndex = cellGrid.findIndex(row => row.includes(displayCellNumber));
-        const columnIndex = rowIndex >= 0 ? cellGrid[rowIndex].indexOf(displayCellNumber) : -1;
+        const displayCellId = Number(item.cell_id);
+        const rowIndex = cellGrid.findIndex(row => row.includes(displayCellId));
+        const columnIndex = rowIndex >= 0 ? cellGrid[rowIndex].indexOf(displayCellId) : -1;
         const heading = columnIndex >= 0 ? fullColumnHeadingsData[columnIndex] : null;
         const expectedDate = heading ? headingDateMap[String(heading.column_heading || '').toLowerCase()] : '';
 
@@ -338,7 +338,7 @@ const renderTimetableTable = (data) => {
 
     const activeTimeSlots = getActiveTimeSlots();
     const columnCount = fullColumnHeadingsData.length;
-    const cellGrid = getCellNumberGrid();
+    const cellGrid = getTimetableCellGrid();
     const breakRowNumber = Number(fullTimetableSettingsData?.break_row_number || 0);
     const breakTimeSlot = breakRowNumber ? fullTimeSlotsData[breakRowNumber - 1] : null;
     const breakLabel = breakTimeSlot ? formatTimeSlotLabel(breakTimeSlot.start_time, breakTimeSlot.end_time) : 'Interval';
@@ -356,7 +356,7 @@ const renderTimetableTable = (data) => {
         tableRow += `<tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">`;
         const currentRow = cellGrid[rowIndex] || [];
         currentRow.forEach((cellId, columnIndex) => {
-            const cellData = data.find(item => item.cell_id === cellId);
+            const cellData = data.find(item => Number(item.cell_id) === Number(cellId));
             if (columnIndex === 0) {
                 tableRow += `<td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${formatTimeSlotLabel(timeSlot.start_time, timeSlot.end_time)}</td>`;
             }
@@ -456,7 +456,7 @@ const initSchedulingForm = () => {
     };
 
     const getCellScheduleMeta = (cellId) => {
-        const cellGrid = getCellNumberGrid();
+        const cellGrid = getTimetableCellGrid();
         const activeTimeSlots = getActiveTimeSlots();
 
         for (let rowIndex = 0; rowIndex < cellGrid.length; rowIndex++) {

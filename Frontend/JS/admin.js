@@ -31,24 +31,27 @@ const getActiveTimeSlots = () => {
     return fullTimeSlotsData.filter((_, index) => index !== breakRowNumber - 1);
 };
 
-const getCellNumberGrid = () => {
-    if (!fullTimetableSettingsData) return [];
+const getAvailableColumnHeadings = () => (
+    Array.isArray(fullColumnHeadingsData)
+        ? fullColumnHeadingsData.filter((item) => String(item.status || 'active') !== 'deactive')
+        : []
+);
+
+const getTimetableCellGrid = (timetableCells = []) => {
+    if (!fullTimetableSettingsData || !Array.isArray(timetableCells)) return [];
 
     const columnCount = Number(fullTimetableSettingsData.table_column_count || 0);
-    const cellCount = Number(fullTimetableSettingsData.table_cell_count || 0);
-    if (!columnCount || !cellCount) return [];
+    if (!columnCount || !timetableCells.length) return [];
 
-    const totalRows = Math.ceil(cellCount / columnCount);
+    const orderedCellIds = timetableCells
+        .slice()
+        .sort((left, right) => Number(left.id || 0) - Number(right.id || 0))
+        .map((item) => Number(item.id || 0))
+        .filter((value) => value > 0);
+
     const grid = [];
-    let currentCell = 1;
-
-    for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
-        const row = [];
-        for (let columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-            row.push(currentCell);
-            currentCell += 1;
-        }
-        grid.push(row);
+    for (let index = 0; index < orderedCellIds.length; index += columnCount) {
+        grid.push(orderedCellIds.slice(index, index + columnCount));
     }
 
     return grid;
@@ -249,6 +252,8 @@ const initAdminPanel = async () => {
     const columnHeadingIdInput = document.getElementById('admin-column-heading-id');
     const columnHeadingNameInput = document.getElementById('admin-column-heading-name');
     const columnHeadingNumberInput = document.getElementById('admin-column-heading-number');
+    const columnHeadingHeadingNumberInput = document.getElementById('admin-column-heading-heading-number');
+    const columnHeadingStatusInput = document.getElementById('admin-column-heading-status');
     const columnHeadingFormCancelButton = document.getElementById('admin-column-heading-form-cancel');
     const timeSlotCreateButton = document.getElementById('admin-time-slot-create-btn');
     const timeSlotFormModal = document.getElementById('admin-time-slot-form-modal');
@@ -256,6 +261,7 @@ const initAdminPanel = async () => {
     const timeSlotFormCloseButton = document.getElementById('admin-time-slot-form-close');
     const timeSlotFormTitle = document.getElementById('admin-time-slot-form-title');
     const timeSlotIdInput = document.getElementById('admin-time-slot-id');
+    const timeSlotNumberInput = document.getElementById('admin-time-slot-number');
     const timeSlotStartInput = document.getElementById('admin-time-slot-start');
     const timeSlotEndInput = document.getElementById('admin-time-slot-end');
     const timeSlotFormCancelButton = document.getElementById('admin-time-slot-form-cancel');
@@ -276,7 +282,7 @@ const initAdminPanel = async () => {
     const adminNavButtons = Array.from(document.querySelectorAll('.admin-nav-btn'));
     const adminSections = Array.from(document.querySelectorAll('[data-admin-section]'));
 
-    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !groupsContainer || !labsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !requestCheckAvailabilityButton || !requestCheckResult || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !groupCreateButton || !groupFormModal || !groupForm || !groupFormCloseButton || !groupFormCancelButton || !groupFormTitle || !groupIdInput || !groupNameInput || !labCreateButton || !labFormModal || !labForm || !labFormCloseButton || !labFormCancelButton || !labFormTitle || !labIdInput || !labNameInput || !labLocationInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
+    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !groupsContainer || !labsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !requestCheckAvailabilityButton || !requestCheckResult || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !groupCreateButton || !groupFormModal || !groupForm || !groupFormCloseButton || !groupFormCancelButton || !groupFormTitle || !groupIdInput || !groupNameInput || !labCreateButton || !labFormModal || !labForm || !labFormCloseButton || !labFormCancelButton || !labFormTitle || !labIdInput || !labNameInput || !labLocationInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingHeadingNumberInput || !columnHeadingStatusInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotNumberInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
         return;
     }
 
@@ -414,16 +420,21 @@ const initAdminPanel = async () => {
     const resetColumnHeadingForm = () => {
         columnHeadingForm.reset();
         columnHeadingIdInput.value = '';
+        columnHeadingHeadingNumberInput.value = '';
+        columnHeadingStatusInput.value = 'active';
     };
 
     const openColumnHeadingForm = (record = null) => {
         resetColumnHeadingForm();
         columnHeadingNumberInput.max = adminState.timetableSettings?.table_column_count || 0;
+        columnHeadingHeadingNumberInput.max = adminState.timetableSettings?.table_column_count || 0;
         if (record) {
             columnHeadingFormTitle.textContent = 'Update Column Heading';
             columnHeadingIdInput.value = record.id || '';
             columnHeadingNameInput.value = record.column_heading || '';
             columnHeadingNumberInput.value = record.column_number || '';
+            columnHeadingHeadingNumberInput.value = record.column_heading_number || '';
+            columnHeadingStatusInput.value = record.status || 'active';
         } else {
             columnHeadingFormTitle.textContent = 'Add Column Heading';
         }
@@ -438,13 +449,16 @@ const initAdminPanel = async () => {
     const resetTimeSlotForm = () => {
         timeSlotForm.reset();
         timeSlotIdInput.value = '';
+        timeSlotNumberInput.value = '';
     };
 
     const openTimeSlotForm = (record = null) => {
         resetTimeSlotForm();
+        timeSlotNumberInput.max = adminState.timetableSettings?.table_row_count || 0;
         if (record) {
             timeSlotFormTitle.textContent = 'Update Time Slot';
             timeSlotIdInput.value = record.id || '';
+            timeSlotNumberInput.value = record.time_slot_number || '';
             timeSlotStartInput.value = record.start_time || '';
             timeSlotEndInput.value = record.end_time || '';
         } else {
@@ -710,7 +724,7 @@ const initAdminPanel = async () => {
         );
         setSelectOptions(
             timetableDaySelect,
-            adminState.columnHeadings,
+            getAvailableColumnHeadings(),
             'Select day',
             (item) => item.id,
             (item) => item.column_heading || ''
@@ -724,17 +738,17 @@ const initAdminPanel = async () => {
         );
     };
 
-    const getCellMetaByCellNumber = (cellNumber) => {
-        const targetCellNumber = Number(cellNumber);
-        const cellGrid = getCellNumberGrid();
+    const getCellMetaByCellId = (cellId) => {
+        const targetCellId = Number(cellId);
+        const cellGrid = getTimetableCellGrid(adminState.timetableCells);
         const activeTimeSlots = getActiveTimeSlots();
+        const matchedCell = adminState.timetableCells.find((item) => Number(item.id) === targetCellId);
+        const matchedDay = adminState.columnHeadings.find((item) => String(item.id) === String(matchedCell?.column_heading_id || ''));
 
         for (let rowIndex = 0; rowIndex < cellGrid.length; rowIndex++) {
-            const columnIndex = cellGrid[rowIndex]?.indexOf(targetCellNumber);
+            const columnIndex = cellGrid[rowIndex]?.indexOf(targetCellId);
             if (columnIndex !== -1 && columnIndex !== undefined) {
                 const matchedTimeSlot = activeTimeSlots[rowIndex];
-                const matchedDay = adminState.columnHeadings[columnIndex];
-                const matchedCell = adminState.timetableCells.find(item => Number(item.cell_number) === targetCellNumber);
 
                 return {
                     dayId: matchedDay?.id || '',
@@ -756,10 +770,14 @@ const initAdminPanel = async () => {
     };
 
     const getTimetableCellReferenceId = (dayId, timeSlotId) => {
-        const dayIndex = adminState.columnHeadings.findIndex(item => String(item.id) === String(dayId));
+        const selectedHeading = adminState.columnHeadings.find((item) => String(item.id) === String(dayId));
         const timeSlotIndex = getActiveTimeSlots().findIndex(item => String(item.id) === String(timeSlotId));
-        const cellNumber = (getCellNumberGrid()[timeSlotIndex] || [])[dayIndex];
-        const matchedCell = adminState.timetableCells.find(item => Number(item.cell_number) === Number(cellNumber));
+        const dayIndex = Math.max(Number(selectedHeading?.column_number || 0) - 1, -1);
+        const cellId = (getTimetableCellGrid(adminState.timetableCells)[timeSlotIndex] || [])[dayIndex];
+        const matchedCell = adminState.timetableCells.find((item) => (
+            Number(item.id) === Number(cellId)
+            && (!selectedHeading || String(item.column_heading_id || '') === String(selectedHeading.id))
+        ));
         return matchedCell?.id || '';
     };
 
@@ -781,7 +799,7 @@ const initAdminPanel = async () => {
 
         if (record) {
             timetableFormTitle.textContent = 'Update Timetable Record';
-            const cellMeta = getCellMetaByCellNumber(record.cell_id);
+            const cellMeta = getCellMetaByCellId(record.cell_id);
             timetableIdInput.value = record.timetable_id || '';
             timetableCellIdInput.value = record.timetable_cell_reference_id || cellMeta.timetableCellReferenceId || '';
             timetableSubjectSelect.value = record.subject_cord || '';
@@ -860,6 +878,8 @@ const initAdminPanel = async () => {
                     <tr>
                         <th class="px-4 py-3">Column Name</th>
                         <th class="px-4 py-3">Column Number</th>
+                        <th class="px-4 py-3">Heading Number</th>
+                        <th class="px-4 py-3">Status</th>
                         <th class="px-4 py-3">Action</th>
                     </tr>
                 </thead>
@@ -868,6 +888,10 @@ const initAdminPanel = async () => {
                         <tr class="border-b border-gray-200">
                             <td class="px-4 py-3 font-bold">${escapeHtml(item.column_heading)}</td>
                             <td class="px-4 py-3">${escapeHtml(item.column_number)}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.column_heading_number || '-')}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-black ${String(item.status || 'active') === 'deactive' ? 'bg-gray-200 text-gray-700' : 'bg-green-100 text-green-700'}">${escapeHtml(item.status || 'active')}</span>
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" data-column-heading-action="update" data-column-heading-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
@@ -884,6 +908,7 @@ const initAdminPanel = async () => {
             <table class="w-full text-sm text-left">
                 <thead class="bg-gray-100 uppercase text-gray-600">
                     <tr>
+                        <th class="px-4 py-3">Time Slot Number</th>
                         <th class="px-4 py-3">Start Time</th>
                         <th class="px-4 py-3">End Time</th>
                         <th class="px-4 py-3">Action</th>
@@ -892,6 +917,7 @@ const initAdminPanel = async () => {
                 <tbody>
                     ${timeSlots.map(item => `
                         <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.time_slot_number || '-')}</td>
                             <td class="px-4 py-3 font-bold">${escapeHtml(item.start_time)}</td>
                             <td class="px-4 py-3">${escapeHtml(item.end_time)}</td>
                             <td class="px-4 py-3">
@@ -924,7 +950,7 @@ const initAdminPanel = async () => {
                 </thead>
                 <tbody>
                     ${timetableRecords.map(item => {
-                        const cellMeta = getCellMetaByCellNumber(item.cell_id);
+                        const cellMeta = getCellMetaByCellId(item.cell_id);
                         return `
                             <tr class="border-b border-gray-200 align-top">
                                 <td class="px-4 py-3 font-bold">${escapeHtml(item.subject || '-')}</td>
@@ -1339,6 +1365,8 @@ const initAdminPanel = async () => {
             id: columnHeadingIdInput.value || '',
             column_heading: columnHeadingNameInput.value.trim(),
             column_number: columnHeadingNumberInput.value || '',
+            column_heading_number: columnHeadingHeadingNumberInput.value || '',
+            status: columnHeadingStatusInput.value || 'active',
             created_by: getAuditValue(),
             updated_by: getAuditValue(),
         };
@@ -1395,6 +1423,7 @@ const initAdminPanel = async () => {
 
         const payload = {
             id: timeSlotIdInput.value || '',
+            time_slot_number: timeSlotNumberInput.value || '',
             start_time: timeSlotStartInput.value || '',
             end_time: timeSlotEndInput.value || '',
             created_by: getAuditValue(),
