@@ -4,9 +4,6 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-        <!-- <script type="module" src="./Js/main.js"></script>
-        <script type="module" src="./Js/pageRouting.js"></script> -->
-        <!-- <script type="module" src="./Js/customElements.js"></script> -->
         <title>Laboratory Scheduling System News</title>
     </head>
     <body class="w-full bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center w-full bg-no-repeat backdrop-blur-xs h-svh overflow-auto"  id="index-content">
