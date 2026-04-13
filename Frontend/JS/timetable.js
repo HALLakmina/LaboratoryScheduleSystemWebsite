@@ -487,7 +487,14 @@ const initSchedulingForm = () => {
     };
 
     const populateSchedulingFormView = (cellId) => {
-        const cellData = fullTimetableData.find(item => String(item.cell_id) === String(cellId));
+        const matchedHeading = getActiveColumnHeadings().find((item) => String(item.column_heading) === String(selectedScheduleMeta.day || ''));
+        const matchedTimeSlot = getActiveTimeSlots().find((item) => (
+            formatTimeSlotLabel(item.start_time, item.end_time) === String(selectedScheduleMeta.timeSlot || '')
+        ));
+        const cellData = fullTimetableData.find((item) => (
+            String(item.time_slot_id || '') === String(matchedTimeSlot?.id || '')
+            && String(item.column_heading_id || '') === String(matchedHeading?.id || '')
+        )) || fullTimetableData.find(item => String(item.cell_id) === String(cellId));
         const action = cellData?.action || 'free';
         const actionLabel = cellData?.data_source === 'temporary' && String(action).toLowerCase() === 'pending'
             ? 'TEMPORARY LECTURE'
@@ -594,19 +601,17 @@ const initSchedulingForm = () => {
         const todayValue = getTodayDateValue();
         requestDateInput.min = todayValue;
         requestDateInput.setCustomValidity('');
-        
-        console.log(requestDateInput)
+
         if (!selectedDay) {
             if (forceNextValidDate) {
                 requestDateInput.value = todayValue;
             }
             return;
         }
-        
+
         const nextValidDate = getNextDateForDay(selectedDay);
-        requestDateInput.min = nextValidDate;
-        
-        if (forceNextValidDate || !requestDateInput.value || requestDateInput.value < nextValidDate || !isMatchingSelectedDay(requestDateInput.value, selectedDay)) {
+
+        if (forceNextValidDate || !requestDateInput.value || requestDateInput.value < todayValue || !isMatchingSelectedDay(requestDateInput.value, selectedDay)) {
             requestDateInput.value = nextValidDate;
         }
     };

@@ -146,6 +146,34 @@ class LecturerRequestsService {
         }
     }
 
+    private function deleteTemporaryTimetableForRequest($request) {
+        $lectureGroupId = !empty($request['lecture_group_id'])
+            ? $request['lecture_group_id']
+            : $this->resolveLectureGroupId($request['subject_id']);
+
+        $DB_CON = new DbConnection();
+        $result = $DB_CON->execute(
+            "DELETE FROM temporary_timetable
+             WHERE time_slot_id = :time_slot_id
+               AND column_heading_id = :column_heading_id
+               AND lecture_group_id = :lecture_group_id
+               AND subject_cord = :subject_cord
+               AND lecturer_date = :lecturer_date",
+            [
+                'time_slot_id' => $request['timetable_time_slot_id'],
+                'column_heading_id' => $request['timetable_column_heading_id'],
+                'lecture_group_id' => $lectureGroupId,
+                'subject_cord' => $request['subject_id'],
+                'lecturer_date' => $request['date'],
+            ]
+        );
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Failed to delete temporary timetable record.');
+        }
+    }
+
     public function checkTemporaryTimetableAvailability($payload) {
         $record = $this->fetchSingleRow(
             "SELECT
@@ -322,6 +350,26 @@ class LecturerRequestsService {
     }
 
     public function delete($id) {
+        $request = $this->fetchSingleRow(
+            "SELECT
+                id,
+                subject_id,
+                lecture_group_id,
+                timetable_time_slot_id,
+                timetable_column_heading_id,
+                date
+             FROM lecturer_requests
+             WHERE id = :id
+             LIMIT 1",
+            ['id' => $id]
+        );
+
+        if (!$request) {
+            throw new Exception('Lecturer request not found.');
+        }
+
+        $this->deleteTemporaryTimetableForRequest($request);
+
         $DB_CON = new DbConnection();
         $query = "DELETE FROM lecturer_requests WHERE id = :id";
         $result = $DB_CON->execute($query, ['id' => $id]);
