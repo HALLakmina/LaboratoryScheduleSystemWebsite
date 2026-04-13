@@ -37,6 +37,18 @@ const getAvailableColumnHeadings = () => (
         : []
 );
 
+const getAdminColumnHeadingById = (columnHeadingId, items = fullColumnHeadingsData) => (
+    Array.isArray(items)
+        ? items.find((item) => String(item.id) === String(columnHeadingId)) || null
+        : null
+);
+
+const getAdminTimeSlotById = (timeSlotId, items = fullTimeSlotsData) => (
+    Array.isArray(items)
+        ? items.find((item) => String(item.id) === String(timeSlotId)) || null
+        : null
+);
+
 const getTimetableCellGrid = (timetableCells = []) => {
     if (!fullTimetableSettingsData || !Array.isArray(timetableCells)) return [];
 
@@ -56,6 +68,13 @@ const getTimetableCellGrid = (timetableCells = []) => {
 
     return grid;
 };
+
+const findAdminTimetableCellByRefs = (timetableCells = [], timeSlotId, columnHeadingId) => (
+    timetableCells.find((item) => (
+        String(item.time_slot_id || '') === String(timeSlotId)
+        && String(item.column_heading_id || '') === String(columnHeadingId)
+    )) || null
+);
 
 const initAdminSideNav = () => {
     const adminSideNav = document.getElementById('admin-side-nav');
@@ -740,24 +759,17 @@ const initAdminPanel = async () => {
 
     const getCellMetaByCellId = (cellId) => {
         const targetCellId = Number(cellId);
-        const cellGrid = getTimetableCellGrid(adminState.timetableCells);
-        const activeTimeSlots = getActiveTimeSlots();
         const matchedCell = adminState.timetableCells.find((item) => Number(item.id) === targetCellId);
-        const matchedDay = adminState.columnHeadings.find((item) => String(item.id) === String(matchedCell?.column_heading_id || ''));
-
-        for (let rowIndex = 0; rowIndex < cellGrid.length; rowIndex++) {
-            const columnIndex = cellGrid[rowIndex]?.indexOf(targetCellId);
-            if (columnIndex !== -1 && columnIndex !== undefined) {
-                const matchedTimeSlot = activeTimeSlots[rowIndex];
-
-                return {
-                    dayId: matchedDay?.id || '',
-                    dayLabel: matchedDay?.column_heading || '',
-                    timeSlotId: matchedTimeSlot?.id || '',
-                    timeSlotLabel: matchedTimeSlot ? formatTimeSlotLabel(matchedTimeSlot.start_time, matchedTimeSlot.end_time) : '',
-                    timetableCellReferenceId: matchedCell?.id || '',
-                };
-            }
+        const matchedTimeSlot = getAdminTimeSlotById(matchedCell?.time_slot_id || '', adminState.timeSlots);
+        const matchedDay = getAdminColumnHeadingById(matchedCell?.column_heading_id || '', adminState.columnHeadings);
+        if (matchedCell) {
+            return {
+                dayId: matchedDay?.id || '',
+                dayLabel: matchedDay?.column_heading || '',
+                timeSlotId: matchedTimeSlot?.id || '',
+                timeSlotLabel: matchedTimeSlot ? formatTimeSlotLabel(matchedTimeSlot.start_time, matchedTimeSlot.end_time) : '',
+                timetableCellReferenceId: matchedCell?.id || '',
+            };
         }
 
         return {
@@ -770,14 +782,7 @@ const initAdminPanel = async () => {
     };
 
     const getTimetableCellReferenceId = (dayId, timeSlotId) => {
-        const selectedHeading = adminState.columnHeadings.find((item) => String(item.id) === String(dayId));
-        const timeSlotIndex = getActiveTimeSlots().findIndex(item => String(item.id) === String(timeSlotId));
-        const dayIndex = Math.max(Number(selectedHeading?.column_number || 0) - 1, -1);
-        const cellId = (getTimetableCellGrid(adminState.timetableCells)[timeSlotIndex] || [])[dayIndex];
-        const matchedCell = adminState.timetableCells.find((item) => (
-            Number(item.id) === Number(cellId)
-            && (!selectedHeading || String(item.column_heading_id || '') === String(selectedHeading.id))
-        ));
+        const matchedCell = findAdminTimetableCellByRefs(adminState.timetableCells, timeSlotId, dayId);
         return matchedCell?.id || '';
     };
 
@@ -799,15 +804,14 @@ const initAdminPanel = async () => {
 
         if (record) {
             timetableFormTitle.textContent = 'Update Timetable Record';
-            const cellMeta = getCellMetaByCellId(record.cell_id);
             timetableIdInput.value = record.timetable_id || '';
-            timetableCellIdInput.value = record.timetable_cell_reference_id || cellMeta.timetableCellReferenceId || '';
+            timetableCellIdInput.value = record.timetable_cell_reference_id || '';
             timetableSubjectSelect.value = record.subject_cord || '';
             timetableGroupSelect.value = record.lecture_group_id || '';
             timetableLabSelect.value = record.lab_id || '';
             timetableActionSelect.value = record.action || 'free';
-            timetableDaySelect.value = cellMeta.dayId || '';
-            timetableTimeSlotSelect.value = cellMeta.timeSlotId || '';
+            timetableDaySelect.value = record.column_heading_id || '';
+            timetableTimeSlotSelect.value = record.time_slot_id || '';
         } else {
             timetableFormTitle.textContent = 'New Timetable Record';
         }
@@ -950,7 +954,8 @@ const initAdminPanel = async () => {
                 </thead>
                 <tbody>
                     ${timetableRecords.map(item => {
-                        const cellMeta = getCellMetaByCellId(item.cell_id);
+                        const matchedHeading = getAdminColumnHeadingById(item.column_heading_id, columnHeadings);
+                        const matchedTimeSlot = getAdminTimeSlotById(item.time_slot_id, timeSlots);
                         return `
                             <tr class="border-b border-gray-200 align-top">
                                 <td class="px-4 py-3 font-bold">${escapeHtml(item.subject || '-')}</td>
@@ -959,8 +964,8 @@ const initAdminPanel = async () => {
                                 <td class="px-4 py-3">${escapeHtml(item.year || '-')}</td>
                                 <td class="px-4 py-3">${escapeHtml(item.group_name || '-')}</td>
                                 <td class="px-4 py-3">${escapeHtml(item.lab || '-')}</td>
-                                <td class="px-4 py-3">${escapeHtml(cellMeta.dayLabel || '-')}</td>
-                                <td class="px-4 py-3">${escapeHtml(cellMeta.timeSlotLabel || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(matchedHeading?.column_heading || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(matchedTimeSlot ? formatTimeSlotLabel(matchedTimeSlot.start_time, matchedTimeSlot.end_time) : '-')}</td>
                                 <td class="px-4 py-3"><span class="px-3 py-1 rounded-full text-xs font-black ${getTimetableStatusClass(item.action)}">${escapeHtml(item.action || 'free')}</span></td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap gap-2">
@@ -1484,17 +1489,17 @@ const initAdminPanel = async () => {
 
         const selectedDayId = timetableDaySelect.value || '';
         const selectedTimeSlotId = timetableTimeSlotSelect.value || '';
-        const resolvedCellId = getTimetableCellReferenceId(selectedDayId, selectedTimeSlotId);
         const updatedByValue = currentUser.email || String(currentUser.id || '');
 
-        if (!resolvedCellId) {
+        if (!selectedDayId || !selectedTimeSlotId) {
             window.alert('Please select a valid day and time slot.');
             return;
         }
 
         const payload = {
             id: timetableIdInput.value || '',
-            cell_id: resolvedCellId,
+            time_slot_id: selectedTimeSlotId,
+            column_heading_id: selectedDayId,
             lecture_group_id: timetableGroupSelect.value || '',
             lab_id: timetableLabSelect.value || '',
             subject_cord: timetableSubjectSelect.value || '',

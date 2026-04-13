@@ -159,11 +159,12 @@ const loadSchedulingReferenceData = async () => {
 const renderTimetableHead = () => {
     const tableHead = document.getElementById('timetable-head');
     if (!tableHead) return;
+    const activeColumnHeadings = getActiveColumnHeadings();
 
     tableHead.innerHTML = `
         <tr>
             <th scope="col" class="px-6 py-3">Time</th>
-            ${fullColumnHeadingsData.map(item => `<th scope="col" class="px-6 py-3">${item.column_heading}</th>`).join('')}
+            ${activeColumnHeadings.map(item => `<th scope="col" class="px-6 py-3">${item.column_heading}</th>`).join('')}
         </tr>
     `;
 };
@@ -184,9 +185,10 @@ const populateTimeSlotSelect = () => {
 const populateDaySelect = () => {
     const daySelect = document.getElementById('day');
     if (!daySelect) return;
+    const activeColumnHeadings = getActiveColumnHeadings();
 
     daySelect.innerHTML = `<option value="">--</option>`;
-    fullColumnHeadingsData.forEach(item => {
+    activeColumnHeadings.forEach(item => {
         const option = document.createElement('option');
         option.value = item.column_heading;
         option.textContent = item.column_heading;
@@ -206,6 +208,14 @@ const populateLectureGroupSelect = () => {
         lectureGroupSelect.appendChild(option);
     });
 };
+
+const getColumnHeadingById = (columnHeadingId) => (
+    fullColumnHeadingsData.find((item) => String(item.id) === String(columnHeadingId)) || null
+);
+
+const getTimeSlotById = (timeSlotId) => (
+    fullTimeSlotsData.find((item) => String(item.id) === String(timeSlotId)) || null
+);
 
 let fullTimetableData = [];
 let permanentTimetableData = [];
@@ -230,6 +240,23 @@ const formatTimePart = (timeValue) => {
 
 const formatTimeSlotLabel = (startTime, endTime) => `${formatTimePart(startTime)}/${formatTimePart(endTime)}`;
 const getTodayDateValue = () => new Date().toISOString().split('T')[0];
+const WEEKDAY_INDEX_MAP = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+};
+
+const getActiveColumnHeadings = () => (
+    Array.isArray(fullColumnHeadingsData)
+        ? fullColumnHeadingsData
+            .filter((item) => String(item.status || 'active') === 'active')
+            .sort((left, right) => Number(left.column_heading_number || 0) - Number(right.column_heading_number || 0))
+        : []
+);
 
 const getActiveTimeSlots = () => {
     if (!fullTimetableSettingsData || !Array.isArray(fullTimeSlotsData)) return fullTimeSlotsData;
@@ -260,6 +287,13 @@ const getTimetableCellGrid = () => {
     return grid;
 };
 
+const findTimetableCellByRefs = (timeSlotId, columnHeadingId) => (
+    fullTimetableCellsData.find((item) => (
+        String(item.time_slot_id || '') === String(timeSlotId)
+        && String(item.column_heading_id || '') === String(columnHeadingId)
+    )) || null
+);
+
 const formatDateKey = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -270,62 +304,60 @@ const formatDateKey = (date) => {
 const getCurrentWeekDateRange = () => {
     const today = new Date();
     const currentDay = today.getDay();
-    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
-    const monday = new Date(today);
-    monday.setHours(0, 0, 0, 0);
-    monday.setDate(today.getDate() + mondayOffset);
+    const sundayOffset = -currentDay;
+    const sunday = new Date(today);
+    sunday.setHours(0, 0, 0, 0);
+    sunday.setDate(today.getDate() + sundayOffset);
 
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
 
     return {
-        start: formatDateKey(monday),
-        end: formatDateKey(sunday),
+        start: formatDateKey(sunday),
+        end: formatDateKey(saturday),
     };
 };
 
 const getThisWeekHeadingDateMap = () => {
     const { start } = getCurrentWeekDateRange();
-    const monday = new Date(`${start}T00:00:00`);
+    const sunday = new Date(`${start}T00:00:00`);
     const map = {};
+    const activeColumnHeadings = getActiveColumnHeadings();
 
-    fullColumnHeadingsData.forEach((heading, index) => {
-        const date = new Date(monday);
-        date.setDate(monday.getDate() + index);
-        map[String(heading.column_heading || '').toLowerCase()] = formatDateKey(date);
+    activeColumnHeadings.forEach((heading, index) => {
+        const date = new Date(sunday);
+        date.setDate(sunday.getDate() + index);
+        map[String(heading.id || '')] = formatDateKey(date);
     });
 
     return map;
 };
 
 const buildEffectiveTimetableData = (permanentData, temporaryData) => {
-    const headingDateMap = getThisWeekHeadingDateMap();
-    const cellGrid = getTimetableCellGrid();
-    const mergedByReferenceId = new Map();
+    const buildScheduleKey = (item) => `${item?.time_slot_id || ''}:${item?.column_heading_id || ''}`;
+    const mergedByScheduleKey = new Map();
 
     (permanentData || []).forEach(item => {
-        mergedByReferenceId.set(String(item.timetable_cell_reference_id || ''), { ...item, data_source: 'permanent' });
+        mergedByScheduleKey.set(buildScheduleKey(item), { ...item, data_source: 'permanent' });
     });
 
     (temporaryData || []).forEach(item => {
-        const displayCellId = Number(item.cell_id);
-        const rowIndex = cellGrid.findIndex(row => row.includes(displayCellId));
-        const columnIndex = rowIndex >= 0 ? cellGrid[rowIndex].indexOf(displayCellId) : -1;
-        const heading = columnIndex >= 0 ? fullColumnHeadingsData[columnIndex] : null;
-        const expectedDate = heading ? headingDateMap[String(heading.column_heading || '').toLowerCase()] : '';
-
-        if (!expectedDate || String(item.lecturer_date || '') !== expectedDate) {
-            return;
-        }
-
-        mergedByReferenceId.set(String(item.timetable_cell_reference_id || ''), {
+        mergedByScheduleKey.set(buildScheduleKey(item), {
             ...item,
-            action: item.subject_cord ? 'active' : (item.action || 'free'),
+            action: item.action || (item.subject_cord ? 'pending' : 'free'),
             data_source: 'temporary',
         });
     });
 
-    return Array.from(mergedByReferenceId.values()).sort((left, right) => Number(left.cell_id || 0) - Number(right.cell_id || 0));
+    return Array.from(mergedByScheduleKey.values()).sort((left, right) => {
+        const leftTimeSlotId = Number(left.time_slot_id || 0);
+        const rightTimeSlotId = Number(right.time_slot_id || 0);
+        if (leftTimeSlotId !== rightTimeSlotId) {
+            return leftTimeSlotId - rightTimeSlotId;
+        }
+
+        return Number(left.column_heading_id || 0) - Number(right.column_heading_id || 0);
+    });
 };
 
 /**
@@ -337,8 +369,8 @@ const renderTimetableTable = (data) => {
     if (!tableBody) return;
 
     const activeTimeSlots = getActiveTimeSlots();
-    const columnCount = fullColumnHeadingsData.length;
-    const cellGrid = getTimetableCellGrid();
+    const activeColumnHeadings = getActiveColumnHeadings();
+    const columnCount = activeColumnHeadings.length;
     const breakRowNumber = Number(fullTimetableSettingsData?.break_row_number || 0);
     const breakTimeSlot = breakRowNumber ? fullTimeSlotsData[breakRowNumber - 1] : null;
     const breakLabel = breakTimeSlot ? formatTimeSlotLabel(breakTimeSlot.start_time, breakTimeSlot.end_time) : 'Interval';
@@ -354,9 +386,13 @@ const renderTimetableTable = (data) => {
                 </tr>`;
         }
         tableRow += `<tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">`;
-        const currentRow = cellGrid[rowIndex] || [];
-        currentRow.forEach((cellId, columnIndex) => {
-            const cellData = data.find(item => Number(item.cell_id) === Number(cellId));
+        activeColumnHeadings.forEach((heading, columnIndex) => {
+            const linkedCell = findTimetableCellByRefs(timeSlot.id, heading.id);
+            const cellId = linkedCell?.id || '';
+            const cellData = data.find((item) => (
+                String(item.time_slot_id || '') === String(timeSlot.id)
+                && String(item.column_heading_id || '') === String(heading.id)
+            ));
             if (columnIndex === 0) {
                 tableRow += `<td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${formatTimeSlotLabel(timeSlot.start_time, timeSlot.end_time)}</td>`;
             }
@@ -407,11 +443,16 @@ const initSchedulingForm = () => {
     const viewCloseBtn = document.getElementById('scheduling-form-view-close');
     const lecturerRequestBtn = document.getElementById('lecturer-request');
     const lecturerRequestFormBtn = document.getElementById('lecturer-request-form');
+    const lecturerRequestFormContainer = document.getElementById('lecturer-request-form-container');
     const tableBody = document.getElementById('timetable-body');
 
-    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn) return;
+    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn || !lecturerRequestFormContainer) return;
 
     let selectedCellId = '';
+    let selectedScheduleMeta = {
+        timeSlot: '',
+        day: '',
+    };
 
     const setViewText = (id, value) => {
         const el = document.getElementById(id);
@@ -423,7 +464,7 @@ const initSchedulingForm = () => {
         const badge = document.getElementById('lecture-action-badge');
         if (!badge) return;
 
-        badge.classList.remove('bg-green-700', 'bg-purple-800', 'bg-red-700', 'bg-gray-700');
+        badge.classList.remove('bg-green-700', 'bg-purple-800', 'bg-red-700', 'bg-amber-600', 'bg-gray-700');
 
         const normalized = String(action || '').toLowerCase();
         if (normalized === 'free') {
@@ -438,14 +479,21 @@ const initSchedulingForm = () => {
             badge.classList.add('bg-red-700');
             return;
         }
+        if (normalized === 'pending') {
+            badge.classList.add('bg-amber-600');
+            return;
+        }
         badge.classList.add('bg-gray-700');
     };
 
     const populateSchedulingFormView = (cellId) => {
         const cellData = fullTimetableData.find(item => String(item.cell_id) === String(cellId));
         const action = cellData?.action || 'free';
+        const actionLabel = cellData?.data_source === 'temporary' && String(action).toLowerCase() === 'pending'
+            ? 'TEMPORARY LECTURE'
+            : String(action).toUpperCase();
 
-        setViewText('lecture-action', String(action).toUpperCase());
+        setViewText('lecture-action', actionLabel);
         setLectureActionBadge(action);
         setViewText('subject-name', cellData?.subject || '');
         setViewText('subject-code', cellData?.subject_cord || '');
@@ -456,23 +504,130 @@ const initSchedulingForm = () => {
     };
 
     const getCellScheduleMeta = (cellId) => {
-        const cellGrid = getTimetableCellGrid();
-        const activeTimeSlots = getActiveTimeSlots();
+        const matchedCell = fullTimetableCellsData.find((item) => Number(item.id) === Number(cellId));
+        const matchedTimeSlot = getTimeSlotById(matchedCell?.time_slot_id || '');
+        const matchedHeading = getColumnHeadingById(matchedCell?.column_heading_id || '');
 
-        for (let rowIndex = 0; rowIndex < cellGrid.length; rowIndex++) {
-            const columnIndex = cellGrid[rowIndex].indexOf(Number(cellId));
-            if (columnIndex !== -1) {
-                return {
-                    timeSlot: activeTimeSlots[rowIndex] ? formatTimeSlotLabel(activeTimeSlots[rowIndex].start_time, activeTimeSlots[rowIndex].end_time) : '',
-                    day: fullColumnHeadingsData[columnIndex]?.column_heading || '',
-                };
-            }
+        if (matchedCell) {
+            return {
+                timeSlot: matchedTimeSlot ? formatTimeSlotLabel(matchedTimeSlot.start_time, matchedTimeSlot.end_time) : '',
+                day: matchedHeading?.column_heading || '',
+            };
         }
 
         return {
             timeSlot: '',
             day: '',
         };
+    };
+
+    const getCellScheduleMetaFromButton = (buttonElement) => {
+        const cellElement = buttonElement?.closest('td');
+        const rowElement = buttonElement?.closest('tr');
+        if (!cellElement || !rowElement) {
+            return {
+                timeSlot: '',
+                day: '',
+            };
+        }
+
+        const rowCells = Array.from(rowElement.children);
+        const clickedCellIndex = rowCells.indexOf(cellElement);
+        const headingIndex = clickedCellIndex - 1;
+        const activeColumnHeadings = getActiveColumnHeadings();
+        const rowTimeLabel = rowCells[0]?.textContent?.trim() || '';
+        const headingLabel = activeColumnHeadings[headingIndex]?.column_heading || '';
+
+        return {
+            timeSlot: rowTimeLabel,
+            day: headingLabel,
+        };
+    };
+
+    const setSelectValueSafe = (selectElement, value) => {
+        if (!selectElement) return;
+
+        const normalizedValue = String(value || '');
+        const hasMatchingOption = Array.from(selectElement.options).some(
+            (option) => String(option.value) === normalizedValue
+        );
+
+        selectElement.value = hasMatchingOption ? normalizedValue : '';
+    };
+
+    const normalizeDayValue = (value) => String(value || '').trim().toLowerCase();
+
+    const formatDateInputValue = (date) => {
+        const safeDate = new Date(date);
+        safeDate.setHours(0, 0, 0, 0);
+        return formatDateKey(safeDate);
+    };
+
+    const getNextDateForDay = (dayValue) => {
+        const targetDayIndex = WEEKDAY_INDEX_MAP[normalizeDayValue(dayValue)];
+        if (targetDayIndex === undefined) {
+            return getTodayDateValue();
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const currentDayIndex = today.getDay();
+        const dayOffset = (targetDayIndex - currentDayIndex + 7) % 7;
+        const nextDate = new Date(today);
+        nextDate.setDate(today.getDate() + dayOffset);
+        return formatDateInputValue(nextDate);
+    };
+
+    const isMatchingSelectedDay = (dateValue, dayValue) => {
+        const targetDayIndex = WEEKDAY_INDEX_MAP[normalizeDayValue(dayValue)];
+        if (!dateValue || targetDayIndex === undefined) {
+            return false;
+        }
+
+        const selectedDate = new Date(`${dateValue}T00:00:00`);
+        return selectedDate.getDay() === targetDayIndex;
+    };
+
+    const syncRequestDateWithDay = ({ forceNextValidDate = false } = {}) => {
+        const selectedDay = daySelect.value || '';
+
+        const todayValue = getTodayDateValue();
+        requestDateInput.min = todayValue;
+        requestDateInput.setCustomValidity('');
+        
+        console.log(requestDateInput)
+        if (!selectedDay) {
+            if (forceNextValidDate) {
+                requestDateInput.value = todayValue;
+            }
+            return;
+        }
+        
+        const nextValidDate = getNextDateForDay(selectedDay);
+        requestDateInput.min = nextValidDate;
+        
+        if (forceNextValidDate || !requestDateInput.value || requestDateInput.value < nextValidDate || !isMatchingSelectedDay(requestDateInput.value, selectedDay)) {
+            requestDateInput.value = nextValidDate;
+        }
+    };
+
+    const validateRequestDateForSelectedDay = () => {
+        const selectedDay = daySelect.value || '';
+        const selectedDate = requestDateInput.value || '';
+
+        if (!selectedDay || !selectedDate) {
+            requestDateInput.setCustomValidity('');
+            return true;
+        }
+
+        if (!isMatchingSelectedDay(selectedDate, selectedDay)) {
+            requestDateInput.setCustomValidity(`Please select a ${selectedDay} date.`);
+            requestDateInput.reportValidity();
+            return false;
+        }
+
+        requestDateInput.setCustomValidity('');
+        return true;
     };
 
     const resetSchedulingForm = () => {
@@ -482,6 +637,8 @@ const initSchedulingForm = () => {
         daySelect.value = '';
         lectureGroupSelect.value = '';
         requestDateInput.value = getTodayDateValue();
+        requestDateInput.min = getTodayDateValue();
+        requestDateInput.setCustomValidity('');
     };
 
     const showSchedulingModal = (modalElement) => {
@@ -502,21 +659,28 @@ const initSchedulingForm = () => {
     const syncLecturerRequestButtons = (isLoggedIn) => {
         if (isLoggedIn) {
             lecturerRequestBtn.classList.remove('hidden');
-            lecturerRequestFormBtn.classList.remove('hidden');
+            lecturerRequestFormContainer.classList.remove('hidden');
+            lecturerRequestFormContainer.classList.add('flex');
             return;
         }
 
         lecturerRequestBtn.classList.add('hidden');
-        lecturerRequestFormBtn.classList.add('hidden');
+        lecturerRequestFormContainer.classList.add('hidden');
+        lecturerRequestFormContainer.classList.remove('flex');
     };
 
     const openSchedulingForm = () => {
         if (!Boolean(getCurrentUserRole())) return;
 
-        const scheduleMeta = getCellScheduleMeta(selectedCellId);
+        const scheduleMeta = {
+            timeSlot: selectedScheduleMeta.timeSlot || getCellScheduleMeta(selectedCellId).timeSlot,
+            day: selectedScheduleMeta.day || getCellScheduleMeta(selectedCellId).day,
+        };
+        resetSchedulingForm();
         cellIdInput.value = selectedCellId;
-        timeSlotSelect.value = scheduleMeta.timeSlot;
-        daySelect.value = scheduleMeta.day;
+        setSelectValueSafe(timeSlotSelect, scheduleMeta.timeSlot);
+        setSelectValueSafe(daySelect, scheduleMeta.day);
+        syncRequestDateWithDay({ forceNextValidDate: true });
         hideSchedulingModal(viewSection);
         showSchedulingModal(formSection);
     };
@@ -526,9 +690,17 @@ const initSchedulingForm = () => {
         if (!btn) return;
 
         const isLoggedIn = Boolean(getCurrentUserRole());
-        const cellId = btn.getAttribute('data-cell-id') || '';
-        selectedCellId = cellId;
-        populateSchedulingFormView(cellId);
+        const cellIdFromButton = btn.getAttribute('data-cell-id') || '';
+        const buttonScheduleMeta = getCellScheduleMetaFromButton(btn);
+        const selectedHeading = getActiveColumnHeadings().find((item) => String(item.column_heading) === String(buttonScheduleMeta.day));
+        const selectedTimeSlot = getActiveTimeSlots().find((item) => (
+            formatTimeSlotLabel(item.start_time, item.end_time) === buttonScheduleMeta.timeSlot
+        ));
+        const resolvedCell = findTimetableCellByRefs(selectedTimeSlot?.id || '', selectedHeading?.id || '');
+
+        selectedCellId = cellIdFromButton || String(resolvedCell?.id || '');
+        selectedScheduleMeta = buttonScheduleMeta;
+        populateSchedulingFormView(selectedCellId);
         syncLecturerRequestButtons(isLoggedIn);
 
         hideSchedulingModal(formSection);
@@ -553,6 +725,12 @@ const initSchedulingForm = () => {
     syncLecturerRequestButtons(Boolean(getCurrentUserRole()));
     requestDateInput.min = getTodayDateValue();
     requestDateInput.value = getTodayDateValue();
+    daySelect.addEventListener('change', () => {
+        syncRequestDateWithDay({ forceNextValidDate: true });
+    });
+    requestDateInput.addEventListener('change', () => {
+        validateRequestDateForSelectedDay();
+    });
 
     formElement.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -575,12 +753,16 @@ const initSchedulingForm = () => {
         const selectedTimeSlot = fullTimeSlotsData.find(item => (
             formatTimeSlotLabel(item.start_time, item.end_time) === timeSlotValue
         ));
-        const selectedColumnHeading = fullColumnHeadingsData.find(item => (
+        const selectedColumnHeading = getActiveColumnHeadings().find(item => (
             String(item.column_heading).toLowerCase() === String(dayValue).toLowerCase()
         ));
 
         if (!lecturerId) {
             window.alert('Please log in again before sending a lecturer request.');
+            return;
+        }
+
+        if (!validateRequestDateForSelectedDay()) {
             return;
         }
 

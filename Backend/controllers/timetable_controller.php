@@ -31,8 +31,12 @@ class TimetableController {
             return 'id is required.';
         }
 
-        if (!isset($payload['cell_id']) || trim((string)$payload['cell_id']) === '') {
-            return 'cell_id is required.';
+        if (!isset($payload['time_slot_id']) || trim((string)$payload['time_slot_id']) === '') {
+            return 'time_slot_id is required.';
+        }
+
+        if (!isset($payload['column_heading_id']) || trim((string)$payload['column_heading_id']) === '') {
+            return 'column_heading_id is required.';
         }
 
         if (!isset($payload['action']) || !in_array($payload['action'], ['active', 'free', 'cancel'], true)) {
@@ -479,6 +483,8 @@ class TimetableController {
     public function createTimetableRecord($req = null, $res = null) {
         try {
             $payload = $req['body'] ?? [];
+            $payload['time_slot_id'] = $this->normalizeNullableValue($payload['time_slot_id'] ?? null);
+            $payload['column_heading_id'] = $this->normalizeNullableValue($payload['column_heading_id'] ?? null);
             $payload['lecture_group_id'] = $this->normalizeNullableValue($payload['lecture_group_id'] ?? null);
             $payload['lab_id'] = $this->normalizeNullableValue($payload['lab_id'] ?? null);
             $payload['subject_cord'] = $this->normalizeNullableValue($payload['subject_cord'] ?? null);
@@ -500,6 +506,8 @@ class TimetableController {
     public function updateTimetableRecord($req = null, $res = null) {
         try {
             $payload = $req['body'] ?? [];
+            $payload['time_slot_id'] = $this->normalizeNullableValue($payload['time_slot_id'] ?? null);
+            $payload['column_heading_id'] = $this->normalizeNullableValue($payload['column_heading_id'] ?? null);
             $payload['lecture_group_id'] = $this->normalizeNullableValue($payload['lecture_group_id'] ?? null);
             $payload['lab_id'] = $this->normalizeNullableValue($payload['lab_id'] ?? null);
             $payload['subject_cord'] = $this->normalizeNullableValue($payload['subject_cord'] ?? null);

@@ -57,9 +57,10 @@ class TimetableService {
     private function getBaseTimeScheduleQuery() {
         return "SELECT
                     t.id AS timetable_id,
-                    t.cell_id AS timetable_cell_reference_id,
+                    tc.id AS timetable_cell_reference_id,
                     tc.id AS cell_id,
-                    tc.column_heading_id,
+                    t.time_slot_id,
+                    t.column_heading_id,
                     t.lecture_group_id,
                     t.lab_id,
                     t.subject_cord,
@@ -73,7 +74,14 @@ class TimetableService {
                     sl.lecturer_id,
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
                 FROM timetable t
-                LEFT JOIN timetable_cells tc ON t.cell_id = tc.id
+                LEFT JOIN (
+                    SELECT
+                        MIN(id) AS id,
+                        time_slot_id,
+                        column_heading_id
+                    FROM timetable_cells
+                    GROUP BY time_slot_id, column_heading_id
+                ) tc ON tc.time_slot_id = t.time_slot_id AND tc.column_heading_id = t.column_heading_id
                 LEFT JOIN lecture_groups lg ON t.lecture_group_id = lg.id
                 LEFT JOIN labs l ON t.lab_id = l.id
                 LEFT JOIN practical_subjects ps ON t.subject_cord = ps.subject_cord
@@ -90,9 +98,10 @@ class TimetableService {
     public function getTemporaryTimeSchedules($dateFrom = null, $dateTo = null) {
         $query = "SELECT
                     tt.id AS temporary_timetable_id,
-                    tt.cell_id AS timetable_cell_reference_id,
+                    tc.id AS timetable_cell_reference_id,
                     tc.id AS cell_id,
-                    tc.column_heading_id,
+                    tt.time_slot_id,
+                    tt.column_heading_id,
                     tt.lecture_group_id,
                     tt.lab_id,
                     tt.subject_cord,
@@ -107,7 +116,14 @@ class TimetableService {
                     sl.lecturer_id,
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
                 FROM temporary_timetable tt
-                LEFT JOIN timetable_cells tc ON tt.cell_id = tc.id
+                LEFT JOIN (
+                    SELECT
+                        MIN(id) AS id,
+                        time_slot_id,
+                        column_heading_id
+                    FROM timetable_cells
+                    GROUP BY time_slot_id, column_heading_id
+                ) tc ON tc.time_slot_id = tt.time_slot_id AND tc.column_heading_id = tt.column_heading_id
                 LEFT JOIN lecture_groups lg ON tt.lecture_group_id = lg.id
                 LEFT JOIN labs l ON tt.lab_id = l.id
                 LEFT JOIN practical_subjects ps ON tt.subject_cord = ps.subject_cord
@@ -339,7 +355,7 @@ class TimetableService {
     }
 
     public function getTimetableCells() {
-        $query = "SELECT id, column_heading_id
+        $query = "SELECT id, time_slot_id, column_heading_id
                   FROM timetable_cells
                   ORDER BY id";
         return $this->fetchAllRows($query);
@@ -398,7 +414,8 @@ class TimetableService {
         $DB_CON = new DbConnection();
         $query = "INSERT INTO timetable
                     (
-                        cell_id,
+                        time_slot_id,
+                        column_heading_id,
                         lecture_group_id,
                         lab_id,
                         subject_cord,
@@ -408,7 +425,8 @@ class TimetableService {
                     )
                     VALUES
                     (
-                        :cell_id,
+                        :time_slot_id,
+                        :column_heading_id,
                         :lecture_group_id,
                         :lab_id,
                         :subject_cord,
@@ -418,7 +436,8 @@ class TimetableService {
                     )";
 
         $property = [
-            'cell_id' => $payload['cell_id'],
+            'time_slot_id' => $payload['time_slot_id'],
+            'column_heading_id' => $payload['column_heading_id'],
             'lecture_group_id' => $payload['lecture_group_id'],
             'lab_id' => $payload['lab_id'],
             'subject_cord' => $payload['subject_cord'],
@@ -440,7 +459,8 @@ class TimetableService {
         $DB_CON = new DbConnection();
         $query = "UPDATE timetable
                     SET
-                        cell_id = :cell_id,
+                        time_slot_id = :time_slot_id,
+                        column_heading_id = :column_heading_id,
                         lecture_group_id = :lecture_group_id,
                         lab_id = :lab_id,
                         subject_cord = :subject_cord,
@@ -450,7 +470,8 @@ class TimetableService {
 
         $property = [
             'id' => $payload['id'],
-            'cell_id' => $payload['cell_id'],
+            'time_slot_id' => $payload['time_slot_id'],
+            'column_heading_id' => $payload['column_heading_id'],
             'lecture_group_id' => $payload['lecture_group_id'],
             'lab_id' => $payload['lab_id'],
             'subject_cord' => $payload['subject_cord'],

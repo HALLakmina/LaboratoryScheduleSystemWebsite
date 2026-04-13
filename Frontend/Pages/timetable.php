@@ -32,11 +32,11 @@
                         </select>
                     </div>
                 </form>
-                <div class="bg-white p-2 rounded-lg m-2 flex items-center">
+                <div id="lecturer-request-form-container" class="hidden bg-white p-2 rounded-lg m-2 items-center">
                     <button
                         type="button"
                         id="lecturer-request-form"
-                        class="hidden bg-blue-500 p-2 rounded-sm font-bold text-white active:scale-95 text-sm"
+                        class="bg-blue-500 p-2 rounded-sm font-bold text-white active:scale-95 text-sm"
                     >
                         LECTURE REQUEST
                     </button>
