@@ -1,4 +1,4 @@
-import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getTimetableCells } from '../API/timetableApi.js';
+import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getTimetableCells, getLabs } from '../API/timetableApi.js';
 import { sendLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getCurrentUserRole, getStoredUser } from './loginUser.js';
 
@@ -133,12 +133,13 @@ const populateYearsSelects = async () => {
 
 const loadSchedulingReferenceData = async () => {
     try {
-        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse, lectureGroupsResponse, timetableCellsResponse] = await Promise.all([
+        const [timeSlotsResponse, columnHeadingsResponse, settingsResponse, lectureGroupsResponse, timetableCellsResponse, labsResponse] = await Promise.all([
             getTimeSlots(),
             getColumnHeadings(),
             getTimetableSettings(),
             getLectureGroups(),
             getTimetableCells(),
+            getLabs(),
         ]);
 
         fullTimeSlotsData = timeSlotsResponse.status === '200' && timeSlotsResponse.data ? timeSlotsResponse.data : [];
@@ -146,6 +147,7 @@ const loadSchedulingReferenceData = async () => {
         fullTimetableSettingsData = settingsResponse.status === '200' ? settingsResponse.data : null;
         fullLectureGroupsData = lectureGroupsResponse.status === '200' && lectureGroupsResponse.data ? lectureGroupsResponse.data : [];
         fullTimetableCellsData = timetableCellsResponse.status === '200' && timetableCellsResponse.data ? timetableCellsResponse.data : [];
+        fullLabsData = labsResponse.status === '200' && labsResponse.data ? labsResponse.data : [];
 
         renderTimetableHead();
         populateTimeSlotSelect();
@@ -163,8 +165,8 @@ const renderTimetableHead = () => {
 
     tableHead.innerHTML = `
         <tr>
-            <th scope="col" class="px-6 py-3">Time</th>
-            ${activeColumnHeadings.map(item => `<th scope="col" class="px-6 py-3">${item.column_heading}</th>`).join('')}
+            <th scope="col" class="sticky left-0 z-30 min-w-[96px] bg-gray-950 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.28em] text-sky-100 shadow-[4px_0_12px_rgba(15,23,42,0.18)]">Time</th>
+            ${activeColumnHeadings.map(item => `<th scope="col" class="min-w-[160px] bg-gray-950 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.28em] text-sky-100">${item.column_heading}</th>`).join('')}
         </tr>
     `;
 };
@@ -227,6 +229,8 @@ let fullColumnHeadingsData = [];
 let fullTimetableSettingsData = null;
 let fullLectureGroupsData = [];
 let fullTimetableCellsData = [];
+let fullLabsData = [];
+let currentDisplayedTimetableData = [];
 
 const formatTimePart = (timeValue) => {
     if (!timeValue) return '';
@@ -334,30 +338,82 @@ const getThisWeekHeadingDateMap = () => {
 };
 
 const buildEffectiveTimetableData = (permanentData, temporaryData) => {
-    const buildScheduleKey = (item) => `${item?.time_slot_id || ''}:${item?.column_heading_id || ''}`;
-    const mergedByScheduleKey = new Map();
-
-    (permanentData || []).forEach(item => {
-        mergedByScheduleKey.set(buildScheduleKey(item), { ...item, data_source: 'permanent' });
+    const normalizeRecord = (item, source) => ({
+        ...item,
+        action: item.action || (item.subject_cord ? 'active' : 'free'),
+        data_source: source,
+        unique_record_id: source === 'temporary'
+            ? `temporary:${item.temporary_timetable_id || `${item.time_slot_id || ''}:${item.column_heading_id || ''}:${item.subject_cord || ''}:${item.lecture_group_id || ''}:${item.lab_id || ''}`}`
+            : `permanent:${item.timetable_id || `${item.time_slot_id || ''}:${item.column_heading_id || ''}:${item.subject_cord || ''}:${item.lecture_group_id || ''}:${item.lab_id || ''}`}`,
     });
 
-    (temporaryData || []).forEach(item => {
-        mergedByScheduleKey.set(buildScheduleKey(item), {
-            ...item,
-            action: item.action || (item.subject_cord ? 'pending' : 'free'),
-            data_source: 'temporary',
-        });
-    });
-
-    return Array.from(mergedByScheduleKey.values()).sort((left, right) => {
+    return [
+        ...(permanentData || []).map((item) => normalizeRecord(item, 'permanent')),
+        ...(temporaryData || []).map((item) => normalizeRecord(item, 'temporary')),
+    ].sort((left, right) => {
         const leftTimeSlotId = Number(left.time_slot_id || 0);
         const rightTimeSlotId = Number(right.time_slot_id || 0);
         if (leftTimeSlotId !== rightTimeSlotId) {
             return leftTimeSlotId - rightTimeSlotId;
         }
 
-        return Number(left.column_heading_id || 0) - Number(right.column_heading_id || 0);
+        const leftColumnHeadingId = Number(left.column_heading_id || 0);
+        const rightColumnHeadingId = Number(right.column_heading_id || 0);
+        if (leftColumnHeadingId !== rightColumnHeadingId) {
+            return leftColumnHeadingId - rightColumnHeadingId;
+        }
+
+        return String(left.unique_record_id || '').localeCompare(String(right.unique_record_id || ''));
     });
+};
+
+const buildSlotGroups = (records = []) => {
+    const groupedRecords = new Map();
+
+    records.forEach((record) => {
+        const slotKey = `${record?.time_slot_id || ''}:${record?.column_heading_id || ''}`;
+        const existingSlot = groupedRecords.get(slotKey) || {
+            time_slot_id: record?.time_slot_id || '',
+            column_heading_id: record?.column_heading_id || '',
+            records: [],
+        };
+
+        existingSlot.records.push(record);
+        groupedRecords.set(slotKey, existingSlot);
+    });
+
+    return groupedRecords;
+};
+
+const buildLabAllocationEntries = (slotGroup) => {
+    const labs = Array.isArray(fullLabsData) ? fullLabsData : [];
+    const records = Array.isArray(slotGroup?.records) ? slotGroup.records : [];
+    const usedRecords = records.slice(0, labs.length);
+    const overflowRecords = records.slice(labs.length);
+
+    const labEntries = labs.map((lab, index) => {
+        const record = usedRecords[index] || null;
+        return {
+            lab,
+            record,
+            action: record?.action || 'free',
+            lectureId: record?.subject_cord || '',
+            isFree: !record,
+        };
+    });
+
+    return {
+        slotKey: `${slotGroup?.time_slot_id || ''}:${slotGroup?.column_heading_id || ''}`,
+        time_slot_id: slotGroup?.time_slot_id || '',
+        column_heading_id: slotGroup?.column_heading_id || '',
+        records,
+        labs: labEntries,
+        labCount: labs.length,
+        lectureCount: records.length,
+        usedLabCount: usedRecords.length,
+        overflowCount: overflowRecords.length,
+        overflowRecords,
+    };
 };
 
 /**
@@ -367,6 +423,7 @@ const buildEffectiveTimetableData = (permanentData, temporaryData) => {
 const renderTimetableTable = (data) => {
     const tableBody = document.getElementById('timetable-body');
     if (!tableBody) return;
+    currentDisplayedTimetableData = Array.isArray(data) ? data : [];
 
     const activeTimeSlots = getActiveTimeSlots();
     const activeColumnHeadings = getActiveColumnHeadings();
@@ -374,31 +431,71 @@ const renderTimetableTable = (data) => {
     const breakRowNumber = Number(fullTimetableSettingsData?.break_row_number || 0);
     const breakTimeSlot = breakRowNumber ? fullTimeSlotsData[breakRowNumber - 1] : null;
     const breakLabel = breakTimeSlot ? formatTimeSlotLabel(breakTimeSlot.start_time, breakTimeSlot.end_time) : 'Interval';
+    const slotGroups = buildSlotGroups(data);
+    const totalLabCount = fullLabsData.length;
 
     tableBody.innerHTML = '';
     activeTimeSlots.forEach((timeSlot, rowIndex) => {
         let tableRow = '';
         if (breakRowNumber && rowIndex === breakRowNumber - 1) {
             tableRow += `
-                <tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">
-                    <td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${breakLabel}</td>
-                    <td colspan="${columnCount}" class=""><p class="px-6 py-6 font-bold text-lg w-full h-full hover:bg-gray-400 text-center"> Interval </p></td>
+                <tr class="border-b border-gray-200">
+                    <td scope="row" class="sticky left-0 z-10 bg-white px-4 py-4 text-sm font-black text-gray-950 shadow-[4px_0_12px_rgba(148,163,184,0.15)] whitespace-nowrap">${breakLabel}</td>
+                    <td colspan="${columnCount}" class="bg-white">
+                        <p class="px-4 py-6 text-center text-base font-black uppercase tracking-[0.2em] text-gray-500">Interval</p>
+                    </td>
                 </tr>`;
         }
-        tableRow += `<tr class="odd:bg-white even:bg-gray-200 border-b border-gray-200">`;
+        tableRow += `<tr class="border-b border-gray-200 odd:bg-white even:bg-slate-50/90">`;
         activeColumnHeadings.forEach((heading, columnIndex) => {
             const linkedCell = findTimetableCellByRefs(timeSlot.id, heading.id);
             const cellId = linkedCell?.id || '';
-            const cellData = data.find((item) => (
-                String(item.time_slot_id || '') === String(timeSlot.id)
-                && String(item.column_heading_id || '') === String(heading.id)
-            ));
+            const slotKey = `${timeSlot.id}:${heading.id}`;
+            const slotGroup = slotGroups.get(slotKey) || {
+                time_slot_id: timeSlot.id,
+                column_heading_id: heading.id,
+                records: [],
+            };
+            const lectureCount = slotGroup.records.length;
+            const usedLabs = Math.min(lectureCount, totalLabCount);
+            const overflowCount = Math.max(lectureCount - totalLabCount, 0);
+            const summaryText = lectureCount > 0 ? `${lectureCount} Lecture${lectureCount > 1 ? 's' : ''}` : 'No Lectures';
+            const usageText = totalLabCount > 0 ? `${usedLabs}/${totalLabCount} Labs Used` : 'No Labs';
+            const lectureCodesMarkup = lectureCount > 0
+                ? `<div class="flex flex-wrap gap-2">
+                        ${slotGroup.records.map((record) => `
+                            <span class="rounded-full bg-gray-950 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
+                                ${record?.subject_cord || '-'}
+                            </span>
+                        `).join('')}
+                    </div>`
+                : `<p class="text-xs font-bold text-gray-500">No lecture codes</p>`;
+            const overflowMarkup = overflowCount > 0
+                ? `<p class="text-[11px] font-black uppercase tracking-wide text-red-600">${overflowCount} Overflow</p>`
+                : `<p class="text-[11px] font-black uppercase tracking-wide ${lectureCount > 0 ? 'text-emerald-700' : 'text-gray-500'}">${lectureCount > 0 ? 'Available' : 'Free Slot'}</p>`;
+
             if (columnIndex === 0) {
-                tableRow += `<td scope="row" class="px-6 py-4 font-medium text-gray-950 font-bold whitespace-nowrap">${formatTimeSlotLabel(timeSlot.start_time, timeSlot.end_time)}</td>`;
+                tableRow += `<td scope="row" class="sticky left-0 z-10 min-w-[96px] whitespace-nowrap bg-inherit px-4 py-4 text-sm font-black text-gray-950 shadow-[4px_0_12px_rgba(148,163,184,0.15)]">${formatTimeSlotLabel(timeSlot.start_time, timeSlot.end_time)}</td>`;
             }
-            tableRow += cellData
-                ? `<td class=""><button type="button" class="timetable-cell-btn px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300" data-cell-id="${cellId}"> ${cellData.subject_cord || ''} </button></td>`
-                : `<td class=""><button type="button" class="timetable-cell-btn px-6 py-4 w-full h-full hover:bg-gray-400 text-left active:bg-blue-300" data-cell-id="${cellId}">  </button></td>`;
+            tableRow += `
+                <td class="min-w-[160px] align-top p-0">
+                    <button
+                        type="button"
+                        class="timetable-cell-btn flex min-h-[112px] w-full flex-col items-start gap-3 border-l border-t border-white/70 px-4 py-4 text-left transition active:scale-[0.98] ${overflowCount > 0 ? 'bg-red-50 hover:bg-red-100' : lectureCount > 0 ? 'bg-white hover:bg-sky-50' : 'bg-transparent hover:bg-gray-100'}"
+                        data-cell-id="${cellId}"
+                        data-time-slot-id="${timeSlot.id}"
+                        data-column-heading-id="${heading.id}"
+                    >
+                        <div class="flex w-full flex-col gap-3">
+                            ${lectureCodesMarkup}
+                        </div>
+                        <div class="mt-auto flex w-full flex-col gap-1">
+                            <p class="text-sm font-black text-gray-950">${summaryText}</p>
+                            <p class="text-xs font-bold text-gray-600">${usageText}</p>
+                        </div>
+                        ${overflowMarkup}
+                    </button>
+                </td>`;
         });
         tableRow += `</tr>`;
         tableBody.innerHTML += tableRow;
@@ -430,6 +527,12 @@ const filterTimetableTable = (year, subjectCode) => {
 const initSchedulingForm = () => {
     const formSection = document.getElementById('scheduling-form');
     const viewSection = document.getElementById('scheduling-form-view');
+    const labAllocationModal = document.getElementById('lab-allocation-modal');
+    const labAllocationCloseBtn = document.getElementById('lab-allocation-close');
+    const labAllocationTitle = document.getElementById('lab-allocation-title');
+    const labAllocationSummary = document.getElementById('lab-allocation-summary');
+    const labAllocationOverflow = document.getElementById('lab-allocation-overflow');
+    const labAllocationList = document.getElementById('lab-allocation-list');
     const formElement = document.querySelector('#scheduling-form form');
     const cellIdInput = document.getElementById('cell_id');
     const yearSelect = document.getElementById('years');
@@ -446,13 +549,17 @@ const initSchedulingForm = () => {
     const lecturerRequestFormContainer = document.getElementById('lecturer-request-form-container');
     const tableBody = document.getElementById('timetable-body');
 
-    if (!formSection || !viewSection || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn || !lecturerRequestFormContainer) return;
+    if (!formSection || !viewSection || !labAllocationModal || !labAllocationCloseBtn || !labAllocationTitle || !labAllocationSummary || !labAllocationOverflow || !labAllocationList || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn || !lecturerRequestFormContainer) return;
 
     let selectedCellId = '';
     let selectedScheduleMeta = {
+        timeSlotId: '',
+        columnHeadingId: '',
         timeSlot: '',
         day: '',
+        cellId: '',
     };
+    let selectedViewRecord = null;
 
     const setViewText = (id, value) => {
         const el = document.getElementById(id);
@@ -483,31 +590,34 @@ const initSchedulingForm = () => {
             badge.classList.add('bg-amber-600');
             return;
         }
+        if (normalized === 'temporary_lecture') {
+            badge.classList.add('bg-amber-600');
+            return;
+        }
         badge.classList.add('bg-gray-700');
     };
 
-    const populateSchedulingFormView = (cellId) => {
-        const matchedHeading = getActiveColumnHeadings().find((item) => String(item.column_heading) === String(selectedScheduleMeta.day || ''));
-        const matchedTimeSlot = getActiveTimeSlots().find((item) => (
-            formatTimeSlotLabel(item.start_time, item.end_time) === String(selectedScheduleMeta.timeSlot || '')
-        ));
-        const cellData = fullTimetableData.find((item) => (
-            String(item.time_slot_id || '') === String(matchedTimeSlot?.id || '')
-            && String(item.column_heading_id || '') === String(matchedHeading?.id || '')
-        )) || fullTimetableData.find(item => String(item.cell_id) === String(cellId));
-        const action = cellData?.action || 'free';
-        const actionLabel = cellData?.data_source === 'temporary' && String(action).toLowerCase() === 'pending'
-            ? 'TEMPORARY LECTURE'
-            : String(action).toUpperCase();
+    const getActionLabel = (record) => {
+        const normalizedAction = String(record?.action || 'free').toLowerCase();
+        if (normalizedAction === 'temporary_lecture') {
+            return 'TEMPORARY LECTURE';
+        }
 
-        setViewText('lecture-action', actionLabel);
+        return String(record?.action || 'free').toUpperCase();
+    };
+
+    const populateSchedulingFormView = (viewRecord = null) => {
+        const record = viewRecord || selectedViewRecord || null;
+        const action = record?.action || 'free';
+
+        setViewText('lecture-action', getActionLabel(record));
         setLectureActionBadge(action);
-        setViewText('subject-name', cellData?.subject || '');
-        setViewText('subject-code', cellData?.subject_cord || '');
-        setViewText('lecture-in-charge', cellData?.lecturer_name || '');
-        setViewText('lecture', cellData?.year || '');
-        setViewText('lecture-group', cellData?.group_name || '');
-        setViewText('lab', cellData?.lab || '');
+        setViewText('subject-name', record?.subject || '');
+        setViewText('subject-code', record?.subject_cord || record?.lectureId || '');
+        setViewText('lecture-in-charge', record?.lecturer_name || '');
+        setViewText('lecture', record?.year || '');
+        setViewText('lecture-group', record?.group_name || '');
+        setViewText('lab', record?.lab || record?.lab_name || '');
     };
 
     const getCellScheduleMeta = (cellId) => {
@@ -682,7 +792,7 @@ const initSchedulingForm = () => {
             day: selectedScheduleMeta.day || getCellScheduleMeta(selectedCellId).day,
         };
         resetSchedulingForm();
-        cellIdInput.value = selectedCellId;
+        cellIdInput.value = selectedScheduleMeta.cellId || selectedCellId;
         setSelectValueSafe(timeSlotSelect, scheduleMeta.timeSlot);
         setSelectValueSafe(daySelect, scheduleMeta.day);
         syncRequestDateWithDay({ forceNextValidDate: true });
@@ -690,26 +800,113 @@ const initSchedulingForm = () => {
         showSchedulingModal(formSection);
     };
 
+    const openSchedulingFormView = (viewRecord) => {
+        selectedViewRecord = viewRecord;
+        populateSchedulingFormView(viewRecord);
+        syncLecturerRequestButtons(Boolean(getCurrentUserRole()));
+        hideSchedulingModal(labAllocationModal);
+        hideSchedulingModal(formSection);
+        showSchedulingModal(viewSection);
+    };
+
+    const renderLabAllocationModal = (slotAllocation) => {
+        if (!slotAllocation) return;
+
+        labAllocationTitle.textContent = `${selectedScheduleMeta.day || '-'} · ${selectedScheduleMeta.timeSlot || '-'}`;
+        labAllocationSummary.textContent = `${slotAllocation.lectureCount} Lecture${slotAllocation.lectureCount !== 1 ? 's' : ''} · ${slotAllocation.usedLabCount}/${slotAllocation.labCount} Labs Used`;
+
+        if (slotAllocation.overflowCount > 0) {
+            labAllocationOverflow.classList.remove('hidden');
+            labAllocationOverflow.textContent = `${slotAllocation.overflowCount} lecture${slotAllocation.overflowCount !== 1 ? 's are' : ' is'} waiting because this slot has more lectures than available labs.`;
+        } else {
+            labAllocationOverflow.classList.add('hidden');
+            labAllocationOverflow.textContent = '';
+        }
+
+        labAllocationList.innerHTML = slotAllocation.labs.length
+            ? slotAllocation.labs.map((entry) => {
+                const badgeClass = entry.action === 'free'
+                    ? 'bg-green-700'
+                    : entry.action === 'cancel'
+                        ? 'bg-red-700'
+                        : entry.action === 'temporary_lecture'
+                            ? 'bg-amber-600'
+                            : 'bg-purple-800';
+                const label = entry.record ? getActionLabel(entry.record) : 'FREE';
+                return `
+                    <button
+                        type="button"
+                        class="lab-allocation-item w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-left shadow-sm transition hover:bg-sky-50 active:scale-[0.99]"
+                        data-lab-id="${entry.lab?.id || ''}"
+                        data-record-id="${entry.record?.unique_record_id || ''}"
+                    >
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-sm font-black uppercase tracking-wide text-gray-500">${entry.lab?.lab_name || 'Lab'}</p>
+                                <p class="pt-1 text-base font-black text-gray-950">${entry.lectureId || '-'}</p>
+                            </div>
+                            <span class="${badgeClass} rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white">${label}</span>
+                        </div>
+                    </button>
+                `;
+            }).join('')
+            : `<div class="rounded-2xl bg-gray-100 px-4 py-6 text-center font-bold text-gray-500">No labs available.</div>`;
+    };
+
     tableBody.addEventListener('click', (e) => {
         const btn = e.target.closest('.timetable-cell-btn');
         if (!btn) return;
 
-        const isLoggedIn = Boolean(getCurrentUserRole());
-        const cellIdFromButton = btn.getAttribute('data-cell-id') || '';
+        const timeSlotId = btn.getAttribute('data-time-slot-id') || '';
+        const columnHeadingId = btn.getAttribute('data-column-heading-id') || '';
         const buttonScheduleMeta = getCellScheduleMetaFromButton(btn);
-        const selectedHeading = getActiveColumnHeadings().find((item) => String(item.column_heading) === String(buttonScheduleMeta.day));
-        const selectedTimeSlot = getActiveTimeSlots().find((item) => (
-            formatTimeSlotLabel(item.start_time, item.end_time) === buttonScheduleMeta.timeSlot
-        ));
-        const resolvedCell = findTimetableCellByRefs(selectedTimeSlot?.id || '', selectedHeading?.id || '');
+        const resolvedCell = findTimetableCellByRefs(timeSlotId, columnHeadingId);
+        const slotGroup = buildSlotGroups(currentDisplayedTimetableData).get(`${timeSlotId}:${columnHeadingId}`) || {
+            time_slot_id: timeSlotId,
+            column_heading_id: columnHeadingId,
+            records: [],
+        };
 
-        selectedCellId = cellIdFromButton || String(resolvedCell?.id || '');
-        selectedScheduleMeta = buttonScheduleMeta;
-        populateSchedulingFormView(selectedCellId);
-        syncLecturerRequestButtons(isLoggedIn);
-
+        selectedCellId = String(resolvedCell?.id || btn.getAttribute('data-cell-id') || '');
+        selectedScheduleMeta = {
+            ...buttonScheduleMeta,
+            timeSlotId,
+            columnHeadingId,
+            cellId: selectedCellId,
+        };
+        selectedViewRecord = null;
+        renderLabAllocationModal(buildLabAllocationEntries(slotGroup));
         hideSchedulingModal(formSection);
-        showSchedulingModal(viewSection);
+        hideSchedulingModal(viewSection);
+        showSchedulingModal(labAllocationModal);
+    });
+
+    labAllocationList.addEventListener('click', (e) => {
+        const labButton = e.target.closest('.lab-allocation-item');
+        if (!labButton) return;
+
+        const selectedLab = fullLabsData.find((item) => String(item.id) === String(labButton.getAttribute('data-lab-id') || '')) || null;
+        const selectedRecordId = labButton.getAttribute('data-record-id') || '';
+        const matchedRecord = currentDisplayedTimetableData.find((item) => String(item.unique_record_id || '') === String(selectedRecordId)) || null;
+
+        const viewRecord = matchedRecord
+            ? {
+                ...matchedRecord,
+                lab: selectedLab?.lab_name || matchedRecord.lab || '',
+                lab_name: selectedLab?.lab_name || matchedRecord.lab || '',
+            }
+            : {
+                action: 'free',
+                subject: '',
+                subject_cord: '',
+                lecturer_name: '',
+                year: '',
+                group_name: '',
+                lab: selectedLab?.lab_name || '',
+                lab_name: selectedLab?.lab_name || '',
+            };
+
+        openSchedulingFormView(viewRecord);
     });
 
     if (closeBtn) {
@@ -724,6 +921,10 @@ const initSchedulingForm = () => {
             hideSchedulingModal(viewSection);
         });
     }
+
+    labAllocationCloseBtn.addEventListener('click', () => {
+        hideSchedulingModal(labAllocationModal);
+    });
 
     lecturerRequestBtn.addEventListener('click', openSchedulingForm);
     lecturerRequestFormBtn.addEventListener('click', openSchedulingForm);
