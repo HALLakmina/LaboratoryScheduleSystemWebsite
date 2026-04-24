@@ -28,7 +28,7 @@ const getStoredUser = () => {
 
 const initAuthNavButton = () => {
     const authBtn = document.getElementById('auth-nav-btn');
-    const adminNavItem = document.getElementById('admin-nav-item');
+    const adminNavItems = Array.from(document.querySelectorAll('.admin-nav-item'));
     if (!authBtn) return;
 
     const loginHref = authBtn.getAttribute('data-login-href') || authBtn.getAttribute('href') || 'login.php';
@@ -46,9 +46,9 @@ const initAuthNavButton = () => {
         authBtn.classList.add('bg-white', 'hover:bg-sky-400');
     }
 
-    if (adminNavItem) {
+    adminNavItems.forEach((adminNavItem) => {
         adminNavItem.classList.toggle('hidden', !isAdmin);
-    }
+    });
 
     authBtn.addEventListener('click', async (event) => {
         if (!getCurrentUserRole()) return;
