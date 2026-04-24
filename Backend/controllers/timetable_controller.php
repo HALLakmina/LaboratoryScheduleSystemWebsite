@@ -31,8 +31,12 @@ class TimetableController {
             return 'id is required.';
         }
 
-        if (!isset($payload['cell_id']) || trim((string)$payload['cell_id']) === '') {
-            return 'cell_id is required.';
+        if (!isset($payload['time_slot_id']) || trim((string)$payload['time_slot_id']) === '') {
+            return 'time_slot_id is required.';
+        }
+
+        if (!isset($payload['column_heading_id']) || trim((string)$payload['column_heading_id']) === '') {
+            return 'column_heading_id is required.';
         }
 
         if (!isset($payload['action']) || !in_array($payload['action'], ['active', 'free', 'cancel'], true)) {
@@ -86,12 +90,29 @@ class TimetableController {
             return 'column_number is required.';
         }
 
+        if (!isset($payload['column_heading_number']) || trim((string)$payload['column_heading_number']) === '') {
+            return 'column_heading_number is required.';
+        }
+
+        if (!isset($payload['status']) || !in_array($payload['status'], ['active', 'deactive'], true)) {
+            return 'status must be active or deactive.';
+        }
+
         $settings = $this->timetableService->getTimetableSettings();
         $columnLimit = (int)($settings['table_column_count'] ?? 0);
         $columnNumber = (int)$payload['column_number'];
+        $columnHeadingNumber = (int)$payload['column_heading_number'];
 
         if ($columnNumber < 1 || $columnNumber > $columnLimit) {
             return 'column_number must be between 1 and the timetable Columns value.';
+        }
+
+        if ($columnHeadingNumber < 1) {
+            return 'column_heading_number must be 1 or greater.';
+        }
+
+        if ($columnHeadingNumber > $columnLimit) {
+            return 'column_heading_number must be between 1 and the timetable Columns value.';
         }
 
         if (!$requireId && $this->timetableService->countColumnHeadings() >= $columnLimit) {
@@ -101,6 +122,10 @@ class TimetableController {
         $excludeId = $requireId ? $payload['id'] : null;
         if ($this->timetableService->isColumnNumberTaken($columnNumber, $excludeId)) {
             return 'column_number must be unique.';
+        }
+
+        if ($this->timetableService->isColumnHeadingNumberTaken($columnHeadingNumber, $excludeId)) {
+            return 'column_heading_number must be unique.';
         }
 
         return null;
@@ -119,14 +144,32 @@ class TimetableController {
             return 'end_time is required.';
         }
 
+        if (!isset($payload['time_slot_number']) || trim((string)$payload['time_slot_number']) === '') {
+            return 'time_slot_number is required.';
+        }
+
+        $timeSlotNumber = (int)$payload['time_slot_number'];
+        if ($timeSlotNumber < 1) {
+            return 'time_slot_number must be 1 or greater.';
+        }
+
         if (strtotime('1970-01-01 ' . $payload['start_time']) >= strtotime('1970-01-01 ' . $payload['end_time'])) {
             return 'end_time must be later than start_time.';
         }
 
         $settings = $this->timetableService->getTimetableSettings();
         $rowLimit = (int)($settings['table_row_count'] ?? 0);
+        if ($timeSlotNumber > $rowLimit) {
+            return 'time_slot_number must be between 1 and the timetable Rows value.';
+        }
+
         if (!$requireId && $this->timetableService->countTimeSlots() >= $rowLimit) {
             return 'Time slot count has reached the timetable Rows limit.';
+        }
+
+        $excludeId = $requireId ? $payload['id'] : null;
+        if ($this->timetableService->isTimeSlotNumberTaken($timeSlotNumber, $excludeId)) {
+            return 'time_slot_number must be unique.';
         }
 
         return null;
@@ -201,6 +244,18 @@ class TimetableController {
         try {
             $respond = $this->timetableService->getTimeSchedulesByYear($year);
             $this->jsonResponse("200", 'Data get Successfully', $respond);
+        } catch (Exception $e) {
+            $this->jsonResponse("500", $e->getMessage());
+        }
+    }
+
+    public function getTemporaryTimeSchedules($req = null, $res = null) {
+        $dateFrom = $req['query']['date_from'] ?? null;
+        $dateTo = $req['query']['date_to'] ?? null;
+
+        try {
+            $respond = $this->timetableService->getTemporaryTimeSchedules($dateFrom, $dateTo);
+            $this->jsonResponse("200", 'Temporary timetable fetched successfully', $respond);
         } catch (Exception $e) {
             $this->jsonResponse("500", $e->getMessage());
         }
@@ -428,6 +483,8 @@ class TimetableController {
     public function createTimetableRecord($req = null, $res = null) {
         try {
             $payload = $req['body'] ?? [];
+            $payload['time_slot_id'] = $this->normalizeNullableValue($payload['time_slot_id'] ?? null);
+            $payload['column_heading_id'] = $this->normalizeNullableValue($payload['column_heading_id'] ?? null);
             $payload['lecture_group_id'] = $this->normalizeNullableValue($payload['lecture_group_id'] ?? null);
             $payload['lab_id'] = $this->normalizeNullableValue($payload['lab_id'] ?? null);
             $payload['subject_cord'] = $this->normalizeNullableValue($payload['subject_cord'] ?? null);
@@ -449,6 +506,8 @@ class TimetableController {
     public function updateTimetableRecord($req = null, $res = null) {
         try {
             $payload = $req['body'] ?? [];
+            $payload['time_slot_id'] = $this->normalizeNullableValue($payload['time_slot_id'] ?? null);
+            $payload['column_heading_id'] = $this->normalizeNullableValue($payload['column_heading_id'] ?? null);
             $payload['lecture_group_id'] = $this->normalizeNullableValue($payload['lecture_group_id'] ?? null);
             $payload['lab_id'] = $this->normalizeNullableValue($payload['lab_id'] ?? null);
             $payload['subject_cord'] = $this->normalizeNullableValue($payload['subject_cord'] ?? null);

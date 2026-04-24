@@ -57,8 +57,10 @@ class TimetableService {
     private function getBaseTimeScheduleQuery() {
         return "SELECT
                     t.id AS timetable_id,
-                    t.cell_id AS timetable_cell_reference_id,
-                    tc.cell_number AS cell_id,
+                    tc.id AS timetable_cell_reference_id,
+                    tc.id AS cell_id,
+                    t.time_slot_id,
+                    t.column_heading_id,
                     t.lecture_group_id,
                     t.lab_id,
                     t.subject_cord,
@@ -72,7 +74,14 @@ class TimetableService {
                     sl.lecturer_id,
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
                 FROM timetable t
-                LEFT JOIN timetable_cells tc ON t.cell_id = tc.id
+                LEFT JOIN (
+                    SELECT
+                        MIN(id) AS id,
+                        time_slot_id,
+                        column_heading_id
+                    FROM timetable_cells
+                    GROUP BY time_slot_id, column_heading_id
+                ) tc ON tc.time_slot_id = t.time_slot_id AND tc.column_heading_id = t.column_heading_id
                 LEFT JOIN lecture_groups lg ON t.lecture_group_id = lg.id
                 LEFT JOIN labs l ON t.lab_id = l.id
                 LEFT JOIN practical_subjects ps ON t.subject_cord = ps.subject_cord
@@ -82,12 +91,60 @@ class TimetableService {
     }
 
     public function getAllTimeSchedules() {
-        $query = $this->getBaseTimeScheduleQuery() . " ORDER BY tc.cell_number ASC";
+        $query = $this->getBaseTimeScheduleQuery() . " ORDER BY tc.id ASC";
         return $this->fetchAllRows($query);
     }
 
+    public function getTemporaryTimeSchedules($dateFrom = null, $dateTo = null) {
+        $query = "SELECT
+                    tt.id AS temporary_timetable_id,
+                    tc.id AS timetable_cell_reference_id,
+                    tc.id AS cell_id,
+                    tt.time_slot_id,
+                    tt.column_heading_id,
+                    tt.lecture_group_id,
+                    tt.lab_id,
+                    tt.subject_cord,
+                    tt.action,
+                    tt.lecturer_date,
+                    lg.group_name,
+                    l.lab_name AS lab,
+                    l.lab_location,
+                    ps.subject,
+                    ps.year_id,
+                    y.year,
+                    sl.lecturer_id,
+                    CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
+                FROM temporary_timetable tt
+                LEFT JOIN (
+                    SELECT
+                        MIN(id) AS id,
+                        time_slot_id,
+                        column_heading_id
+                    FROM timetable_cells
+                    GROUP BY time_slot_id, column_heading_id
+                ) tc ON tc.time_slot_id = tt.time_slot_id AND tc.column_heading_id = tt.column_heading_id
+                LEFT JOIN lecture_groups lg ON tt.lecture_group_id = lg.id
+                LEFT JOIN labs l ON tt.lab_id = l.id
+                LEFT JOIN practical_subjects ps ON tt.subject_cord = ps.subject_cord
+                LEFT JOIN years y ON ps.year_id = y.id
+                LEFT JOIN subject_lecture_relations sl ON ps.subject_cord = sl.subject_cord
+                LEFT JOIN users u ON sl.lecturer_id = u.id
+                WHERE tt.action != 'canceled'";
+
+        $property = [];
+        if ($dateFrom !== null && $dateTo !== null) {
+            $query .= " AND tt.lecturer_date BETWEEN :date_from AND :date_to";
+            $property['date_from'] = $dateFrom;
+            $property['date_to'] = $dateTo;
+        }
+
+        $query .= " ORDER BY tt.lecturer_date ASC, tc.id ASC, tt.id DESC";
+        return $this->fetchAllRows($query, $property ?: null);
+    }
+
     public function getTimeSchedulesByYear($year) {
-        $query = $this->getBaseTimeScheduleQuery() . " WHERE y.year = :year ORDER BY tc.cell_number ASC";
+        $query = $this->getBaseTimeScheduleQuery() . " WHERE y.year = :year ORDER BY tc.id ASC";
         return $this->fetchAllRows($query, [
             'year' => $year,
         ]);
@@ -160,12 +217,16 @@ class TimetableService {
     }
 
     public function getTimeSlots() {
-        $query = "SELECT id, start_time, end_time FROM timetable_time_slots ORDER BY start_time";
+        $query = "SELECT id, time_slot_number, start_time, end_time
+                  FROM timetable_time_slots
+                  ORDER BY time_slot_number ASC, start_time ASC";
         return $this->fetchAllRows($query);
     }
 
     public function getColumnHeadings() {
-        $query = "SELECT id, column_heading, column_number FROM timetable_column_headings ORDER BY column_number";
+        $query = "SELECT id, column_heading, column_number, column_heading_number, status
+                  FROM timetable_column_headings
+                  ORDER BY column_heading_number ASC, column_number ASC";
         return $this->fetchAllRows($query);
     }
 
@@ -294,7 +355,9 @@ class TimetableService {
     }
 
     public function getTimetableCells() {
-        $query = "SELECT id, cell_number FROM timetable_cells ORDER BY cell_number";
+        $query = "SELECT id, time_slot_id, column_heading_id
+                  FROM timetable_cells
+                  ORDER BY id";
         return $this->fetchAllRows($query);
     }
 
@@ -321,11 +384,38 @@ class TimetableService {
         return !empty($result);
     }
 
+    public function isColumnHeadingNumberTaken($columnHeadingNumber, $excludeId = null) {
+        $query = "SELECT id FROM timetable_column_headings WHERE column_heading_number = :column_heading_number";
+        $property = ['column_heading_number' => $columnHeadingNumber];
+        if ($excludeId !== null) {
+            $query .= " AND id != :exclude_id";
+            $property['exclude_id'] = $excludeId;
+        }
+        $query .= " LIMIT 1";
+
+        $result = $this->fetchOptionalRow($query, $property);
+        return !empty($result);
+    }
+
+    public function isTimeSlotNumberTaken($timeSlotNumber, $excludeId = null) {
+        $query = "SELECT id FROM timetable_time_slots WHERE time_slot_number = :time_slot_number";
+        $property = ['time_slot_number' => $timeSlotNumber];
+        if ($excludeId !== null) {
+            $query .= " AND id != :exclude_id";
+            $property['exclude_id'] = $excludeId;
+        }
+        $query .= " LIMIT 1";
+
+        $result = $this->fetchOptionalRow($query, $property);
+        return !empty($result);
+    }
+
     public function createTimetableRecord($payload) {
         $DB_CON = new DbConnection();
         $query = "INSERT INTO timetable
                     (
-                        cell_id,
+                        time_slot_id,
+                        column_heading_id,
                         lecture_group_id,
                         lab_id,
                         subject_cord,
@@ -335,7 +425,8 @@ class TimetableService {
                     )
                     VALUES
                     (
-                        :cell_id,
+                        :time_slot_id,
+                        :column_heading_id,
                         :lecture_group_id,
                         :lab_id,
                         :subject_cord,
@@ -345,7 +436,8 @@ class TimetableService {
                     )";
 
         $property = [
-            'cell_id' => $payload['cell_id'],
+            'time_slot_id' => $payload['time_slot_id'],
+            'column_heading_id' => $payload['column_heading_id'],
             'lecture_group_id' => $payload['lecture_group_id'],
             'lab_id' => $payload['lab_id'],
             'subject_cord' => $payload['subject_cord'],
@@ -367,7 +459,8 @@ class TimetableService {
         $DB_CON = new DbConnection();
         $query = "UPDATE timetable
                     SET
-                        cell_id = :cell_id,
+                        time_slot_id = :time_slot_id,
+                        column_heading_id = :column_heading_id,
                         lecture_group_id = :lecture_group_id,
                         lab_id = :lab_id,
                         subject_cord = :subject_cord,
@@ -377,7 +470,8 @@ class TimetableService {
 
         $property = [
             'id' => $payload['id'],
-            'cell_id' => $payload['cell_id'],
+            'time_slot_id' => $payload['time_slot_id'],
+            'column_heading_id' => $payload['column_heading_id'],
             'lecture_group_id' => $payload['lecture_group_id'],
             'lab_id' => $payload['lab_id'],
             'subject_cord' => $payload['subject_cord'],
@@ -464,12 +558,14 @@ class TimetableService {
     public function createColumnHeading($payload) {
         $DB_CON = new DbConnection();
         $query = "INSERT INTO timetable_column_headings
-                    (column_heading, column_number, created_by, updated_by)
+                    (column_heading, column_number, column_heading_number, status, created_by, updated_by)
                     VALUES
-                    (:column_heading, :column_number, :created_by, :updated_by)";
+                    (:column_heading, :column_number, :column_heading_number, :status, :created_by, :updated_by)";
         $result = $DB_CON->execute($query, [
             'column_heading' => $payload['column_heading'],
             'column_number' => $payload['column_number'],
+            'column_heading_number' => $payload['column_heading_number'],
+            'status' => $payload['status'],
             'created_by' => $payload['created_by'],
             'updated_by' => $payload['updated_by'],
         ]);
@@ -488,12 +584,16 @@ class TimetableService {
                     SET
                         column_heading = :column_heading,
                         column_number = :column_number,
+                        column_heading_number = :column_heading_number,
+                        status = :status,
                         updated_by = :updated_by
                     WHERE id = :id";
         $result = $DB_CON->execute($query, [
             'id' => $payload['id'],
             'column_heading' => $payload['column_heading'],
             'column_number' => $payload['column_number'],
+            'column_heading_number' => $payload['column_heading_number'],
+            'status' => $payload['status'],
             'updated_by' => $payload['updated_by'],
         ]);
 
@@ -520,10 +620,11 @@ class TimetableService {
     public function createTimeSlot($payload) {
         $DB_CON = new DbConnection();
         $query = "INSERT INTO timetable_time_slots
-                    (start_time, end_time, created_by, updated_by)
+                    (time_slot_number, start_time, end_time, created_by, updated_by)
                     VALUES
-                    (:start_time, :end_time, :created_by, :updated_by)";
+                    (:time_slot_number, :start_time, :end_time, :created_by, :updated_by)";
         $result = $DB_CON->execute($query, [
+            'time_slot_number' => $payload['time_slot_number'],
             'start_time' => $payload['start_time'],
             'end_time' => $payload['end_time'],
             'created_by' => $payload['created_by'],
@@ -542,12 +643,14 @@ class TimetableService {
         $DB_CON = new DbConnection();
         $query = "UPDATE timetable_time_slots
                     SET
+                        time_slot_number = :time_slot_number,
                         start_time = :start_time,
                         end_time = :end_time,
                         updated_by = :updated_by
                     WHERE id = :id";
         $result = $DB_CON->execute($query, [
             'id' => $payload['id'],
+            'time_slot_number' => $payload['time_slot_number'],
             'start_time' => $payload['start_time'],
             'end_time' => $payload['end_time'],
             'updated_by' => $payload['updated_by'],

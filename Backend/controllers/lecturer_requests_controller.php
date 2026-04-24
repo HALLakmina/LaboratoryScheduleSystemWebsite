@@ -158,6 +158,7 @@ class LecturerRequestsController {
             'lecturer_id',
             'subject_id',
             'year_id',
+            'lecture_group_id',
             'timetable_time_slot_id',
             'timetable_column_heading_id',
             'date',

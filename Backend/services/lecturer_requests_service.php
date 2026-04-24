@@ -35,7 +35,7 @@ class LecturerRequestsService {
     private function getActiveTimeSlots() {
         $settings = $this->getTimetableSettings();
         $breakRowNumber = (int)($settings['break_row_number'] ?? 0);
-        $timeSlots = $this->fetchAllRows("SELECT id, start_time, end_time FROM timetable_time_slots ORDER BY start_time");
+        $timeSlots = $this->fetchAllRows("SELECT id, time_slot_number, start_time, end_time FROM timetable_time_slots ORDER BY time_slot_number ASC, start_time ASC");
 
         if ($breakRowNumber <= 0) {
             return $timeSlots;
@@ -44,49 +44,6 @@ class LecturerRequestsService {
         return array_values(array_filter($timeSlots, function ($slot, $index) use ($breakRowNumber) {
             return ($index + 1) !== $breakRowNumber;
         }, ARRAY_FILTER_USE_BOTH));
-    }
-
-    private function resolveCellReferenceId($timeSlotId, $columnHeadingId) {
-        $settings = $this->getTimetableSettings();
-        $columnCount = (int)($settings['table_column_count'] ?? 0);
-        if ($columnCount <= 0) {
-            throw new Exception('Timetable settings are not configured.');
-        }
-
-        $columnHeadings = $this->fetchAllRows("SELECT id, column_number FROM timetable_column_headings ORDER BY column_number");
-        $activeTimeSlots = $this->getActiveTimeSlots();
-
-        $columnIndex = -1;
-        foreach ($columnHeadings as $index => $heading) {
-            if ((string)$heading['id'] === (string)$columnHeadingId) {
-                $columnIndex = $index;
-                break;
-            }
-        }
-
-        $rowIndex = -1;
-        foreach ($activeTimeSlots as $index => $timeSlot) {
-            if ((string)$timeSlot['id'] === (string)$timeSlotId) {
-                $rowIndex = $index;
-                break;
-            }
-        }
-
-        if ($columnIndex === -1 || $rowIndex === -1) {
-            throw new Exception('Unable to match timetable cell for the lecturer request.');
-        }
-
-        $cellNumber = ($rowIndex * $columnCount) + ($columnIndex + 1);
-        $cell = $this->fetchSingleRow(
-            "SELECT id FROM timetable_cells WHERE cell_number = :cell_number LIMIT 1",
-            ['cell_number' => $cellNumber]
-        );
-
-        if (!$cell || empty($cell['id'])) {
-            throw new Exception('Timetable cell was not found for the lecturer request.');
-        }
-
-        return $cell['id'];
     }
 
     private function resolveLectureGroupId($subjectCord) {
@@ -103,20 +60,23 @@ class LecturerRequestsService {
     }
 
     private function syncTemporaryTimetable($payload) {
-        $cellId = $this->resolveCellReferenceId($payload['timetable_time_slot_id'], $payload['timetable_column_heading_id']);
+        $timeSlotId = $payload['timetable_time_slot_id'];
+        $columnHeadingId = $payload['timetable_column_heading_id'];
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
         $existingRecord = $this->fetchSingleRow(
             "SELECT id FROM temporary_timetable
-             WHERE cell_id = :cell_id
+             WHERE time_slot_id = :time_slot_id
+               AND column_heading_id = :column_heading_id
                AND lecture_group_id = :lecture_group_id
                AND subject_cord = :subject_cord
                AND lecturer_date = :lecturer_date
              ORDER BY id DESC
              LIMIT 1",
             [
-                'cell_id' => $cellId,
+                'time_slot_id' => $timeSlotId,
+                'column_heading_id' => $columnHeadingId,
                 'lecture_group_id' => $lectureGroupId,
                 'subject_cord' => $payload['subject_id'],
                 'lecturer_date' => $payload['date'],
@@ -130,7 +90,7 @@ class LecturerRequestsService {
             if ($existingRecord) {
                 $result = $DB_CON->execute(
                     "UPDATE temporary_timetable
-                     SET action = 'pending',
+                     SET action = 'temporary_lecture',
                          lab_id = :lab_id,
                          updated_by = :updated_by
                      WHERE id = :id",
@@ -143,15 +103,16 @@ class LecturerRequestsService {
             } else {
                 $result = $DB_CON->execute(
                     "INSERT INTO temporary_timetable
-                        (cell_id, lecture_group_id, lab_id, subject_cord, action, lecturer_date, created_by, updated_by)
+                        (time_slot_id, column_heading_id, lecture_group_id, lab_id, subject_cord, action, lecturer_date, created_by, updated_by)
                      VALUES
-                        (:cell_id, :lecture_group_id, :lab_id, :subject_cord, :action, :lecturer_date, :created_by, :updated_by)",
+                        (:time_slot_id, :column_heading_id, :lecture_group_id, :lab_id, :subject_cord, :action, :lecturer_date, :created_by, :updated_by)",
                     [
-                        'cell_id' => $cellId,
+                        'time_slot_id' => $timeSlotId,
+                        'column_heading_id' => $columnHeadingId,
                         'lecture_group_id' => $lectureGroupId,
                         'lab_id' => $payload['lab_id'] ?? null,
                         'subject_cord' => $payload['subject_id'],
-                        'action' => 'pending',
+                        'action' => 'temporary_lecture',
                         'lecturer_date' => $payload['date'],
                         'created_by' => $payload['created_by'] ?? $auditValue,
                         'updated_by' => $auditValue,
@@ -185,33 +146,65 @@ class LecturerRequestsService {
         }
     }
 
+    private function deleteTemporaryTimetableForRequest($request) {
+        $lectureGroupId = !empty($request['lecture_group_id'])
+            ? $request['lecture_group_id']
+            : $this->resolveLectureGroupId($request['subject_id']);
+
+        $DB_CON = new DbConnection();
+        $result = $DB_CON->execute(
+            "DELETE FROM temporary_timetable
+             WHERE time_slot_id = :time_slot_id
+               AND column_heading_id = :column_heading_id
+               AND lecture_group_id = :lecture_group_id
+               AND subject_cord = :subject_cord
+               AND lecturer_date = :lecturer_date",
+            [
+                'time_slot_id' => $request['timetable_time_slot_id'],
+                'column_heading_id' => $request['timetable_column_heading_id'],
+                'lecture_group_id' => $lectureGroupId,
+                'subject_cord' => $request['subject_id'],
+                'lecturer_date' => $request['date'],
+            ]
+        );
+
+        if ($result === false) {
+            $error = $DB_CON->getError();
+            throw new Exception($error ? $error : 'Failed to delete temporary timetable record.');
+        }
+    }
+
     public function checkTemporaryTimetableAvailability($payload) {
-        $cellId = $this->resolveCellReferenceId($payload['timetable_time_slot_id'], $payload['timetable_column_heading_id']);
         $record = $this->fetchSingleRow(
             "SELECT
                 tt.id,
                 tt.action,
                 tt.lecturer_date,
+                tt.time_slot_id,
+                tt.column_heading_id,
                 tt.subject_cord,
                 lg.group_name,
                 l.lab_name
              FROM temporary_timetable tt
              LEFT JOIN lecture_groups lg ON tt.lecture_group_id = lg.id
              LEFT JOIN labs l ON tt.lab_id = l.id
-             WHERE tt.cell_id = :cell_id
+             WHERE tt.time_slot_id = :time_slot_id
+               AND tt.column_heading_id = :column_heading_id
                AND tt.lecturer_date = :lecturer_date
                AND tt.action != 'canceled'
              ORDER BY tt.id DESC
              LIMIT 1",
-            [
-                'cell_id' => $cellId,
+             [
+                'time_slot_id' => $payload['timetable_time_slot_id'],
+                'column_heading_id' => $payload['timetable_column_heading_id'],
                 'lecturer_date' => $payload['date'],
             ]
         );
 
         return [
             'is_booked' => !empty($record),
-            'cell_id' => $cellId,
+            'time_slot_id' => $record['time_slot_id'] ?? null,
+            'column_heading_id' => $record['column_heading_id'] ?? null,
             'record' => $record,
         ];
     }
@@ -223,6 +216,7 @@ class LecturerRequestsService {
                     lr.lecturer_id,
                     lr.subject_id,
                     lr.year_id,
+                    lr.lecture_group_id,
                     lr.timetable_time_slot_id,
                     lr.timetable_column_heading_id,
                     lr.date,
@@ -232,7 +226,6 @@ class LecturerRequestsService {
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
                     ps.subject,
                     y.year,
-                    sgr.group_id,
                     lg.group_name,
                     tts.start_time,
                     tts.end_time,
@@ -241,12 +234,7 @@ class LecturerRequestsService {
                 LEFT JOIN users u ON lr.lecturer_id = u.id
                 LEFT JOIN practical_subjects ps ON lr.subject_id = ps.subject_cord
                 LEFT JOIN years y ON lr.year_id = y.id
-                LEFT JOIN (
-                    SELECT subject_cord, MIN(group_id) AS group_id
-                    FROM subject_group_relations
-                    GROUP BY subject_cord
-                ) sgr ON lr.subject_id = sgr.subject_cord
-                LEFT JOIN lecture_groups lg ON sgr.group_id = lg.id
+                LEFT JOIN lecture_groups lg ON lr.lecture_group_id = lg.id
                 LEFT JOIN timetable_time_slots tts ON lr.timetable_time_slot_id = tts.id
                 LEFT JOIN timetable_column_headings tch ON lr.timetable_column_heading_id = tch.id
                 ORDER BY lr.send_at DESC";
@@ -263,12 +251,16 @@ class LecturerRequestsService {
     public function create($payload) {
         $DB_CON = new DbConnection();
         $sendAt = date('Y-m-d H:i:s');
+        $lectureGroupId = !empty($payload['lecture_group_id'])
+            ? $payload['lecture_group_id']
+            : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "INSERT INTO lecturer_requests
                     (
                         lecturer_id,
                         subject_id,
                         year_id,
+                        lecture_group_id,
                         timetable_time_slot_id,
                         timetable_column_heading_id,
                         date,
@@ -281,6 +273,7 @@ class LecturerRequestsService {
                         :lecturer_id,
                         :subject_id,
                         :year_id,
+                        :lecture_group_id,
                         :timetable_time_slot_id,
                         :timetable_column_heading_id,
                         :date,
@@ -293,6 +286,7 @@ class LecturerRequestsService {
             'lecturer_id' => $payload['lecturer_id'],
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
+            'lecture_group_id' => $lectureGroupId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
@@ -312,12 +306,16 @@ class LecturerRequestsService {
 
     public function update($payload) {
         $DB_CON = new DbConnection();
+        $lectureGroupId = !empty($payload['lecture_group_id'])
+            ? $payload['lecture_group_id']
+            : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "UPDATE lecturer_requests
                     SET
                         lecturer_id = :lecturer_id,
                         subject_id = :subject_id,
                         year_id = :year_id,
+                        lecture_group_id = :lecture_group_id,
                         timetable_time_slot_id = :timetable_time_slot_id,
                         timetable_column_heading_id = :timetable_column_heading_id,
                         date = :date,
@@ -330,6 +328,7 @@ class LecturerRequestsService {
             'lecturer_id' => $payload['lecturer_id'],
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
+            'lecture_group_id' => $lectureGroupId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
@@ -351,6 +350,26 @@ class LecturerRequestsService {
     }
 
     public function delete($id) {
+        $request = $this->fetchSingleRow(
+            "SELECT
+                id,
+                subject_id,
+                lecture_group_id,
+                timetable_time_slot_id,
+                timetable_column_heading_id,
+                date
+             FROM lecturer_requests
+             WHERE id = :id
+             LIMIT 1",
+            ['id' => $id]
+        );
+
+        if (!$request) {
+            throw new Exception('Lecturer request not found.');
+        }
+
+        $this->deleteTemporaryTimetableForRequest($request);
+
         $DB_CON = new DbConnection();
         $query = "DELETE FROM lecturer_requests WHERE id = :id";
         $result = $DB_CON->execute($query, ['id' => $id]);

@@ -16,6 +16,26 @@ const getTimetableData = async () => {
     }
 };
 
+const getTemporaryTimetableData = async (dateFrom = '', dateTo = '') => {
+    try {
+        const query = new URLSearchParams();
+        if (dateFrom) query.set('date_from', dateFrom);
+        if (dateTo) query.set('date_to', dateTo);
+
+        const response = await fetch(`${BASE_URL}/temporary${query.toString() ? `?${query.toString()}` : ''}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching temporary timetable data:', error);
+        throw error;
+    }
+};
+
 const getSubjectCodes = async () => {
     try {
         const response = await fetch(`${BASE_URL}/subjectCodes`, {
@@ -560,6 +580,7 @@ const deleteSubject = async (id) => {
 
 export {
     getTimetableData,
+    getTemporaryTimetableData,
     getSubjectCodes,
     getYears,
     createYear,
