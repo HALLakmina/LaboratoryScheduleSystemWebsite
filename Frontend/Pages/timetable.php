@@ -11,35 +11,35 @@
         <main class="mx-auto flex w-full flex-col gap-4 px-2 pb-6 pt-4 sm:px-4">
 
             <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                <form class="rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
+                <form class="rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
                     <div class="flex flex-col gap-2">
                         <label for="filter_by_years" class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Filter Year</label>
                         <select
                             name="filter"
                             id="filter_by_years"
-                            class="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option class="text-center font-bold">--FILTER--</option>
                         </select>
                     </div>
                 </form>
-                <form class="rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
+                <form class="rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
                     <div class="flex flex-col gap-2">
                         <label for="filter_by_subject" class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Filter Subject</label>
                         <select
                             name="filter"
                             id="filter_by_subject"
-                            class="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option class="text-center font-bold">--FILTER--</option>
                         </select>
                     </div>
                 </form>
-                <div id="lecturer-request-form-container" class="hidden rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80 items-center">
+                <div id="lecturer-request-form-container" class="hidden rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80 items-center">
                     <button
                         type="button"
                         id="lecturer-request-form"
-                        class="w-full rounded-xl bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition hover:bg-sky-700 active:scale-95 xl:min-w-[220px]"
+                        class="w-full rounded-lg bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition hover:bg-sky-700 active:scale-95 xl:min-w-[220px]"
                     >
                         Lecture Request
                     </button>
@@ -56,7 +56,7 @@
             </section>
 
             <section id="scheduling-form" class="hidden fixed inset-0 z-30 overflow-y-auto bg-gray-950/50 p-4">
-                <form class="mx-auto my-8 flex w-full max-w-xs flex-col gap-4 rounded-3xl bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
+                <form class="mx-auto my-8 flex w-full max-w-xs flex-col gap-4 rounded-lg bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
                     <input type="hidden" name="cell_id" id="cell_id" value="" />
                     <div class="flex items-start justify-between gap-4">
                         <div>
@@ -70,7 +70,7 @@
                         <select
                             name="years"
                             id="years"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option>--</option>
                             <option>1st Year</option>
@@ -84,7 +84,7 @@
                         <select
                             name="subject_code"
                             id="subject_code"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option>--</option>
                             <option>TICT 1114</option>
@@ -98,7 +98,7 @@
                         <select
                             name="time_slot"
                             id="time_slot"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option value="">--</option>
                             <option value="8.00/9.00">8.00/9.00</option>
@@ -116,7 +116,7 @@
                         <select
                             name="day"
                             id="day"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option value="">--</option>
                             <option value="Monday">Monday</option>
@@ -131,7 +131,7 @@
                         <select
                             name="lecture_group_select"
                             id="lecture_group_select"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option value="">--</option>
                         </select>
@@ -142,7 +142,7 @@
                             type="date"
                             name="request_date"
                             id="request_date"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         />
                     </div>
                     <div class="flex flex-col gap-2">
@@ -152,15 +152,15 @@
                             id="request"
                             placeholder="Type your request..."
                             rows="5"
-                            class="w-full rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         ></textarea>
                     </div>
-                    <button class="mt-2 w-full rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition hover:bg-sky-700 active:scale-95">Submit</button>
+                    <button class="mt-2 w-full rounded-lg bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition hover:bg-sky-700 active:scale-95">Submit</button>
                 </form>
             </section>
 
             <section id="scheduling-form-view" class="hidden fixed inset-0 z-30 overflow-y-auto bg-gray-950/50 p-4">
-                <div class="mx-auto my-8 flex w-full max-w-xs flex-col rounded-3xl bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
+                <div class="mx-auto my-8 flex w-full max-w-xs flex-col rounded-lg bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Lecture Details</p>
@@ -168,41 +168,41 @@
                         </div>
                         <button type="button" id="scheduling-form-view-close" class="self-start w-8 rounded-lg bg-red-500 p-1 font-bold text-white active:scale-95">X</button>
                     </div>
-                    <div id="lecture-action-badge" class="my-4 rounded-2xl bg-gray-700 p-3 text-center text-white">
+                    <div id="lecture-action-badge" class="my-4 rounded-lg bg-gray-700 p-3 text-center text-white">
                         <p id="lecture-action" class="font-bold">SCHEDULING</p>
                     </div>
                     <div class="space-y-4">
-                        <div class="rounded-2xl bg-gray-50 px-4 py-3">
+                        <div class="rounded-lg bg-gray-50 px-4 py-3">
                             <p class="text-xs font-black uppercase tracking-wide text-gray-500">Subject Name</p>
                             <p id="subject-name" class="pt-1 font-bold text-gray-950">Fundamental of ICT</p>
                         </div>
-                        <div class="rounded-2xl bg-gray-50 px-4 py-3">
+                        <div class="rounded-lg bg-gray-50 px-4 py-3">
                             <p class="text-xs font-black uppercase tracking-wide text-gray-500">Subject Code</p>
                             <p id="subject-code" class="pt-1 font-bold text-gray-950">TICT 1114</p>
                         </div>
-                        <div class="rounded-2xl bg-gray-50 px-4 py-3">
+                        <div class="rounded-lg bg-gray-50 px-4 py-3">
                             <p class="text-xs font-black uppercase tracking-wide text-gray-500">Lecture In Charge</p>
                             <p id="lecture-in-charge" class="pt-1 font-bold text-gray-950">Mis. Rukshani</p>
                         </div>
-                        <div class="rounded-2xl bg-gray-50 px-4 py-3">
+                        <div class="rounded-lg bg-gray-50 px-4 py-3">
                             <p class="text-xs font-black uppercase tracking-wide text-gray-500">Lecturer's</p>
                             <p id="lecture" class="pt-1 font-bold text-gray-950">Miss. Prunthavi</p>
                         </div>
-                        <div class="rounded-2xl bg-gray-50 px-4 py-3">
+                        <div class="rounded-lg bg-gray-50 px-4 py-3">
                             <p class="text-xs font-black uppercase tracking-wide text-gray-500">Group</p>
                             <p id="lecture-group" class="pt-1 font-bold text-gray-950">Group 02</p>
                         </div>
-                        <div class="rounded-2xl bg-gray-50 px-4 py-3">
+                        <div class="rounded-lg bg-gray-50 px-4 py-3">
                             <p class="text-xs font-black uppercase tracking-wide text-gray-500">Lab</p>
                             <p id="lab" class="pt-1 font-bold text-gray-950">-</p>
                         </div>
                     </div>
-                    <button type="button" id="lecturer-request" class="hidden mt-5 self-end rounded-xl bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md active:scale-95">Lecture Request</button>
+                    <button type="button" id="lecturer-request" class="hidden mt-5 self-end rounded-lg bg-sky-600 px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md active:scale-95">Lecture Request</button>
                 </div>
             </section>
 
             <section id="lab-allocation-modal" class="hidden fixed inset-0 z-30 overflow-y-auto bg-gray-950/50 p-4">
-                <div class="mx-auto my-8 w-full max-w-md rounded-3xl bg-white p-4 shadow-2xl sm:p-5">
+                <div class="mx-auto my-8 w-full max-w-md rounded-lg bg-white p-4 shadow-2xl sm:p-5">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-xs font-black uppercase tracking-[0.25em] text-gray-500">Lab Allocation</p>
@@ -211,7 +211,7 @@
                         </div>
                         <button type="button" id="lab-allocation-close" class="self-start w-8 rounded-lg bg-red-500 p-1 font-bold text-white active:scale-95">X</button>
                     </div>
-                    <div id="lab-allocation-overflow" class="hidden mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-black text-red-700"></div>
+                    <div id="lab-allocation-overflow" class="hidden mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-black text-red-700"></div>
                     <div id="lab-allocation-list" class="mt-4 flex flex-col gap-3"></div>
                 </div>
             </section>

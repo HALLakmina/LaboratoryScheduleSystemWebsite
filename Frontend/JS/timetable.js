@@ -836,7 +836,7 @@ const initSchedulingForm = () => {
                 return `
                     <button
                         type="button"
-                        class="lab-allocation-item w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-left shadow-sm transition hover:bg-sky-50 active:scale-[0.99]"
+                        class="lab-allocation-item w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-left shadow-sm transition hover:bg-sky-50 active:scale-[0.99]"
                         data-lab-id="${entry.lab?.id || ''}"
                         data-record-id="${entry.record?.unique_record_id || ''}"
                     >
@@ -850,7 +850,7 @@ const initSchedulingForm = () => {
                     </button>
                 `;
             }).join('')
-            : `<div class="rounded-2xl bg-gray-100 px-4 py-6 text-center font-bold text-gray-500">No labs available.</div>`;
+            : `<div class="rounded-lg bg-gray-100 px-4 py-6 text-center font-bold text-gray-500">No labs available.</div>`;
     };
 
     tableBody.addEventListener('click', (e) => {
