@@ -483,5 +483,42 @@ class Validation {
     public function timetableSettingsReset($req = null, $res = null) {
         $this->assertPayload($this->getPayload($req), $this->timetableSettingsRule(true));
     }
+
+    private function newsRule($requireId = false, $requireCreatedBy = false) {
+        $validator = v::arrayType()
+            ->key('title', v::stringType()->notEmpty()->length(1, 255)->setName('title'))
+            ->key('description', v::optional(v::stringType()->length(1, 5000))->setName('description'), false)
+            ->key('start_date', v::optional(v::date('Y-m-d'))->setName('start_date'), false)
+            ->key('end_date', v::optional(v::date('Y-m-d'))->setName('end_date'), false)
+            ->key('start_at', v::optional(v::time('H:i'))->setName('start_at'), false)
+            ->key('end_at', v::optional(v::time('H:i'))->setName('end_at'), false)
+            ->key('updated_by', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('updated_by'));
+
+        if ($requireCreatedBy) {
+            $validator = $validator->key('created_by', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('created_by'));
+        } else {
+            $validator = $validator->key('created_by', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('created_by'), false);
+        }
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    public function newsCreate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->newsRule(false, true));
+    }
+
+    public function newsUpdate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->newsRule(true, false));
+    }
+
+    public function newsDelete($req = null, $res = null) {
+        $this->deleteById($req, $res);
+    }
 }
 ?>
