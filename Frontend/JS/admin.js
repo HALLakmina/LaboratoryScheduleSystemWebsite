@@ -321,7 +321,7 @@ const initAdminPanel = async () => {
     };
 
     const buildCard = (label, value, themeClass = 'bg-white text-gray-950') => `
-        <article class="${themeClass} rounded-2xl p-4 shadow-md">
+        <article class="${themeClass} rounded-lg p-4 shadow-md">
             <p class="text-xs uppercase tracking-[0.25em] font-black opacity-70">${escapeHtml(label)}</p>
             <p class="text-3xl font-black pt-2">${escapeHtml(value)}</p>
         </article>
@@ -846,7 +846,7 @@ const initAdminPanel = async () => {
             buildCard('Rows', timetableSettings.table_row_count, 'bg-gray-100 text-gray-950'),
             buildCard('Cells', timetableSettings.table_cell_count, 'bg-gray-100 text-gray-950'),
             buildCard('Break Row', timetableSettings.break_row_number, 'bg-gray-100 text-gray-950'),
-        ].join('') : `<div class="md:col-span-4 bg-red-50 text-red-700 rounded-xl p-4 font-bold">No timetable settings found.</div>`;
+        ].join('') : `<div class="md:col-span-4 bg-red-50 text-red-700 rounded-lg p-4 font-bold">No timetable settings found.</div>`;
 
         settingsTableContainer.innerHTML = timetableSettings ? `
             <table class="w-full text-sm text-left">
@@ -874,7 +874,7 @@ const initAdminPanel = async () => {
                     </tr>
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No timetable settings found.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No timetable settings found.</div>`;
 
         columnHeadingsContainer.innerHTML = columnHeadings.length ? `
             <table class="w-full text-sm text-left">
@@ -906,7 +906,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No column headings available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No column headings available.</div>`;
 
         timeSlotsContainer.innerHTML = timeSlots.length ? `
             <table class="w-full text-sm text-left">
@@ -934,7 +934,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No time slots available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No time slots available.</div>`;
 
         manageTimetableContainer.innerHTML = timetableRecords.length ? `
             <table class="w-full text-sm text-left">
@@ -978,7 +978,7 @@ const initAdminPanel = async () => {
                     }).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No timetable records found.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No timetable records found.</div>`;
 
         requestsContainer.innerHTML = lecturerRequests.length ? `
             <table class="w-full text-sm text-left">
@@ -1015,7 +1015,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No lecturer requests found.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No lecturer requests found.</div>`;
 
         newsContainer.innerHTML = newsItems.length ? `
             <table class="w-full text-sm text-left">
@@ -1043,7 +1043,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No news available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No news available.</div>`;
 
         yearsContainer.innerHTML = years.length ? `
             <table class="w-full text-sm text-left">
@@ -1067,7 +1067,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No years available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No years available.</div>`;
 
         groupsContainer.innerHTML = lectureGroups.length ? `
             <table class="w-full text-sm text-left">
@@ -1091,7 +1091,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No groups available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No groups available.</div>`;
 
         labsContainer.innerHTML = labs.length ? `
             <table class="w-full text-sm text-left">
@@ -1117,7 +1117,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No labs available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No labs available.</div>`;
 
         subjectsContainer.innerHTML = subjects.length ? `
             <table class="w-full text-sm text-left">
@@ -1145,7 +1145,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No subjects available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No subjects available.</div>`;
 
         usersContainer.innerHTML = users.length ? `
             <table class="w-full text-sm text-left">
@@ -1178,7 +1178,7 @@ const initAdminPanel = async () => {
                     `).join('')}
                 </tbody>
             </table>
-        ` : `<div class="bg-gray-100 rounded-xl px-4 py-6 text-gray-500 font-bold text-center">No users available.</div>`;
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No users available.</div>`;
     };
 
     const loadAdminData = async () => {
@@ -2056,7 +2056,7 @@ const initAdminPanel = async () => {
         await reloadAdminPanel();
     } catch (error) {
         console.error('Error loading admin panel:', error);
-        adminPanel.innerHTML = `<div class="bg-red-50 text-red-700 rounded-2xl p-6 font-bold">Failed to load admin panel data.</div>`;
+        adminPanel.innerHTML = `<div class="bg-red-50 text-red-700 rounded-lg p-6 font-bold">Failed to load admin panel data.</div>`;
     }
 };
 
