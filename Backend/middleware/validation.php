@@ -2,11 +2,19 @@
 namespace Backend\Middleware;
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../services/timetable_service.php';
 
+use Backend\Services\TimetableService;
 use Respect\Validation\Exceptions\NestedValidationException;
 use Respect\Validation\Validator as v;
 
 class Validation {
+    private $timetableService;
+
+    public function __construct() {
+        $this->timetableService = new TimetableService();
+    }
+
     private function getPayload($req) {
         $payload = $req['body'] ?? [];
 
@@ -19,6 +27,42 @@ class Validation {
         }
 
         return $payload;
+    }
+
+    private function positiveIntRule($fieldName) {
+        return v::key(
+            $fieldName,
+            v::anyOf(
+                v::intVal()->positive(),
+                v::stringType()->regex('/^[1-9][0-9]*$/')
+            )->setName($fieldName)
+        );
+    }
+
+    private function nonNegativeIntRule($fieldName) {
+        return v::key(
+            $fieldName,
+            v::anyOf(
+                v::intVal()->min(0),
+                v::stringType()->regex('/^[0-9]+$/')
+            )->setName($fieldName)
+        );
+    }
+
+    private function optionalPositiveIntValueRule() {
+        return v::optional(
+            v::anyOf(
+                v::intVal()->positive(),
+                v::stringType()->regex('/^[1-9][0-9]*$/')
+            )
+        );
+    }
+
+    private function auditFieldRule($fieldName) {
+        return v::key(
+            $fieldName,
+            v::optional(v::stringType()->notEmpty()->length(1, 255))->setName($fieldName)
+        );
     }
 
     private function failValidation(array $errors) {
@@ -141,6 +185,303 @@ class Validation {
 
     public function userBodyDataValidation($req = null, $res = null) {
         $this->userCreate($req, $res);
+    }
+
+    private function yearRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('year', v::stringType()->notEmpty()->length(1, 50)->setName('year'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function lectureGroupRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('group_name', v::stringType()->notEmpty()->length(1, 100)->setName('group_name'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function labRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('lab_name', v::stringType()->notEmpty()->length(1, 150)->setName('lab_name'))
+            ->key('lab_location', v::stringType()->notEmpty()->length(1, 255)->setName('lab_location'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function subjectRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('subject_cord', v::stringType()->notEmpty()->length(1, 50)->setName('subject_cord'))
+            ->key('subject', v::stringType()->notEmpty()->length(1, 255)->setName('subject'))
+            ->key('year_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('year_id'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function timeSlotRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('time_slot_number', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('time_slot_number'))
+            ->key('start_time', v::time('H:i')->setName('start_time'))
+            ->key('end_time', v::time('H:i')->setName('end_time'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function columnHeadingRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('column_heading', v::stringType()->notEmpty()->length(1, 100)->setName('column_heading'))
+            ->key('column_number', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('column_number'))
+            ->key('column_heading_number', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('column_heading_number'))
+            ->key('status', v::in(['active', 'deactive'])->setName('status'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function timetableRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('time_slot_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('time_slot_id'))
+            ->key('column_heading_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('column_heading_id'))
+            ->key('lecture_group_id', $this->optionalPositiveIntValueRule()->setName('lecture_group_id'))
+            ->key('lab_id', $this->optionalPositiveIntValueRule()->setName('lab_id'))
+            ->key('subject_cord', v::optional(v::stringType()->length(1, 50))->setName('subject_cord'))
+            ->key('action', v::in(['active', 'free', 'cancel'])->setName('action'))
+            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    private function timetableSettingsRule($requireReset = false) {
+        $validator = v::arrayType()
+            ->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'))
+            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+
+        if (!$requireReset) {
+            $validator = $validator
+                ->key('table_row_count', v::anyOf(v::intVal()->min(0), v::stringType()->regex('/^[0-9]+$/'))->setName('table_row_count'))
+                ->key('table_column_count', v::anyOf(v::intVal()->min(0), v::stringType()->regex('/^[0-9]+$/'))->setName('table_column_count'))
+                ->key('break_row_number', v::anyOf(v::intVal()->min(0), v::stringType()->regex('/^[0-9]+$/'))->setName('break_row_number'));
+        }
+
+        return $validator;
+    }
+
+    public function yearCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->yearRule(false));
+    }
+
+    public function yearUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->yearRule(true));
+    }
+
+    public function deleteById($req = null, $res = null) {
+        $this->assertPayload(
+            $this->getPayload($req),
+            v::arrayType()->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'))
+        );
+    }
+
+    public function lectureGroupCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->lectureGroupRule(false));
+    }
+
+    public function lectureGroupUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->lectureGroupRule(true));
+    }
+
+    public function labCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->labRule(false));
+    }
+
+    public function labUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->labRule(true));
+    }
+
+    public function subjectCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->subjectRule(false));
+    }
+
+    public function subjectUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->subjectRule(true));
+    }
+
+    public function timeSlotCreate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->timeSlotRule(false));
+
+        $timeSlotNumber = (int)($payload['time_slot_number'] ?? 0);
+        $startTime = (string)($payload['start_time'] ?? '');
+        $endTime = (string)($payload['end_time'] ?? '');
+        $settings = $this->timetableService->getTimetableSettings();
+        $rowLimit = (int)($settings['table_row_count'] ?? 0);
+
+        if (strtotime('1970-01-01 ' . $startTime) >= strtotime('1970-01-01 ' . $endTime)) {
+            $this->failValidation(['end_time must be later than start_time.']);
+        }
+
+        if ($timeSlotNumber > $rowLimit) {
+            $this->failValidation(['time_slot_number must be between 1 and the timetable Rows value.']);
+        }
+
+        if ($this->timetableService->countTimeSlots() >= $rowLimit) {
+            $this->failValidation(['Time slot count has reached the timetable Rows limit.']);
+        }
+
+        if ($this->timetableService->isTimeSlotNumberTaken($timeSlotNumber)) {
+            $this->failValidation(['time_slot_number must be unique.']);
+        }
+    }
+
+    public function timeSlotUpdate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->timeSlotRule(true));
+
+        $timeSlotNumber = (int)($payload['time_slot_number'] ?? 0);
+        $startTime = (string)($payload['start_time'] ?? '');
+        $endTime = (string)($payload['end_time'] ?? '');
+        $settings = $this->timetableService->getTimetableSettings();
+        $rowLimit = (int)($settings['table_row_count'] ?? 0);
+
+        if (strtotime('1970-01-01 ' . $startTime) >= strtotime('1970-01-01 ' . $endTime)) {
+            $this->failValidation(['end_time must be later than start_time.']);
+        }
+
+        if ($timeSlotNumber > $rowLimit) {
+            $this->failValidation(['time_slot_number must be between 1 and the timetable Rows value.']);
+        }
+
+        if ($this->timetableService->isTimeSlotNumberTaken($timeSlotNumber, $payload['id'])) {
+            $this->failValidation(['time_slot_number must be unique.']);
+        }
+    }
+
+    public function columnHeadingCreate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->columnHeadingRule(false));
+
+        $settings = $this->timetableService->getTimetableSettings();
+        $columnLimit = (int)($settings['table_column_count'] ?? 0);
+        $columnNumber = (int)($payload['column_number'] ?? 0);
+        $columnHeadingNumber = (int)($payload['column_heading_number'] ?? 0);
+
+        if ($columnNumber < 1 || $columnNumber > $columnLimit) {
+            $this->failValidation(['column_number must be between 1 and the timetable Columns value.']);
+        }
+
+        if ($columnHeadingNumber > $columnLimit) {
+            $this->failValidation(['column_heading_number must be between 1 and the timetable Columns value.']);
+        }
+
+        if ($this->timetableService->countColumnHeadings() >= $columnLimit) {
+            $this->failValidation(['Column heading count has reached the timetable Columns limit.']);
+        }
+
+        if ($this->timetableService->isColumnNumberTaken($columnNumber)) {
+            $this->failValidation(['column_number must be unique.']);
+        }
+
+        if ($this->timetableService->isColumnHeadingNumberTaken($columnHeadingNumber)) {
+            $this->failValidation(['column_heading_number must be unique.']);
+        }
+    }
+
+    public function columnHeadingUpdate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->columnHeadingRule(true));
+
+        $settings = $this->timetableService->getTimetableSettings();
+        $columnLimit = (int)($settings['table_column_count'] ?? 0);
+        $columnNumber = (int)($payload['column_number'] ?? 0);
+        $columnHeadingNumber = (int)($payload['column_heading_number'] ?? 0);
+
+        if ($columnNumber < 1 || $columnNumber > $columnLimit) {
+            $this->failValidation(['column_number must be between 1 and the timetable Columns value.']);
+        }
+
+        if ($columnHeadingNumber > $columnLimit) {
+            $this->failValidation(['column_heading_number must be between 1 and the timetable Columns value.']);
+        }
+
+        if ($this->timetableService->isColumnNumberTaken($columnNumber, $payload['id'])) {
+            $this->failValidation(['column_number must be unique.']);
+        }
+
+        if ($this->timetableService->isColumnHeadingNumberTaken($columnHeadingNumber, $payload['id'])) {
+            $this->failValidation(['column_heading_number must be unique.']);
+        }
+    }
+
+    public function timetableCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->timetableRule(false));
+    }
+
+    public function timetableUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->timetableRule(true));
+    }
+
+    public function timetableSettingsUpdate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->timetableSettingsRule(false));
+
+        $rowCount = (int)($payload['table_row_count'] ?? 0);
+        $columnCount = (int)($payload['table_column_count'] ?? 0);
+        $breakRowNumber = (int)($payload['break_row_number'] ?? 0);
+
+        if ($breakRowNumber < 0 || $breakRowNumber > $rowCount) {
+            $this->failValidation(['break_row_number must be between 0 and table_row_count.']);
+        }
+
+        if ($this->timetableService->countColumnHeadings() > $columnCount) {
+            $this->failValidation(['Existing column heading count is greater than the new Columns value.']);
+        }
+
+        if ($this->timetableService->countTimeSlots() > $rowCount) {
+            $this->failValidation(['Existing time slot count is greater than the new Rows value.']);
+        }
+    }
+
+    public function timetableSettingsReset($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->timetableSettingsRule(true));
     }
 }
 ?>
