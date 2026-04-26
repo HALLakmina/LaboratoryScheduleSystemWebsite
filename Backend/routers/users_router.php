@@ -27,35 +27,52 @@ class UsersRouter {
     }
 
     private function routeService(): void {
-        $this->router->get('/', function ($req = null, $res = null) {
-            $this->usersController->getAll($req, $res);
-        });
-
-        $validationMiddleware = function ($req = null, $res = null) {
-            $this->validation->userBodyDataValidation($req);
-        };
         $authorMiddleware = function ($req = null, $res = null) {
             $jwt = new JwtToken();
             $jwt->getJwtToken($req);
         };
 
-        $this->router->post('/', [$validationMiddleware, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->get('/', function ($req = null, $res = null) {
+            $this->usersController->getAll($req, $res);
+        });
+
+        $userCreateValidation = function ($req = null, $res = null) {
+            $this->validation->userCreate($req, $res);
+        };
+
+        $userUpdateValidation = function ($req = null, $res = null) {
+            $this->validation->userUpdate($req, $res);
+        };
+
+        $userDeleteValidation = function ($req = null, $res = null) {
+            $this->validation->userDelete($req, $res);
+        };
+
+        $userResetPasswordValidation = function ($req = null, $res = null) {
+            $this->validation->userResetPassword($req, $res);
+        };
+
+        $userLoginValidation = function ($req = null, $res = null) {
+            $this->validation->userLogin($req, $res);
+        };
+
+        $this->router->post('/', [$userCreateValidation, $authorMiddleware], function ($req = null, $res = null) {
             $this->usersController->create($req, $res);
         });
 
-        $this->router->post('/update', [$authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/update', [$userUpdateValidation, $authorMiddleware], function ($req = null, $res = null) {
             $this->usersController->update($req, $res);
         });
 
-        $this->router->post('/delete', [$authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/delete', [$userDeleteValidation, $authorMiddleware], function ($req = null, $res = null) {
             $this->usersController->delete($req, $res);
         });
 
-        $this->router->post('/reset-password', [$authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/reset-password', [$userResetPasswordValidation, $authorMiddleware], function ($req = null, $res = null) {
             $this->usersController->resetPassword($req, $res);
         });
 
-        $this->router->post('/login', function ($req = null, $res = null) {
+        $this->router->post('/login', [$userLoginValidation], function ($req = null, $res = null) {
             $this->usersController->login($req, $res);
         });
 
