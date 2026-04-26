@@ -13,6 +13,16 @@ class UsersController {
         $this->usersService = new UsersService();
     }
 
+    private function getPayload($req) {
+        $payload = $req['body'] ?? [];
+
+        if (!is_array($payload)) {
+            return [];
+        }
+
+        return $payload;
+    }
+
     /**
      * Get all users - GET /api/v1/user
      */
@@ -40,7 +50,7 @@ class UsersController {
      */
     public function create($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
+            $payload = $this->getPayload($req);
             $this->usersService->create($payload);
             echo json_encode([
                 'status' => '200',
@@ -57,55 +67,9 @@ class UsersController {
         }
     }
 
-    private function validateUserPayload($payload, $requirePassword = true) {
-        $requiredFields = [
-            'initials',
-            'initials_stand_for',
-            'first_name',
-            'last_name',
-            'nic',
-            'email',
-            'mobile_number',
-            'role',
-        ];
-
-        foreach ($requiredFields as $field) {
-            if (trim((string)($payload[$field] ?? '')) === '') {
-                return $field . ' is required.';
-            }
-        }
-
-        if ($requirePassword && trim((string)($payload['password'] ?? '')) === '') {
-            return 'password is required.';
-        }
-
-        if (!in_array($payload['role'] ?? '', ['admin', 'lecturer'], true)) {
-            return 'role must be admin or lecturer.';
-        }
-
-        return null;
-    }
-
     public function update($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
-            if (trim((string)($payload['id'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'id is required.'
-                ]);
-                exit;
-            }
-
-            $validationMessage = $this->validateUserPayload($payload, false);
-            if ($validationMessage !== null) {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => $validationMessage,
-                ]);
-                exit;
-            }
-
+            $payload = $this->getPayload($req);
             $this->usersService->update($payload);
             echo json_encode([
                 'status' => '200',
@@ -124,15 +88,7 @@ class UsersController {
 
     public function delete($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
-            if (trim((string)($payload['id'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'id is required.'
-                ]);
-                exit;
-            }
-
+            $payload = $this->getPayload($req);
             $this->usersService->delete($payload['id']);
             echo json_encode([
                 'status' => '200',
@@ -151,40 +107,7 @@ class UsersController {
 
     public function resetPassword($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
-
-            if (trim((string)($payload['target_user_id'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'target_user_id is required.'
-                ]);
-                exit;
-            }
-
-            if (trim((string)($payload['actor_user_id'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'actor_user_id is required.'
-                ]);
-                exit;
-            }
-
-            if (trim((string)($payload['current_password'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'current_password is required.'
-                ]);
-                exit;
-            }
-
-            if (trim((string)($payload['new_password'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'new_password is required.'
-                ]);
-                exit;
-            }
-
+            $payload = $this->getPayload($req);
             $this->usersService->resetPassword($payload);
             echo json_encode([
                 'status' => '200',
@@ -207,15 +130,7 @@ class UsersController {
      */
     public function login($req = null, $res = null) {
         try {
-            $body = $req['body'] ?? [];
-
-            if (empty($body['email']) || empty($body['password'])) {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'Email and password are required.'
-                ]);
-                exit;
-            }
+            $body = $this->getPayload($req);
 
             $email = trim($body['email']);
             $password = $body['password'];

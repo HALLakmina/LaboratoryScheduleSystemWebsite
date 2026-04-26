@@ -61,15 +61,6 @@ class NewsController {
     public function create($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
-            $validationMessage = $this->validateCreatePayload($payload);
-            if ($validationMessage !== null) {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => $validationMessage,
-                ]);
-                exit;
-            }
-
             $respond = $this->newsService->create($payload, $_FILES['image'] ?? null);
             echo json_encode([
                 'status' => '200',
@@ -89,23 +80,6 @@ class NewsController {
     public function update($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
-            if (trim((string)($payload['id'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'id is required.',
-                ]);
-                exit;
-            }
-
-            $validationMessage = $this->validateUpdatePayload($payload);
-            if ($validationMessage !== null) {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => $validationMessage,
-                ]);
-                exit;
-            }
-
             $respond = $this->newsService->update($payload, $_FILES['image'] ?? null);
             echo json_encode([
                 'status' => '200',
@@ -125,14 +99,6 @@ class NewsController {
     public function delete($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
-            if (trim((string)($payload['id'] ?? '')) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'id is required.',
-                ]);
-                exit;
-            }
-
             $respond = $this->newsService->delete($payload['id']);
             echo json_encode([
                 'status' => '200',
@@ -151,32 +117,14 @@ class NewsController {
 
     private function getPayload($req) {
         $payload = $req['body'] ?? [];
+        if (!is_array($payload)) {
+            $payload = [];
+        }
+
         if (!empty($_POST)) {
             $payload = array_merge($payload, $_POST);
         }
         return $payload;
-    }
-
-    private function validateCreatePayload($payload) {
-        $requiredFields = ['title', 'created_by', 'updated_by'];
-        foreach ($requiredFields as $field) {
-            if (trim((string)($payload[$field] ?? '')) === '') {
-                return $field . ' is required.';
-            }
-        }
-
-        return null;
-    }
-
-    private function validateUpdatePayload($payload) {
-        $requiredFields = ['title', 'updated_by'];
-        foreach ($requiredFields as $field) {
-            if (trim((string)($payload[$field] ?? '')) === '') {
-                return $field . ' is required.';
-            }
-        }
-
-        return null;
     }
 }
 ?>

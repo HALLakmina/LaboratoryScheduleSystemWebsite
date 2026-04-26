@@ -13,18 +13,19 @@ class LecturerRequestsController {
         $this->lecturerRequestsService = new LecturerRequestsService();
     }
 
+    private function getPayload($req) {
+        $payload = $req['body'] ?? [];
+
+        if (!is_array($payload)) {
+            return [];
+        }
+
+        return $payload;
+    }
+
     public function create($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
-            $validationMessage = $this->validatePayload($payload);
-            if ($validationMessage !== null) {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => $validationMessage,
-                ]);
-                exit;
-            }
-
+            $payload = $this->getPayload($req);
             $respond = $this->lecturerRequestsService->create($payload);
             echo json_encode([
                 'status' => '200',
@@ -61,24 +62,7 @@ class LecturerRequestsController {
 
     public function update($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
-            if (!isset($payload['id']) || trim((string)$payload['id']) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'id is required.',
-                ]);
-                exit;
-            }
-
-            $validationMessage = $this->validatePayload($payload);
-            if ($validationMessage !== null) {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => $validationMessage,
-                ]);
-                exit;
-            }
-
+            $payload = $this->getPayload($req);
             $respond = $this->lecturerRequestsService->update($payload);
             echo json_encode([
                 'status' => '200',
@@ -97,15 +81,7 @@ class LecturerRequestsController {
 
     public function delete($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
-            if (!isset($payload['id']) || trim((string)$payload['id']) === '') {
-                echo json_encode([
-                    'status' => '400',
-                    'message' => 'id is required.',
-                ]);
-                exit;
-            }
-
+            $payload = $this->getPayload($req);
             $respond = $this->lecturerRequestsService->delete($payload['id']);
             echo json_encode([
                 'status' => '200',
@@ -124,7 +100,7 @@ class LecturerRequestsController {
 
     public function checkAvailability($req = null, $res = null) {
         try {
-            $payload = $req['body'] ?? [];
+            $payload = $this->getPayload($req);
             $requiredFields = ['timetable_time_slot_id', 'timetable_column_heading_id', 'date'];
 
             foreach ($requiredFields as $field) {
@@ -153,39 +129,5 @@ class LecturerRequestsController {
         }
     }
 
-    private function validatePayload($payload) {
-        $requiredFields = [
-            'lecturer_id',
-            'subject_id',
-            'year_id',
-            'lecture_group_id',
-            'timetable_time_slot_id',
-            'timetable_column_heading_id',
-            'date',
-            'lecturer_request',
-        ];
-
-        foreach ($requiredFields as $field) {
-            if (!isset($payload[$field]) || trim((string)$payload[$field]) === '') {
-                return $field . ' is required.';
-            }
-        }
-
-        $requestDate = strtotime((string)$payload['date']);
-        $today = strtotime(date('Y-m-d'));
-        if ($requestDate === false || $requestDate < $today) {
-            return 'date must be today or a future date.';
-        }
-
-        if (isset($payload['action']) && !in_array($payload['action'], ['requested', 'confirmed', 'canceled'], true)) {
-            return 'action must be requested, confirmed, or canceled.';
-        }
-
-        if (($payload['action'] ?? '') === 'confirmed' && trim((string)($payload['lab_id'] ?? '')) === '') {
-            return 'lab_id is required when confirming a lecturer request.';
-        }
-
-        return null;
-    }
 }
 ?>
