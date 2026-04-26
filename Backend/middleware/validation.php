@@ -520,5 +520,57 @@ class Validation {
     public function newsDelete($req = null, $res = null) {
         $this->deleteById($req, $res);
     }
+
+    private function lecturerRequestRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('lecturer_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('lecturer_id'))
+            ->key('subject_id', v::stringType()->notEmpty()->length(1, 50)->setName('subject_id'))
+            ->key('year_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('year_id'))
+            ->key('lecture_group_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('lecture_group_id'))
+            ->key('timetable_time_slot_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('timetable_time_slot_id'))
+            ->key('timetable_column_heading_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('timetable_column_heading_id'))
+            ->key('date', v::date('Y-m-d')->setName('date'))
+            ->key('lecturer_request', v::stringType()->notEmpty()->length(1, 1000)->setName('lecturer_request'))
+            ->key('action', v::optional(v::in(['requested', 'confirmed', 'canceled']))->setName('action'), false)
+            ->key('lab_id', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('lab_id'), false)
+            ->key('created_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('created_by'), false)
+            ->key('updated_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('updated_by'), false);
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    public function lecturerRequestCreate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->lecturerRequestRule(false));
+
+        $requestDate = strtotime((string)($payload['date'] ?? ''));
+        $today = strtotime(date('Y-m-d'));
+        if ($requestDate === false || $requestDate < $today) {
+            $this->failValidation(['date must be today or a future date.']);
+        }
+    }
+
+    public function lecturerRequestUpdate($req = null, $res = null) {
+        $payload = $this->getPayload($req);
+        $this->assertPayload($payload, $this->lecturerRequestRule(true));
+
+        $requestDate = strtotime((string)($payload['date'] ?? ''));
+        $today = strtotime(date('Y-m-d'));
+        if ($requestDate === false || $requestDate < $today) {
+            $this->failValidation(['date must be today or a future date.']);
+        }
+
+        if (($payload['action'] ?? '') === 'confirmed' && trim((string)($payload['lab_id'] ?? '')) === '') {
+            $this->failValidation(['lab_id is required when confirming a lecturer request.']);
+        }
+    }
+
+    public function lecturerRequestDelete($req = null, $res = null) {
+        $this->deleteById($req, $res);
+    }
 }
 ?>
