@@ -10,8 +10,8 @@
         <?php include __DIR__ . '/../Components/NavigationBar.php';?>
         <main class="mx-auto flex w-full flex-col gap-4 px-2 pb-6 pt-4 sm:px-4">
 
-            <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                <form class="rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
+            <section class=" w-full gap-3 flex flex-wrap">
+                <form class="w-2xs md:w-md rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
                     <div class="flex flex-col gap-2">
                         <label for="filter_by_years" class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Filter Year</label>
                         <select
@@ -23,7 +23,7 @@
                         </select>
                     </div>
                 </form>
-                <form class="rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
+                <form class="w-2xs md:w-md rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
                     <div class="flex flex-col gap-2">
                         <label for="filter_by_subject" class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Filter Subject</label>
                         <select
@@ -35,7 +35,7 @@
                         </select>
                     </div>
                 </form>
-                <div id="lecturer-request-form-container" class="hidden rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80 items-center">
+                <div id="lecturer-request-form-container" class="w-2xs md:w-md hidden rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80 items-center">
                     <button
                         type="button"
                         id="lecturer-request-form"
