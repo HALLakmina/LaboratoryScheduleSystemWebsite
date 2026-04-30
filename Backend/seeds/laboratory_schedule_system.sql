@@ -262,6 +262,13 @@ CREATE TABLE `timetable_settings` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Table setting data for table `timetable_settings`
+--
+
+INSERT INTO `timetable_settings` (`id`, `table_cell_count`, `table_row_count`, `table_column_count`, `break_row_number`, `break_cell_ids`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(1, 56, 9, 7, 5, '', 'seed', 'lahirulakmina1999@gmail.com', '2026-03-13 16:34:02', '2026-04-05 12:15:16');
+
 -- --------------------------------------------------------
 
 --
