@@ -74,25 +74,25 @@ Main use cases:
 
 ```text
 LaboratoryScheduleSystemWebsite/
-├── Frontend/
-│   ├── Components/
-│   ├── Pages/
-│   │   ├── AdminPanel/
-│   │   ├── login.php
-│   │   ├── news.php
-│   │   └── timetable.php
-│   ├── API/
-│   └── JS/
-├── Backend/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routers/
-│   ├── services/
-│   ├── scripts/
-│   ├── seeds/
-│   ├── utils/
-│   └── server.php
-└── README.md
+|-- Frontend/
+|   |-- Components/
+|   |-- Pages/
+|   |   |-- AdminPanel/
+|   |   |-- login.php
+|   |   |-- news.php
+|   |   `-- timetable.php
+|   |-- API/
+|   `-- JS/
+|-- Backend/
+|   |-- controllers/
+|   |-- middleware/
+|   |-- routers/
+|   |-- services/
+|   |-- scripts/
+|   |-- seeds/
+|   |-- utils/
+|   `-- server.php
+`-- README.md
 ```
 
 ## Requirements
@@ -132,28 +132,46 @@ cd Backend
 composer install
 ```
 
-### 4. Configure environment variables
+### 4. Create the environment file
 
-Edit:
+Copy the example file:
+
+```bash
+copy Backend\.env-example Backend\.env
+```
+
+Then edit:
 
 ```text
 Backend/.env
 ```
 
-Current example values:
+Example values from `Backend/.env-example`:
 
 ```env
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=
+DB_PASSWORD=your-database-password
 DB_NAME=timetable_system
 JWT_KEY=your-secret-key
 DOMAIN=localhost
 ```
 
+What each value means:
+
+- `DB_HOST`: MySQL server host. In XAMPP this is usually `localhost`.
+- `DB_USER`: MySQL username. In a default XAMPP setup this is usually `root`.
+- `DB_PASSWORD`: MySQL password for the selected user. Leave it empty only if your local MySQL user has no password.
+- `DB_NAME`: database name the application will create and use.
+- `JWT_KEY`: secret key used for authentication-related token handling.
+- `DOMAIN`: current local domain, usually `localhost`.
+
 Important:
-- the application uses the database name from `Backend/.env`
-- the included SQL file name may differ from `DB_NAME`, which is fine
+- the application reads runtime database settings from `Backend/.env`
+- use `Backend/.env-example` as the base template for local setup
+- the included SQL schema file is `Backend/seeds/laboratory_schedule_system.sql`
+- the schema filename and `DB_NAME` do not need to match
+- if you change `DB_NAME`, the seed script will create and use that database name
 
 ### 5. Run the seed script
 
