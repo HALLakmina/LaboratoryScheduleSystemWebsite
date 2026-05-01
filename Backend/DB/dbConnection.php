@@ -78,6 +78,9 @@
         }
         public function getError(){
             return $this->error;
-        } 
+        }
+        public function lastInsertId(){
+            return $this->pdo->lastInsertId();
+        }
     }
 ?>

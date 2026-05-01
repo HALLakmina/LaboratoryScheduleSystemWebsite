@@ -2,11 +2,18 @@
 namespace Backend\Services;
 
 require_once __DIR__ . '/../DB/dbConnection.php';
+require_once __DIR__ . '/email_notification_service.php';
 
 use Backend\DB\DbConnection;
 use Exception;
 
 class LecturerRequestsService {
+    private $emailNotificationService;
+
+    public function __construct() {
+        $this->emailNotificationService = new EmailNotificationService();
+    }
+
     private function fetchAllRows($query, $property = null) {
         $DB_CON = new DbConnection();
         if ($property === null) {
@@ -57,6 +64,108 @@ class LecturerRequestsService {
         }
 
         return $relation['group_id'];
+    }
+
+    private function formatTimeSlotLabel($startTime, $endTime) {
+        if (empty($startTime) || empty($endTime)) {
+            return '-';
+        }
+
+        return sprintf('%s - %s', substr((string)$startTime, 0, 5), substr((string)$endTime, 0, 5));
+    }
+
+    private function getAdminRecipients() {
+        $admins = $this->fetchAllRows(
+            "SELECT email, CONCAT(first_name, ' ', last_name) AS name
+             FROM users
+             WHERE role = 'admin' AND email IS NOT NULL AND email != ''"
+        );
+
+        return array_values(array_filter($admins, function ($admin) {
+            return !empty($admin['email']);
+        }));
+    }
+
+    private function getLabDetails($labId) {
+        if (empty($labId)) {
+            return null;
+        }
+
+        return $this->fetchSingleRow(
+            "SELECT id, lab_name, lab_location FROM labs WHERE id = :id LIMIT 1",
+            ['id' => $labId]
+        );
+    }
+
+    private function getRequestNotificationData($requestId, $labId = null) {
+        $requestData = $this->fetchSingleRow(
+            "SELECT
+                lr.id,
+                lr.subject_id,
+                lr.date,
+                lr.action,
+                lr.lecturer_request,
+                lr.lecturer_id,
+                u.email AS lecturer_email,
+                CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
+                ps.subject,
+                y.year,
+                lg.group_name,
+                tts.start_time,
+                tts.end_time,
+                tch.column_heading
+             FROM lecturer_requests lr
+             LEFT JOIN users u ON lr.lecturer_id = u.id
+             LEFT JOIN practical_subjects ps ON lr.subject_id = ps.subject_cord
+             LEFT JOIN years y ON lr.year_id = y.id
+             LEFT JOIN lecture_groups lg ON lr.lecture_group_id = lg.id
+             LEFT JOIN timetable_time_slots tts ON lr.timetable_time_slot_id = tts.id
+             LEFT JOIN timetable_column_headings tch ON lr.timetable_column_heading_id = tch.id
+             WHERE lr.id = :id
+             LIMIT 1",
+            ['id' => $requestId]
+        );
+
+        if (!$requestData) {
+            return null;
+        }
+
+        $requestData['time_slot_label'] = $this->formatTimeSlotLabel(
+            $requestData['start_time'] ?? null,
+            $requestData['end_time'] ?? null
+        );
+
+        $lab = $this->getLabDetails($labId);
+        if ($lab) {
+            $requestData['lab_name'] = trim(($lab['lab_name'] ?? '') . (!empty($lab['lab_location']) ? ' - ' . $lab['lab_location'] : ''));
+        }
+
+        return $requestData;
+    }
+
+    private function notifyAdminsForNewRequest($requestId) {
+        $requestData = $this->getRequestNotificationData($requestId);
+        if (!$requestData) {
+            return;
+        }
+
+        $adminRecipients = $this->getAdminRecipients();
+        $this->emailNotificationService->notifyAdminsAboutLecturerRequest($requestData, $adminRecipients);
+    }
+
+    private function notifyLecturerForRequestStatus($requestId, $labId = null) {
+        $requestData = $this->getRequestNotificationData($requestId, $labId);
+        if (!$requestData || empty($requestData['lecturer_email'])) {
+            return;
+        }
+
+        $this->emailNotificationService->notifyLecturerAboutRequestStatus(
+            $requestData,
+            [
+                'email' => $requestData['lecturer_email'],
+                'name' => $requestData['lecturer_name'] ?? 'Lecturer',
+            ]
+        );
     }
 
     private function syncTemporaryTimetable($payload) {
@@ -301,11 +410,25 @@ class LecturerRequestsService {
             throw new Exception($error ? $error : 'Sql server sql query error');
         }
 
+        $requestId = $DB_CON->lastInsertId();
+        if (!empty($requestId)) {
+            $this->notifyAdminsForNewRequest($requestId);
+        }
+
         return 'Lecturer request sent successfully';
     }
 
     public function update($payload) {
         $DB_CON = new DbConnection();
+        $existingRequest = $this->fetchSingleRow(
+            "SELECT id, action FROM lecturer_requests WHERE id = :id LIMIT 1",
+            ['id' => $payload['id']]
+        );
+
+        if (!$existingRequest) {
+            throw new Exception('Lecturer request not found.');
+        }
+
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
@@ -344,6 +467,10 @@ class LecturerRequestsService {
 
         if (in_array($payload['action'], ['confirmed', 'canceled'], true)) {
             $this->syncTemporaryTimetable($payload);
+
+            if (($existingRequest['action'] ?? '') !== $payload['action']) {
+                $this->notifyLecturerForRequestStatus($payload['id'], $payload['lab_id'] ?? null);
+            }
         }
 
         return 'Lecturer request updated successfully';
