@@ -46,6 +46,34 @@
                 </div>
             </section>
 
+            <section class="rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Week View</p>
+                            <p id="week-range-label" class="pt-1 text-sm font-black text-gray-950">Loading week...</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                id="week-prev-btn"
+                                class="rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wide text-gray-700 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Prev
+                            </button>
+                            <button
+                                type="button"
+                                id="week-next-btn"
+                                class="rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wide text-gray-700 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                    <div id="week-selector-list" class="flex flex-wrap gap-2"></div>
+                </div>
+            </section>
+
             <section class="overflow-hidden rounded-lg bg-white/92 shadow-2xl ring-1 ring-white/70">
                 <div class="max-h-[calc(100svh-15rem)] w-full overflow-x-auto overflow-y-auto" style="scrollbar-width: thin;">
                     <table id="timetable" class="w-full min-w-[860px] border-separate border-spacing-0 text-sm text-left rtl:text-right">

@@ -254,6 +254,8 @@ let fullLectureGroupsData = [];
 let fullTimetableCellsData = [];
 let fullLabsData = [];
 let currentDisplayedTimetableData = [];
+let selectedWeekOffset = 0;
+const MAX_WEEK_OFFSET = 3;
 
 const formatTimePart = (timeValue) => {
     if (!timeValue) return '';
@@ -328,21 +330,37 @@ const formatDateKey = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-const getCurrentWeekDateRange = () => {
+const getWeekDateRange = (weekOffset = 0) => {
     const today = new Date();
     const currentDay = today.getDay();
     const sundayOffset = -currentDay;
     const sunday = new Date(today);
     sunday.setHours(0, 0, 0, 0);
-    sunday.setDate(today.getDate() + sundayOffset);
+    sunday.setDate(today.getDate() + sundayOffset + (weekOffset * 7));
 
     const saturday = new Date(sunday);
     saturday.setDate(sunday.getDate() + 6);
 
     return {
+        offset: weekOffset,
         start: formatDateKey(sunday),
         end: formatDateKey(saturday),
+        startDate: sunday,
+        endDate: saturday,
     };
+};
+
+const getCurrentWeekDateRange = () => getWeekDateRange(selectedWeekOffset);
+
+const formatReadableDate = (date) => date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+});
+
+const getWeekLabel = (weekOffset = 0) => {
+    if (weekOffset === 0) return 'This Week';
+    if (weekOffset === 1) return 'Next Week';
+    return `Week ${weekOffset + 1}`;
 };
 
 const getThisWeekHeadingDateMap = () => {
@@ -360,6 +378,38 @@ const getThisWeekHeadingDateMap = () => {
     return map;
 };
 
+const renderWeekSelector = () => {
+    const weekRangeLabel = document.getElementById('week-range-label');
+    const weekSelectorList = document.getElementById('week-selector-list');
+    const weekPrevBtn = document.getElementById('week-prev-btn');
+    const weekNextBtn = document.getElementById('week-next-btn');
+
+    if (!weekRangeLabel || !weekSelectorList || !weekPrevBtn || !weekNextBtn) return;
+
+    const currentWeek = getCurrentWeekDateRange();
+    weekRangeLabel.textContent = `${getWeekLabel(selectedWeekOffset)} · ${formatReadableDate(currentWeek.startDate)} - ${formatReadableDate(currentWeek.endDate)}`;
+
+    weekSelectorList.innerHTML = Array.from({ length: MAX_WEEK_OFFSET + 1 }, (_, offset) => {
+        const week = getWeekDateRange(offset);
+        const isSelected = offset === selectedWeekOffset;
+        return `
+            <button
+                type="button"
+                class="week-selector-btn rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide transition ${isSelected ? 'bg-sky-600 text-white shadow-md' : 'border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                data-week-offset="${offset}"
+            >
+                ${getWeekLabel(offset)}
+                <span class="block pt-1 text-[10px] font-bold normal-case tracking-normal ${isSelected ? 'text-sky-100' : 'text-gray-500'}">
+                    ${formatReadableDate(week.startDate)} - ${formatReadableDate(week.endDate)}
+                </span>
+            </button>
+        `;
+    }).join('');
+
+    weekPrevBtn.disabled = selectedWeekOffset <= 0;
+    weekNextBtn.disabled = selectedWeekOffset >= MAX_WEEK_OFFSET;
+};
+
 const buildEffectiveTimetableData = (permanentData, temporaryData) => {
     const normalizeRecord = (item, source) => ({
         ...item,
@@ -370,10 +420,33 @@ const buildEffectiveTimetableData = (permanentData, temporaryData) => {
             : `permanent:${item.timetable_id || `${item.time_slot_id || ''}:${item.column_heading_id || ''}:${item.subject_cord || ''}:${item.lecture_group_id || ''}:${item.lab_id || ''}`}`,
     });
 
-    return [
-        ...(permanentData || []).map((item) => normalizeRecord(item, 'permanent')),
-        ...(temporaryData || []).map((item) => normalizeRecord(item, 'temporary')),
-    ].sort((left, right) => {
+    const normalizedPermanentData = (permanentData || []).map((item) => normalizeRecord(item, 'permanent'));
+    const normalizedTemporaryData = (temporaryData || []).map((item) => normalizeRecord(item, 'temporary'));
+
+    const slotMap = new Map();
+    normalizedPermanentData.forEach((record) => {
+        const slotKey = `${record.time_slot_id || ''}:${record.column_heading_id || ''}`;
+        const existingSlot = slotMap.get(slotKey) || [];
+        existingSlot.push(record);
+        slotMap.set(slotKey, existingSlot);
+    });
+
+    normalizedTemporaryData.forEach((temporaryRecord) => {
+        const slotKey = `${temporaryRecord.time_slot_id || ''}:${temporaryRecord.column_heading_id || ''}`;
+        const existingSlot = slotMap.get(slotKey) || [];
+
+        let updatedSlot = existingSlot;
+        if (String(temporaryRecord.lab_id || '').trim() !== '') {
+            updatedSlot = existingSlot.filter(
+                (permanentRecord) => String(permanentRecord.lab_id || '') !== String(temporaryRecord.lab_id || '')
+            );
+        }
+
+        updatedSlot.unshift(temporaryRecord);
+        slotMap.set(slotKey, updatedSlot);
+    });
+
+    return Array.from(slotMap.values()).flat().sort((left, right) => {
         const leftTimeSlotId = Number(left.time_slot_id || 0);
         const rightTimeSlotId = Number(right.time_slot_id || 0);
         if (leftTimeSlotId !== rightTimeSlotId) {
@@ -384,6 +457,10 @@ const buildEffectiveTimetableData = (permanentData, temporaryData) => {
         const rightColumnHeadingId = Number(right.column_heading_id || 0);
         if (leftColumnHeadingId !== rightColumnHeadingId) {
             return leftColumnHeadingId - rightColumnHeadingId;
+        }
+
+        if (left.data_source !== right.data_source) {
+            return left.data_source === 'temporary' ? -1 : 1;
         }
 
         return String(left.unique_record_id || '').localeCompare(String(right.unique_record_id || ''));
@@ -545,6 +622,16 @@ const filterTimetableTable = (year, subjectCode) => {
     });
 
     renderTimetableTable(filteredData);
+};
+
+const refreshDisplayedTimetable = async () => {
+    const currentWeek = getCurrentWeekDateRange();
+    const temporaryDataResponse = await getTemporaryTimetableData(currentWeek.start, currentWeek.end);
+
+    temporaryTimetableData = Array.isArray(temporaryDataResponse.data) ? temporaryDataResponse.data : [];
+    fullTimetableData = buildEffectiveTimetableData(permanentTimetableData, temporaryTimetableData);
+    renderWeekSelector();
+    filterTimetableTable();
 };
 
 const initSchedulingForm = () => {
@@ -1092,17 +1179,10 @@ const initSchedulingForm = () => {
 const loadTimetableData = async () => {
     try {
         await loadSchedulingReferenceData();
-        const currentWeek = getCurrentWeekDateRange();
-        const [timetableData, temporaryDataResponse] = await Promise.all([
-            getTimetableData(),
-            getTemporaryTimetableData(currentWeek.start, currentWeek.end),
-        ]);
+        const timetableData = await getTimetableData();
 
         permanentTimetableData = Array.isArray(timetableData.data) ? timetableData.data : [];
-        temporaryTimetableData = Array.isArray(temporaryDataResponse.data) ? temporaryDataResponse.data : [];
-        fullTimetableData = buildEffectiveTimetableData(permanentTimetableData, temporaryTimetableData);
-        renderTimetableHead();
-        renderTimetableTable(fullTimetableData);
+        await refreshDisplayedTimetable();
         const yearSelect = document.getElementById('filter_by_years');
         const subjectSelect = document.getElementById('filter_by_subject');
         if (yearSelect) {
@@ -1124,6 +1204,39 @@ const loadTimetableData = async () => {
 const initTimetablePage = () => {
     if (!document.getElementById('timetable-body')) {
         return;
+    }
+
+    const weekSelectorList = document.getElementById('week-selector-list');
+    const weekPrevBtn = document.getElementById('week-prev-btn');
+    const weekNextBtn = document.getElementById('week-next-btn');
+
+    if (weekSelectorList) {
+        weekSelectorList.addEventListener('click', async (e) => {
+            const button = e.target.closest('.week-selector-btn');
+            if (!button) return;
+
+            const nextOffset = Number(button.getAttribute('data-week-offset') || 0);
+            if (Number.isNaN(nextOffset) || nextOffset === selectedWeekOffset) return;
+
+            selectedWeekOffset = Math.min(Math.max(nextOffset, 0), MAX_WEEK_OFFSET);
+            await refreshDisplayedTimetable();
+        });
+    }
+
+    if (weekPrevBtn) {
+        weekPrevBtn.addEventListener('click', async () => {
+            if (selectedWeekOffset <= 0) return;
+            selectedWeekOffset -= 1;
+            await refreshDisplayedTimetable();
+        });
+    }
+
+    if (weekNextBtn) {
+        weekNextBtn.addEventListener('click', async () => {
+            if (selectedWeekOffset >= MAX_WEEK_OFFSET) return;
+            selectedWeekOffset += 1;
+            await refreshDisplayedTimetable();
+        });
     }
 
     loadTimetableData();
