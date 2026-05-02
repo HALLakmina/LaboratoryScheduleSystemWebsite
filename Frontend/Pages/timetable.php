@@ -46,6 +46,34 @@
                 </div>
             </section>
 
+            <section class="rounded-lg bg-white/95 p-3 shadow-lg ring-1 ring-gray-200/80">
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Week View</p>
+                            <p id="week-range-label" class="pt-1 text-sm font-black text-gray-950">Loading week...</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                id="week-prev-btn"
+                                class="rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wide text-gray-700 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Prev
+                            </button>
+                            <button
+                                type="button"
+                                id="week-next-btn"
+                                class="rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wide text-gray-700 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                    <div id="week-selector-list" class="flex flex-wrap gap-2"></div>
+                </div>
+            </section>
+
             <section class="overflow-hidden rounded-lg bg-white/92 shadow-2xl ring-1 ring-white/70">
                 <div class="max-h-[calc(100svh-15rem)] w-full overflow-x-auto overflow-y-auto" style="scrollbar-width: thin;">
                     <table id="timetable" class="w-full min-w-[860px] border-separate border-spacing-0 text-sm text-left rtl:text-right">
@@ -58,6 +86,7 @@
             <section id="scheduling-form" class="hidden fixed inset-0 z-30 overflow-y-auto bg-gray-950/50 p-4">
                 <form class="mx-auto my-8 flex w-full max-w-xs flex-col gap-4 rounded-lg bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
                     <input type="hidden" name="cell_id" id="cell_id" value="" />
+                    <input type="hidden" name="selected_lab_id" id="selected_lab_id" value="" />
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Request Lecture</p>
@@ -131,6 +160,16 @@
                         <select
                             name="lecture_group_select"
                             id="lecture_group_select"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                        >
+                            <option value="">--</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <label for="selected_lab_name" class="text-sm font-black uppercase tracking-wide text-gray-600">Selected Lab <span class="text-[10px] font-bold text-gray-400">(Optional)</span></label>
+                        <select
+                            name="selected_lab_name"
+                            id="selected_lab_name"
                             class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
                         >
                             <option value="">--</option>

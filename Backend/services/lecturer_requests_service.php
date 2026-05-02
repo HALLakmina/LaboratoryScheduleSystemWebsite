@@ -2,11 +2,18 @@
 namespace Backend\Services;
 
 require_once __DIR__ . '/../DB/dbConnection.php';
+require_once __DIR__ . '/email_notification_service.php';
 
 use Backend\DB\DbConnection;
 use Exception;
 
 class LecturerRequestsService {
+    private $emailNotificationService;
+
+    public function __construct() {
+        $this->emailNotificationService = new EmailNotificationService();
+    }
+
     private function fetchAllRows($query, $property = null) {
         $DB_CON = new DbConnection();
         if ($property === null) {
@@ -59,9 +66,126 @@ class LecturerRequestsService {
         return $relation['group_id'];
     }
 
+    private function formatTimeSlotLabel($startTime, $endTime) {
+        if (empty($startTime) || empty($endTime)) {
+            return '-';
+        }
+
+        return sprintf('%s - %s', substr((string)$startTime, 0, 5), substr((string)$endTime, 0, 5));
+    }
+
+    private function normalizeNullableForeignKey($value) {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim((string)$value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function getAdminRecipients() {
+        $admins = $this->fetchAllRows(
+            "SELECT email, CONCAT(first_name, ' ', last_name) AS name
+             FROM users
+             WHERE role = 'admin' AND email IS NOT NULL AND email != ''"
+        );
+
+        return array_values(array_filter($admins, function ($admin) {
+            return !empty($admin['email']);
+        }));
+    }
+
+    private function getLabDetails($labId) {
+        if (empty($labId)) {
+            return null;
+        }
+
+        return $this->fetchSingleRow(
+            "SELECT id, lab_name, lab_location FROM labs WHERE id = :id LIMIT 1",
+            ['id' => $labId]
+        );
+    }
+
+    private function getRequestNotificationData($requestId, $labId = null) {
+        $requestData = $this->fetchSingleRow(
+            "SELECT
+                lr.id,
+                lr.subject_id,
+                lr.date,
+                lr.action,
+                lr.lecturer_request,
+                lr.admin_message,
+                lr.lecturer_id,
+                u.email AS lecturer_email,
+                CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
+                ps.subject,
+                y.year,
+                lg.group_name,
+                tts.start_time,
+                tts.end_time,
+                tch.column_heading
+             FROM lecturer_requests lr
+             LEFT JOIN users u ON lr.lecturer_id = u.id
+             LEFT JOIN practical_subjects ps ON lr.subject_id = ps.subject_cord
+             LEFT JOIN years y ON lr.year_id = y.id
+             LEFT JOIN lecture_groups lg ON lr.lecture_group_id = lg.id
+             LEFT JOIN timetable_time_slots tts ON lr.timetable_time_slot_id = tts.id
+             LEFT JOIN timetable_column_headings tch ON lr.timetable_column_heading_id = tch.id
+             WHERE lr.id = :id
+             LIMIT 1",
+            ['id' => $requestId]
+        );
+
+        if (!$requestData) {
+            return null;
+        }
+
+        $requestData['time_slot_label'] = $this->formatTimeSlotLabel(
+            $requestData['start_time'] ?? null,
+            $requestData['end_time'] ?? null
+        );
+
+        $lab = $this->getLabDetails($labId);
+        if ($lab) {
+            $requestData['lab_name'] = trim(($lab['lab_name'] ?? '') . (!empty($lab['lab_location']) ? ' - ' . $lab['lab_location'] : ''));
+        }
+
+        return $requestData;
+    }
+
+    private function notifyAdminsForNewRequest($requestId) {
+        $requestData = $this->getRequestNotificationData($requestId);
+        if (!$requestData) {
+            return;
+        }
+
+        $adminRecipients = $this->getAdminRecipients();
+        $this->emailNotificationService->notifyAdminsAboutLecturerRequest($requestData, $adminRecipients);
+    }
+
+    private function notifyLecturerForRequestStatus($requestId, $labId = null) {
+        $requestData = $this->getRequestNotificationData($requestId, $labId);
+        if (!$requestData || empty($requestData['lecturer_email'])) {
+            return;
+        }
+
+        $this->emailNotificationService->notifyLecturerAboutRequestStatus(
+            $requestData,
+            [
+                'email' => $requestData['lecturer_email'],
+                'name' => $requestData['lecturer_name'] ?? 'Lecturer',
+            ]
+        );
+    }
+
     private function syncTemporaryTimetable($payload) {
         $timeSlotId = $payload['timetable_time_slot_id'];
         $columnHeadingId = $payload['timetable_column_heading_id'];
+        $labId = $this->normalizeNullableForeignKey($payload['lab_id'] ?? null);
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
@@ -93,10 +217,10 @@ class LecturerRequestsService {
                      SET action = 'temporary_lecture',
                          lab_id = :lab_id,
                          updated_by = :updated_by
-                     WHERE id = :id",
+                    WHERE id = :id",
                     [
                         'id' => $existingRecord['id'],
-                        'lab_id' => $payload['lab_id'] ?? null,
+                        'lab_id' => $labId,
                         'updated_by' => $auditValue,
                     ]
                 );
@@ -110,7 +234,7 @@ class LecturerRequestsService {
                         'time_slot_id' => $timeSlotId,
                         'column_heading_id' => $columnHeadingId,
                         'lecture_group_id' => $lectureGroupId,
-                        'lab_id' => $payload['lab_id'] ?? null,
+                        'lab_id' => $labId,
                         'subject_cord' => $payload['subject_id'],
                         'action' => 'temporary_lecture',
                         'lecturer_date' => $payload['date'],
@@ -217,11 +341,15 @@ class LecturerRequestsService {
                     lr.subject_id,
                     lr.year_id,
                     lr.lecture_group_id,
+                    lr.lab_id,
+                    l.lab_name,
+                    l.lab_location,
                     lr.timetable_time_slot_id,
                     lr.timetable_column_heading_id,
                     lr.date,
                     lr.action,
                     lr.lecturer_request,
+                    lr.admin_message,
                     lr.send_at,
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
                     ps.subject,
@@ -235,6 +363,7 @@ class LecturerRequestsService {
                 LEFT JOIN practical_subjects ps ON lr.subject_id = ps.subject_cord
                 LEFT JOIN years y ON lr.year_id = y.id
                 LEFT JOIN lecture_groups lg ON lr.lecture_group_id = lg.id
+                LEFT JOIN labs l ON lr.lab_id = l.id
                 LEFT JOIN timetable_time_slots tts ON lr.timetable_time_slot_id = tts.id
                 LEFT JOIN timetable_column_headings tch ON lr.timetable_column_heading_id = tch.id
                 ORDER BY lr.send_at DESC";
@@ -251,42 +380,46 @@ class LecturerRequestsService {
     public function create($payload) {
         $DB_CON = new DbConnection();
         $sendAt = date('Y-m-d H:i:s');
+        $labId = $this->normalizeNullableForeignKey($payload['lab_id'] ?? null);
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "INSERT INTO lecturer_requests
-                    (
-                        lecturer_id,
-                        subject_id,
-                        year_id,
-                        lecture_group_id,
-                        timetable_time_slot_id,
-                        timetable_column_heading_id,
-                        date,
-                        action,
-                        lecturer_request,
-                        send_at
-                    )
-                    VALUES
-                    (
-                        :lecturer_id,
-                        :subject_id,
-                        :year_id,
-                        :lecture_group_id,
-                        :timetable_time_slot_id,
-                        :timetable_column_heading_id,
-                        :date,
-                        :action,
-                        :lecturer_request,
-                        :send_at
-                    )";
+                (
+                    lecturer_id,
+                    subject_id,
+                    year_id,
+                    lecture_group_id,
+                    lab_id,
+                    timetable_time_slot_id,
+                    timetable_column_heading_id,
+                    date,
+                    action,
+                    lecturer_request,
+                    send_at
+                )
+                VALUES
+                (
+                    :lecturer_id,
+                    :subject_id,
+                    :year_id,
+                    :lecture_group_id,
+                    :lab_id,
+                    :timetable_time_slot_id,
+                    :timetable_column_heading_id,
+                    :date,
+                    :action,
+                    :lecturer_request,
+                    :send_at
+                )";
 
         $property = [
             'lecturer_id' => $payload['lecturer_id'],
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
             'lecture_group_id' => $lectureGroupId,
+            'lab_id' => $labId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
@@ -301,27 +434,44 @@ class LecturerRequestsService {
             throw new Exception($error ? $error : 'Sql server sql query error');
         }
 
+        $requestId = $DB_CON->lastInsertId();
+        if (!empty($requestId)) {
+            $this->notifyAdminsForNewRequest($requestId);
+        }
+
         return 'Lecturer request sent successfully';
     }
 
     public function update($payload) {
         $DB_CON = new DbConnection();
+        $labId = $this->normalizeNullableForeignKey($payload['lab_id'] ?? null);
+        $existingRequest = $this->fetchSingleRow(
+            "SELECT id, action FROM lecturer_requests WHERE id = :id LIMIT 1",
+            ['id' => $payload['id']]
+        );
+
+        if (!$existingRequest) {
+            throw new Exception('Lecturer request not found.');
+        }
+
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "UPDATE lecturer_requests
-                    SET
-                        lecturer_id = :lecturer_id,
-                        subject_id = :subject_id,
-                        year_id = :year_id,
-                        lecture_group_id = :lecture_group_id,
-                        timetable_time_slot_id = :timetable_time_slot_id,
-                        timetable_column_heading_id = :timetable_column_heading_id,
-                        date = :date,
-                        action = :action,
-                        lecturer_request = :lecturer_request
-                    WHERE id = :id";
+                SET
+                    lecturer_id = :lecturer_id,
+                    subject_id = :subject_id,
+                    year_id = :year_id,
+                    lecture_group_id = :lecture_group_id,
+                    lab_id = :lab_id,
+                    timetable_time_slot_id = :timetable_time_slot_id,
+                    timetable_column_heading_id = :timetable_column_heading_id,
+                    date = :date,
+                    action = :action,
+                    lecturer_request = :lecturer_request,
+                    admin_message = :admin_message
+                WHERE id = :id";
 
         $property = [
             'id' => $payload['id'],
@@ -329,11 +479,13 @@ class LecturerRequestsService {
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
             'lecture_group_id' => $lectureGroupId,
+            'lab_id' => $labId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
             'action' => $payload['action'],
             'lecturer_request' => $payload['lecturer_request'],
+            'admin_message' => trim((string)($payload['admin_message'] ?? '')) !== '' ? trim((string)$payload['admin_message']) : null,
         ];
 
         $result = $DB_CON->execute($query, $property);
@@ -344,6 +496,10 @@ class LecturerRequestsService {
 
         if (in_array($payload['action'], ['confirmed', 'canceled'], true)) {
             $this->syncTemporaryTimetable($payload);
+
+            if (($existingRequest['action'] ?? '') !== $payload['action']) {
+                $this->notifyLecturerForRequestStatus($payload['id'], $labId);
+            }
         }
 
         return 'Lecturer request updated successfully';
@@ -357,7 +513,8 @@ class LecturerRequestsService {
                 lecture_group_id,
                 timetable_time_slot_id,
                 timetable_column_heading_id,
-                date
+                date,
+                action
              FROM lecturer_requests
              WHERE id = :id
              LIMIT 1",
@@ -366,6 +523,13 @@ class LecturerRequestsService {
 
         if (!$request) {
             throw new Exception('Lecturer request not found.');
+        }
+
+        $today = date('Y-m-d');
+        $isPastRequest = !empty($request['date']) && $request['date'] < $today;
+        $isCanceledRequest = (string)($request['action'] ?? '') === 'canceled';
+        if (!$isPastRequest && !$isCanceledRequest) {
+            throw new Exception('Lecturer request can only be deleted after the request date has passed or when it is canceled.');
         }
 
         $this->deleteTemporaryTimetableForRequest($request);

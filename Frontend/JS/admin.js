@@ -3,7 +3,7 @@ import { getLecturerRequests, updateLecturerRequest, checkLecturerRequestAvailab
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../API/userApi.js';
 import { getCurrentUserRole, getStoredUser } from './loginUser.js';
-import { escapeHtml } from './utils.js';
+import { bindAsyncFormSubmit, escapeHtml } from './utils.js';
 
 let fullTimeSlotsData = [];
 let fullColumnHeadingsData = [];
@@ -201,6 +201,24 @@ const initAdminPanel = async () => {
     const requestConfirmDescriptionInput = document.getElementById('admin-request-confirm-description');
     const requestCheckAvailabilityButton = document.getElementById('admin-request-check-availability');
     const requestCheckResult = document.getElementById('admin-request-check-result');
+    const requestCancelModal = document.getElementById('admin-request-cancel-modal');
+    const requestCancelForm = document.getElementById('admin-request-cancel-form');
+    const requestCancelCloseButton = document.getElementById('admin-request-cancel-close');
+    const requestCancelDismissButton = document.getElementById('admin-request-cancel-dismiss');
+    const requestCancelIdInput = document.getElementById('admin-request-cancel-id');
+    const requestCancelLecturerIdInput = document.getElementById('admin-request-cancel-lecturer-id');
+    const requestCancelSubjectIdInput = document.getElementById('admin-request-cancel-subject-id');
+    const requestCancelYearIdInput = document.getElementById('admin-request-cancel-year-id');
+    const requestCancelTimeSlotIdInput = document.getElementById('admin-request-cancel-time-slot-id');
+    const requestCancelColumnIdInput = document.getElementById('admin-request-cancel-column-id');
+    const requestCancelGroupIdInput = document.getElementById('admin-request-cancel-group-id');
+    const requestCancelLabIdInput = document.getElementById('admin-request-cancel-lab-id');
+    const requestCancelSubjectInput = document.getElementById('admin-request-cancel-subject');
+    const requestCancelLecturerNameInput = document.getElementById('admin-request-cancel-lecturer-name');
+    const requestCancelDayTimeInput = document.getElementById('admin-request-cancel-day-time');
+    const requestCancelDateInput = document.getElementById('admin-request-cancel-date');
+    const requestCancelDescriptionInput = document.getElementById('admin-request-cancel-description');
+    const requestCancelMessageInput = document.getElementById('admin-request-cancel-message');
     const yearCreateButton = document.getElementById('admin-year-create-btn');
     const yearFormModal = document.getElementById('admin-year-form-modal');
     const yearForm = document.getElementById('admin-year-form');
@@ -301,7 +319,7 @@ const initAdminPanel = async () => {
     const adminNavButtons = Array.from(document.querySelectorAll('.admin-nav-btn'));
     const adminSections = Array.from(document.querySelectorAll('[data-admin-section]'));
 
-    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !groupsContainer || !labsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !requestCheckAvailabilityButton || !requestCheckResult || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !groupCreateButton || !groupFormModal || !groupForm || !groupFormCloseButton || !groupFormCancelButton || !groupFormTitle || !groupIdInput || !groupNameInput || !labCreateButton || !labFormModal || !labForm || !labFormCloseButton || !labFormCancelButton || !labFormTitle || !labIdInput || !labNameInput || !labLocationInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingHeadingNumberInput || !columnHeadingStatusInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotNumberInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
+    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !groupsContainer || !labsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !requestCheckAvailabilityButton || !requestCheckResult || !requestCancelModal || !requestCancelForm || !requestCancelCloseButton || !requestCancelDismissButton || !requestCancelIdInput || !requestCancelLecturerIdInput || !requestCancelSubjectIdInput || !requestCancelYearIdInput || !requestCancelTimeSlotIdInput || !requestCancelColumnIdInput || !requestCancelGroupIdInput || !requestCancelLabIdInput || !requestCancelSubjectInput || !requestCancelLecturerNameInput || !requestCancelDayTimeInput || !requestCancelDateInput || !requestCancelDescriptionInput || !requestCancelMessageInput || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !groupCreateButton || !groupFormModal || !groupForm || !groupFormCloseButton || !groupFormCancelButton || !groupFormTitle || !groupIdInput || !groupNameInput || !labCreateButton || !labFormModal || !labForm || !labFormCloseButton || !labFormCancelButton || !labFormTitle || !labIdInput || !labNameInput || !labLocationInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingHeadingNumberInput || !columnHeadingStatusInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotNumberInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
         return;
     }
 
@@ -344,6 +362,17 @@ const initAdminPanel = async () => {
         return 'bg-amber-100 text-amber-700';
     };
 
+    const canDeleteLecturerRequest = (requestItem) => {
+        if (!requestItem) return false;
+        if (String(requestItem.action || '').toLowerCase() === 'canceled') return true;
+        const requestDate = String(requestItem.date || '');
+        if (!requestDate) return false;
+
+        const today = new Date();
+        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        return requestDate < todayKey;
+    };
+
     const getTimetableStatusClass = (status) => {
         const normalized = String(status || '').toLowerCase();
         if (normalized === 'active') return 'bg-purple-100 text-purple-800';
@@ -354,6 +383,7 @@ const initAdminPanel = async () => {
     const getOpenAdminModalCount = () => ([
         newsFormModal,
         requestConfirmModal,
+        requestCancelModal,
         yearFormModal,
         groupFormModal,
         labFormModal,
@@ -558,6 +588,7 @@ const initAdminPanel = async () => {
         requestConfirmYearInput.value = record.year || '';
         requestConfirmSubjectInput.value = record.subject || record.subject_id || '';
         requestConfirmGroupInput.value = record.group_name || '';
+        requestConfirmLabSelect.value = record.lab_id || '';
         requestConfirmDateInput.value = record.date || '';
         requestConfirmDescriptionInput.value = record.lecturer_request || '';
         showAdminModal(requestConfirmModal);
@@ -566,6 +597,43 @@ const initAdminPanel = async () => {
     const hideRequestConfirmForm = () => {
         hideAdminModal(requestConfirmModal);
         resetRequestConfirmForm();
+    };
+
+    const resetRequestCancelForm = () => {
+        requestCancelForm.reset();
+        requestCancelIdInput.value = '';
+        requestCancelLecturerIdInput.value = '';
+        requestCancelSubjectIdInput.value = '';
+        requestCancelYearIdInput.value = '';
+        requestCancelTimeSlotIdInput.value = '';
+        requestCancelColumnIdInput.value = '';
+        requestCancelGroupIdInput.value = '';
+        requestCancelLabIdInput.value = '';
+        requestCancelMessageInput.value = '';
+    };
+
+    const openRequestCancelForm = (record) => {
+        resetRequestCancelForm();
+        requestCancelIdInput.value = record.id || '';
+        requestCancelLecturerIdInput.value = record.lecturer_id || '';
+        requestCancelSubjectIdInput.value = record.subject_id || '';
+        requestCancelYearIdInput.value = record.year_id || '';
+        requestCancelTimeSlotIdInput.value = record.timetable_time_slot_id || '';
+        requestCancelColumnIdInput.value = record.timetable_column_heading_id || '';
+        requestCancelGroupIdInput.value = record.lecture_group_id || record.group_id || '';
+        requestCancelLabIdInput.value = record.lab_id || '';
+        requestCancelSubjectInput.value = record.subject || record.subject_id || '';
+        requestCancelLecturerNameInput.value = record.lecturer_name || '';
+        requestCancelDayTimeInput.value = `${record.column_heading || '-'} / ${record.start_time && record.end_time ? formatTimeSlotRange(record) : '-'}`;
+        requestCancelDateInput.value = record.date || '';
+        requestCancelDescriptionInput.value = record.lecturer_request || '';
+        requestCancelMessageInput.value = record.admin_message || '';
+        showAdminModal(requestCancelModal);
+    };
+
+    const hideRequestCancelForm = () => {
+        hideAdminModal(requestCancelModal);
+        resetRequestCancelForm();
     };
 
     const resetYearForm = () => {
@@ -995,7 +1063,9 @@ const initAdminPanel = async () => {
                     </tr>
                 </thead>
                 <tbody>
-                    ${lecturerRequests.map(item => `
+                    ${lecturerRequests.map(item => {
+                        const allowDelete = canDeleteLecturerRequest(item);
+                        return `
                         <tr class="border-b border-gray-200 align-top">
                             <td class="px-4 py-3 font-bold">${escapeHtml(item.lecturer_name || '-')}</td>
                             <td class="px-4 py-3">${escapeHtml(item.subject || item.subject_id || '-')}</td>
@@ -1003,16 +1073,21 @@ const initAdminPanel = async () => {
                             <td class="px-4 py-3">${escapeHtml(item.column_heading || '-')}</td>
                             <td class="px-4 py-3">${escapeHtml(item.start_time && item.end_time ? formatTimeSlotRange(item) : '-')}</td>
                             <td class="px-4 py-3"><span class="px-3 py-1 rounded-full text-xs font-black ${getRequestStatusClass(item.action)}">${escapeHtml(item.action || 'requested')}</span></td>
-                            <td class="px-4 py-3 max-w-[280px]">${escapeHtml(item.lecturer_request || '-')}</td>
+                            <td class="px-4 py-3 max-w-[280px]">
+                                <p>${escapeHtml(item.lecturer_request || '-')}</p>
+                                ${item.admin_message ? `<p class="pt-2 text-xs font-bold text-red-700">Admin message: ${escapeHtml(item.admin_message)}</p>` : ''}
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" data-request-action="confirmed" data-request-id="${escapeHtml(item.id)}" class="bg-green-600 text-white px-3 py-2 rounded-lg font-black hover:bg-green-700">Confirm</button>
                                     <button type="button" data-request-action="canceled" data-request-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Cancel</button>
-                                    <button type="button" data-request-action="delete" data-request-id="${escapeHtml(item.id)}" class="bg-gray-900 text-white px-3 py-2 rounded-lg font-black hover:bg-gray-700">Delete</button>
+                                    <button type="button" data-request-action="delete" data-request-id="${escapeHtml(item.id)}" class="bg-gray-900 text-white px-3 py-2 rounded-lg font-black hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50" ${allowDelete ? '' : 'disabled'}>Delete</button>
                                 </div>
+                                ${allowDelete ? '' : '<p class="pt-2 text-xs font-bold text-gray-500">Delete is allowed only after the request date passes or when the request is canceled.</p>'}
                             </td>
                         </tr>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </tbody>
             </table>
         ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No lecturer requests found.</div>`;
@@ -1259,6 +1334,8 @@ const initAdminPanel = async () => {
     labFormCloseButton.addEventListener('click', hideLabForm);
     requestConfirmCancelButton.addEventListener('click', hideRequestConfirmForm);
     requestConfirmCloseButton.addEventListener('click', hideRequestConfirmForm);
+    requestCancelDismissButton.addEventListener('click', hideRequestCancelForm);
+    requestCancelCloseButton.addEventListener('click', hideRequestCancelForm);
     userCreateButton.addEventListener('click', openUserForm);
     userFormCancelButton.addEventListener('click', hideUserForm);
     userFormCloseButton.addEventListener('click', hideUserForm);
@@ -1309,7 +1386,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    settingsForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(settingsForm, async (e) => {
         e.preventDefault();
 
         try {
@@ -1333,7 +1410,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to update timetable settings.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     columnHeadingsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-column-heading-action]');
@@ -1363,7 +1440,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    columnHeadingForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(columnHeadingForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1393,7 +1470,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save column heading.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     timeSlotsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-time-slot-action]');
@@ -1423,7 +1500,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    timeSlotForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(timeSlotForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1452,7 +1529,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save time slot.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     manageTimetableContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-timetable-action]');
@@ -1484,7 +1561,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    timetableForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(timetableForm, async (e) => {
         e.preventDefault();
 
         const selectedDayId = timetableDaySelect.value || '';
@@ -1525,7 +1602,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save timetable record.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     requestsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-request-action]');
@@ -1538,10 +1615,17 @@ const initAdminPanel = async () => {
 
         try {
             if (requestAction === 'delete') {
+                if (!canDeleteLecturerRequest(selectedRequest)) {
+                    window.alert('Lecturer request can only be deleted after the request date has passed or when it is canceled.');
+                    return;
+                }
                 const result = await deleteLecturerRequest(requestId);
                 window.alert(result.message || 'Lecturer request deleted successfully.');
             } else if (requestAction === 'confirmed') {
                 openRequestConfirmForm(selectedRequest);
+                return;
+            } else if (requestAction === 'canceled') {
+                openRequestCancelForm(selectedRequest);
                 return;
             } else {
                 const result = await updateLecturerRequest({
@@ -1567,7 +1651,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    requestConfirmForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(requestConfirmForm, async (e) => {
         e.preventDefault();
 
         if (!requestConfirmLabSelect.value) {
@@ -1604,7 +1688,48 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to confirm lecturer request.');
         }
-    });
+    }, { busyLabel: 'Confirming...' });
+
+    bindAsyncFormSubmit(requestCancelForm, async (e) => {
+        e.preventDefault();
+
+        const adminMessage = requestCancelMessageInput.value.trim();
+        if (!adminMessage) {
+            window.alert('Please enter a cancel reason for this lecturer request.');
+            return;
+        }
+
+        try {
+            const result = await updateLecturerRequest({
+                id: requestCancelIdInput.value || '',
+                lecturer_id: requestCancelLecturerIdInput.value || '',
+                subject_id: requestCancelSubjectIdInput.value || '',
+                year_id: requestCancelYearIdInput.value || '',
+                timetable_time_slot_id: requestCancelTimeSlotIdInput.value || '',
+                timetable_column_heading_id: requestCancelColumnIdInput.value || '',
+                lecture_group_id: requestCancelGroupIdInput.value || '',
+                lab_id: requestCancelLabIdInput.value || '',
+                date: requestCancelDateInput.value || '',
+                action: 'canceled',
+                lecturer_request: requestCancelDescriptionInput.value || '',
+                admin_message: adminMessage,
+                created_by: requestCancelLecturerNameInput.value || getAuditValue(),
+                updated_by: getAuditValue(),
+            });
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to cancel lecturer request.');
+                return;
+            }
+
+            window.alert(result.message || 'Lecturer request canceled successfully.');
+            hideRequestCancelForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-requests');
+        } catch (error) {
+            window.alert(error.message || 'Failed to cancel lecturer request.');
+        }
+    }, { busyLabel: 'Canceling...' });
 
     requestCheckAvailabilityButton.addEventListener('click', async () => {
         requestCheckResult.textContent = 'Checking...';
@@ -1638,7 +1763,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    newsForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(newsForm, async (e) => {
         e.preventDefault();
 
         const formData = new FormData(newsForm);
@@ -1666,7 +1791,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save news.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     newsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-news-action]');
@@ -1697,7 +1822,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    yearForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(yearForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1724,7 +1849,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save year.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     yearsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-year-action]');
@@ -1753,7 +1878,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    groupForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(groupForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1780,7 +1905,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save group.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     groupsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-group-action]');
@@ -1809,7 +1934,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    labForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(labForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1837,7 +1962,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save lab.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     labsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-lab-action]');
@@ -1866,7 +1991,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    subjectForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(subjectForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1895,7 +2020,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save subject.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     subjectsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-subject-action]');
@@ -1924,7 +2049,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    userForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(userForm, async (e) => {
         e.preventDefault();
 
         const auditValue = getAuditValue();
@@ -1979,7 +2104,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save user.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     usersContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-user-action]');

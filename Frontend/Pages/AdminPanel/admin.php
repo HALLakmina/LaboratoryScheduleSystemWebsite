@@ -360,6 +360,39 @@
             </form>
         </section>
 
+        <section id="admin-request-cancel-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-request-cancel-form" class="w-full max-w-3xl bg-white rounded-lg p-5 shadow-2xl grid grid-cols-1 gap-4 my-8 mx-auto">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Lecturer Request</p>
+                        <h3 class="text-2xl font-black">Cancel Lecturer Request</h3>
+                    </div>
+                    <button type="button" id="admin-request-cancel-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+
+                <input type="hidden" id="admin-request-cancel-id" name="id">
+                <input type="hidden" id="admin-request-cancel-lecturer-id" name="lecturer_id">
+                <input type="hidden" id="admin-request-cancel-subject-id" name="subject_id">
+                <input type="hidden" id="admin-request-cancel-year-id" name="year_id">
+                <input type="hidden" id="admin-request-cancel-time-slot-id" name="timetable_time_slot_id">
+                <input type="hidden" id="admin-request-cancel-column-id" name="timetable_column_heading_id">
+                <input type="hidden" id="admin-request-cancel-group-id" name="lecture_group_id">
+                <input type="hidden" id="admin-request-cancel-lab-id" name="lab_id">
+
+                <input type="text" id="admin-request-cancel-subject" class="w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Subject" readonly>
+                <input type="text" id="admin-request-cancel-lecturer-name" class="w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Lecturer Name" readonly>
+                <input type="text" id="admin-request-cancel-day-time" class="w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Day / Time" readonly>
+                <input type="date" id="admin-request-cancel-date" class="w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-3" readonly>
+                <textarea id="admin-request-cancel-description" class="min-h-[110px] rounded-lg border border-gray-300 bg-gray-100 px-4 py-3" placeholder="Request" readonly></textarea>
+                <textarea id="admin-request-cancel-message" name="admin_message" class="min-h-[120px] rounded-lg border border-gray-300 bg-white px-4 py-3" placeholder="Type cancel reason for the lecturer..." required></textarea>
+
+                <div class="flex gap-3 justify-end">
+                    <button id="admin-request-cancel-dismiss" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-lg hover:bg-gray-300">Back</button>
+                    <button type="submit" class="bg-red-600 text-white font-black px-5 py-3 rounded-lg hover:bg-red-700">Cancel Request</button>
+                </div>
+            </form>
+        </section>
+
         <section id="admin-subject-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
             <form id="admin-subject-form" class="w-full max-w-3xl bg-white rounded-lg p-5 shadow-2xl grid grid-cols-1 md:grid-cols-3 gap-4 my-8 mx-auto">
                 <div class="md:col-span-3 flex items-start justify-between gap-4">
