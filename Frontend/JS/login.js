@@ -1,12 +1,13 @@
 import { login as loginApi } from '../API/userApi.js';
 import { setStoredUser } from './loginUser.js';
+import { bindAsyncFormSubmit } from './utils.js';
 
 const initLoginForm = () => {
     const form = document.getElementById('login-form');
     const errorEl = document.getElementById('login-error');
     if (!form) return;
 
-    form.addEventListener('submit', async (event) => {
+    bindAsyncFormSubmit(form, async (event) => {
         event.preventDefault();
         const access = document.getElementById('access')?.value?.trim() || '';
         const email = document.getElementById('email')?.value?.trim() || '';
@@ -56,7 +57,7 @@ const initLoginForm = () => {
                 errorEl.classList.remove('hidden');
             }
         }
-    });
+    }, { busyLabel: 'Signing In...' });
 };
 
 export { initLoginForm };

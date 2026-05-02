@@ -1,6 +1,7 @@
 import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getTimetableCells, getLabs } from '../API/timetableApi.js';
 import { sendLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getCurrentUserRole, getStoredUser } from './loginUser.js';
+import { bindAsyncFormSubmit } from './utils.js';
 
 /**
  * Populates subject code select elements (filter_by_subject, subject_code) from API
@@ -938,7 +939,7 @@ const initSchedulingForm = () => {
         validateRequestDateForSelectedDay();
     });
 
-    formElement.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(formElement, async (e) => {
         e.preventDefault();
 
         const storedUser = getStoredUser();
@@ -1001,7 +1002,7 @@ const initSchedulingForm = () => {
         } catch (error) {
             window.alert(error.message || 'Network error. Please try again.');
         }
-    });
+    }, { busyLabel: 'Sending Request...' });
 };
 
 const loadTimetableData = async () => {

@@ -3,7 +3,7 @@ import { getLecturerRequests, updateLecturerRequest, checkLecturerRequestAvailab
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../API/userApi.js';
 import { getCurrentUserRole, getStoredUser } from './loginUser.js';
-import { escapeHtml } from './utils.js';
+import { bindAsyncFormSubmit, escapeHtml } from './utils.js';
 
 let fullTimeSlotsData = [];
 let fullColumnHeadingsData = [];
@@ -1309,7 +1309,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    settingsForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(settingsForm, async (e) => {
         e.preventDefault();
 
         try {
@@ -1333,7 +1333,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to update timetable settings.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     columnHeadingsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-column-heading-action]');
@@ -1363,7 +1363,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    columnHeadingForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(columnHeadingForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1393,7 +1393,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save column heading.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     timeSlotsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-time-slot-action]');
@@ -1423,7 +1423,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    timeSlotForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(timeSlotForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1452,7 +1452,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save time slot.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     manageTimetableContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-timetable-action]');
@@ -1484,7 +1484,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    timetableForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(timetableForm, async (e) => {
         e.preventDefault();
 
         const selectedDayId = timetableDaySelect.value || '';
@@ -1525,7 +1525,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save timetable record.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     requestsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-request-action]');
@@ -1567,7 +1567,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    requestConfirmForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(requestConfirmForm, async (e) => {
         e.preventDefault();
 
         if (!requestConfirmLabSelect.value) {
@@ -1604,7 +1604,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to confirm lecturer request.');
         }
-    });
+    }, { busyLabel: 'Confirming...' });
 
     requestCheckAvailabilityButton.addEventListener('click', async () => {
         requestCheckResult.textContent = 'Checking...';
@@ -1638,7 +1638,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    newsForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(newsForm, async (e) => {
         e.preventDefault();
 
         const formData = new FormData(newsForm);
@@ -1666,7 +1666,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save news.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     newsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-news-action]');
@@ -1697,7 +1697,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    yearForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(yearForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1724,7 +1724,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save year.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     yearsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-year-action]');
@@ -1753,7 +1753,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    groupForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(groupForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1780,7 +1780,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save group.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     groupsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-group-action]');
@@ -1809,7 +1809,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    labForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(labForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1837,7 +1837,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save lab.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     labsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-lab-action]');
@@ -1866,7 +1866,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    subjectForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(subjectForm, async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -1895,7 +1895,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save subject.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     subjectsContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-subject-action]');
@@ -1924,7 +1924,7 @@ const initAdminPanel = async () => {
         }
     });
 
-    userForm.addEventListener('submit', async (e) => {
+    bindAsyncFormSubmit(userForm, async (e) => {
         e.preventDefault();
 
         const auditValue = getAuditValue();
@@ -1979,7 +1979,7 @@ const initAdminPanel = async () => {
         } catch (error) {
             window.alert(error.message || 'Failed to save user.');
         }
-    });
+    }, { busyLabel: 'Saving...' });
 
     usersContainer.addEventListener('click', async (e) => {
         const actionButton = e.target.closest('[data-user-action]');
