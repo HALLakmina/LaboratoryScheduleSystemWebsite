@@ -558,6 +558,7 @@ const initAdminPanel = async () => {
         requestConfirmYearInput.value = record.year || '';
         requestConfirmSubjectInput.value = record.subject || record.subject_id || '';
         requestConfirmGroupInput.value = record.group_name || '';
+        requestConfirmLabSelect.value = record.lab_id || '';
         requestConfirmDateInput.value = record.date || '';
         requestConfirmDescriptionInput.value = record.lecturer_request || '';
         showAdminModal(requestConfirmModal);

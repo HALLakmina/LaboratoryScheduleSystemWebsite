@@ -139,15 +139,13 @@
                     </div>
                     <div class="flex flex-col gap-2">
                         <label for="selected_lab_name" class="text-sm font-black uppercase tracking-wide text-gray-600">Selected Lab <span class="text-[10px] font-bold text-gray-400">(Optional)</span></label>
-                        <input
-                            type="text"
+                        <select
                             name="selected_lab_name"
                             id="selected_lab_name"
-                            value=""
-                            readonly
-                            placeholder="No lab selected"
                             class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
-                        />
+                        >
+                            <option value="">--</option>
+                        </select>
                     </div>
                     <div class="flex flex-col gap-2">
                         <label for="request_date" class="text-sm font-black uppercase tracking-wide text-gray-600">Date</label>

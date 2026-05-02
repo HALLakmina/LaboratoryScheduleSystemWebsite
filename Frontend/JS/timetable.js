@@ -154,6 +154,7 @@ const loadSchedulingReferenceData = async () => {
         populateTimeSlotSelect();
         populateDaySelect();
         populateLectureGroupSelect();
+        populateSelectedLabSelect();
     } catch (error) {
         console.error('Error loading scheduling reference data:', error);
     }
@@ -210,6 +211,27 @@ const populateLectureGroupSelect = () => {
         option.textContent = item.group_name || '';
         lectureGroupSelect.appendChild(option);
     });
+};
+
+const populateSelectedLabSelect = () => {
+    const selectedLabSelect = document.getElementById('selected_lab_name');
+    if (!selectedLabSelect) return;
+
+    const previousValue = selectedLabSelect.value || '';
+    selectedLabSelect.innerHTML = `<option value="">--</option>`;
+    fullLabsData.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id || '';
+        option.textContent = item.lab_location
+            ? `${item.lab_name || ''} - ${item.lab_location}`
+            : (item.lab_name || '');
+        selectedLabSelect.appendChild(option);
+    });
+
+    const hasPreviousValue = Array.from(selectedLabSelect.options).some(
+        (option) => String(option.value) === String(previousValue)
+    );
+    selectedLabSelect.value = hasPreviousValue ? previousValue : '';
 };
 
 const getColumnHeadingById = (columnHeadingId) => (
@@ -754,7 +776,6 @@ const initSchedulingForm = () => {
         cellIdInput.value = '';
         selectedLabIdInput.value = '';
         selectedLabNameInput.value = '';
-        selectedLabNameInput.placeholder = 'No lab selected';
         timeSlotSelect.value = '';
         daySelect.value = '';
         lectureGroupSelect.value = '';
@@ -763,8 +784,10 @@ const initSchedulingForm = () => {
         requestDateInput.setCustomValidity('');
         timeSlotSelect.disabled = false;
         daySelect.disabled = false;
+        selectedLabNameInput.disabled = false;
         timeSlotSelect.classList.remove('cursor-not-allowed', 'opacity-75');
         daySelect.classList.remove('cursor-not-allowed', 'opacity-75');
+        selectedLabNameInput.classList.remove('cursor-not-allowed', 'opacity-75');
         schedulingFormSource = 'direct';
     };
 
@@ -805,12 +828,16 @@ const initSchedulingForm = () => {
         daySelect.classList.toggle('opacity-75', isLocked);
     };
 
+    const setSchedulingLabLock = (isLocked) => {
+        selectedLabNameInput.disabled = isLocked;
+        selectedLabNameInput.classList.toggle('cursor-not-allowed', isLocked);
+        selectedLabNameInput.classList.toggle('opacity-75', isLocked);
+    };
+
     const applySelectedLabToForm = (record = null) => {
         const labId = record?.lab_id || '';
-        const labName = record?.lab_name || record?.lab || '';
         selectedLabIdInput.value = labId ? String(labId) : '';
-        selectedLabNameInput.value = labName ? String(labName) : '';
-        selectedLabNameInput.placeholder = labName ? 'Selected lab' : 'No lab selected';
+        setSelectValueSafe(selectedLabNameInput, labId);
     };
 
     const openSchedulingForm = () => {
@@ -825,6 +852,7 @@ const initSchedulingForm = () => {
         cellIdInput.value = selectedScheduleMeta.cellId || selectedCellId;
         setSelectValueSafe(timeSlotSelect, scheduleMeta.timeSlot);
         setSelectValueSafe(daySelect, scheduleMeta.day);
+        setSchedulingLabLock(false);
         syncRequestDateWithDay({ forceNextValidDate: true });
         hideSchedulingModal(viewSection);
         showSchedulingModal(formSection);
@@ -845,6 +873,7 @@ const initSchedulingForm = () => {
         setSelectValueSafe(daySelect, scheduleMeta.day);
         setSchedulingTimeDayLock(true);
         applySelectedLabToForm(selectedViewRecord);
+        setSchedulingLabLock(true);
         syncRequestDateWithDay({ forceNextValidDate: true });
         hideSchedulingModal(viewSection);
         showSchedulingModal(formSection);
@@ -989,6 +1018,9 @@ const initSchedulingForm = () => {
     requestDateInput.addEventListener('change', () => {
         validateRequestDateForSelectedDay();
     });
+    selectedLabNameInput.addEventListener('change', () => {
+        selectedLabIdInput.value = selectedLabNameInput.value || '';
+    });
 
     bindAsyncFormSubmit(formElement, async (e) => {
         e.preventDefault();
@@ -1037,7 +1069,7 @@ const initSchedulingForm = () => {
                 lecture_group_id: lectureGroupValue,
                 timetable_time_slot_id: selectedTimeSlot.id,
                 timetable_column_heading_id: selectedColumnHeading.id,
-                lab_id: selectedLabIdInput.value || '',
+                lab_id: selectedLabNameInput.value || selectedLabIdInput.value || '',
                 date: requestDateValue,
                 action: 'requested',
                 lecturer_request: lecturerRequestValue,

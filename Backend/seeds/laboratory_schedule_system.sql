@@ -79,6 +79,7 @@ CREATE TABLE `lecturer_requests` (
   `subject_id` varchar(200) NOT NULL,
   `lecture_group_id` int(11) NOT NULL,
   `year_id` int(11) NOT NULL,
+  `lab_id` int(11) DEFAULT NULL,
   `timetable_time_slot_id` int(11) NOT NULL,
   `timetable_column_heading_id` int(11) NOT NULL,
   `date` date NOT NULL,
@@ -357,6 +358,7 @@ ALTER TABLE `lecturer_requests`
   ADD KEY `fk_request_lecturer` (`lecturer_id`),
   ADD KEY `fk_request_subject` (`subject_id`),
   ADD KEY `fk_request_year` (`year_id`),
+  ADD KEY `fk_request_lab` (`lab_id`),
   ADD KEY `fk_request_timeslot` (`timetable_time_slot_id`),
   ADD KEY `fk_request_day` (`timetable_column_heading_id`),
   ADD KEY `fk_request_lecture_group` (`lecture_group_id`);
@@ -590,6 +592,7 @@ ALTER TABLE `images`
 -- Constraints for table `lecturer_requests`
 --
 ALTER TABLE `lecturer_requests`
+  ADD CONSTRAINT `fk_request_lab` FOREIGN KEY (`lab_id`) REFERENCES `labs` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_request_day` FOREIGN KEY (`timetable_column_heading_id`) REFERENCES `timetable_column_headings` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_request_lecture_group` FOREIGN KEY (`lecture_group_id`) REFERENCES `lecture_groups` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_request_lecturer` FOREIGN KEY (`lecturer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,

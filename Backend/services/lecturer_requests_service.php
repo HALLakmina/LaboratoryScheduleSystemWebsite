@@ -74,6 +74,19 @@ class LecturerRequestsService {
         return sprintf('%s - %s', substr((string)$startTime, 0, 5), substr((string)$endTime, 0, 5));
     }
 
+    private function normalizeNullableForeignKey($value) {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim((string)$value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return $normalized;
+    }
+
     private function getAdminRecipients() {
         $admins = $this->fetchAllRows(
             "SELECT email, CONCAT(first_name, ' ', last_name) AS name
@@ -171,6 +184,7 @@ class LecturerRequestsService {
     private function syncTemporaryTimetable($payload) {
         $timeSlotId = $payload['timetable_time_slot_id'];
         $columnHeadingId = $payload['timetable_column_heading_id'];
+        $labId = $this->normalizeNullableForeignKey($payload['lab_id'] ?? null);
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
@@ -202,10 +216,10 @@ class LecturerRequestsService {
                      SET action = 'temporary_lecture',
                          lab_id = :lab_id,
                          updated_by = :updated_by
-                     WHERE id = :id",
+                    WHERE id = :id",
                     [
                         'id' => $existingRecord['id'],
-                        'lab_id' => $payload['lab_id'] ?? null,
+                        'lab_id' => $labId,
                         'updated_by' => $auditValue,
                     ]
                 );
@@ -219,7 +233,7 @@ class LecturerRequestsService {
                         'time_slot_id' => $timeSlotId,
                         'column_heading_id' => $columnHeadingId,
                         'lecture_group_id' => $lectureGroupId,
-                        'lab_id' => $payload['lab_id'] ?? null,
+                        'lab_id' => $labId,
                         'subject_cord' => $payload['subject_id'],
                         'action' => 'temporary_lecture',
                         'lecturer_date' => $payload['date'],
@@ -326,6 +340,9 @@ class LecturerRequestsService {
                     lr.subject_id,
                     lr.year_id,
                     lr.lecture_group_id,
+                    lr.lab_id,
+                    l.lab_name,
+                    l.lab_location,
                     lr.timetable_time_slot_id,
                     lr.timetable_column_heading_id,
                     lr.date,
@@ -344,6 +361,7 @@ class LecturerRequestsService {
                 LEFT JOIN practical_subjects ps ON lr.subject_id = ps.subject_cord
                 LEFT JOIN years y ON lr.year_id = y.id
                 LEFT JOIN lecture_groups lg ON lr.lecture_group_id = lg.id
+                LEFT JOIN labs l ON lr.lab_id = l.id
                 LEFT JOIN timetable_time_slots tts ON lr.timetable_time_slot_id = tts.id
                 LEFT JOIN timetable_column_headings tch ON lr.timetable_column_heading_id = tch.id
                 ORDER BY lr.send_at DESC";
@@ -360,42 +378,46 @@ class LecturerRequestsService {
     public function create($payload) {
         $DB_CON = new DbConnection();
         $sendAt = date('Y-m-d H:i:s');
+        $labId = $this->normalizeNullableForeignKey($payload['lab_id'] ?? null);
         $lectureGroupId = !empty($payload['lecture_group_id'])
             ? $payload['lecture_group_id']
             : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "INSERT INTO lecturer_requests
-                    (
-                        lecturer_id,
-                        subject_id,
-                        year_id,
-                        lecture_group_id,
-                        timetable_time_slot_id,
-                        timetable_column_heading_id,
-                        date,
-                        action,
-                        lecturer_request,
-                        send_at
-                    )
-                    VALUES
-                    (
-                        :lecturer_id,
-                        :subject_id,
-                        :year_id,
-                        :lecture_group_id,
-                        :timetable_time_slot_id,
-                        :timetable_column_heading_id,
-                        :date,
-                        :action,
-                        :lecturer_request,
-                        :send_at
-                    )";
+                (
+                    lecturer_id,
+                    subject_id,
+                    year_id,
+                    lecture_group_id,
+                    lab_id,
+                    timetable_time_slot_id,
+                    timetable_column_heading_id,
+                    date,
+                    action,
+                    lecturer_request,
+                    send_at
+                )
+                VALUES
+                (
+                    :lecturer_id,
+                    :subject_id,
+                    :year_id,
+                    :lecture_group_id,
+                    :lab_id,
+                    :timetable_time_slot_id,
+                    :timetable_column_heading_id,
+                    :date,
+                    :action,
+                    :lecturer_request,
+                    :send_at
+                )";
 
         $property = [
             'lecturer_id' => $payload['lecturer_id'],
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
             'lecture_group_id' => $lectureGroupId,
+            'lab_id' => $labId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
@@ -420,6 +442,7 @@ class LecturerRequestsService {
 
     public function update($payload) {
         $DB_CON = new DbConnection();
+        $labId = $this->normalizeNullableForeignKey($payload['lab_id'] ?? null);
         $existingRequest = $this->fetchSingleRow(
             "SELECT id, action FROM lecturer_requests WHERE id = :id LIMIT 1",
             ['id' => $payload['id']]
@@ -434,17 +457,18 @@ class LecturerRequestsService {
             : $this->resolveLectureGroupId($payload['subject_id']);
 
         $query = "UPDATE lecturer_requests
-                    SET
-                        lecturer_id = :lecturer_id,
-                        subject_id = :subject_id,
-                        year_id = :year_id,
-                        lecture_group_id = :lecture_group_id,
-                        timetable_time_slot_id = :timetable_time_slot_id,
-                        timetable_column_heading_id = :timetable_column_heading_id,
-                        date = :date,
-                        action = :action,
-                        lecturer_request = :lecturer_request
-                    WHERE id = :id";
+                SET
+                    lecturer_id = :lecturer_id,
+                    subject_id = :subject_id,
+                    year_id = :year_id,
+                    lecture_group_id = :lecture_group_id,
+                    lab_id = :lab_id,
+                    timetable_time_slot_id = :timetable_time_slot_id,
+                    timetable_column_heading_id = :timetable_column_heading_id,
+                    date = :date,
+                    action = :action,
+                    lecturer_request = :lecturer_request
+                WHERE id = :id";
 
         $property = [
             'id' => $payload['id'],
@@ -452,6 +476,7 @@ class LecturerRequestsService {
             'subject_id' => $payload['subject_id'],
             'year_id' => $payload['year_id'],
             'lecture_group_id' => $lectureGroupId,
+            'lab_id' => $labId,
             'timetable_time_slot_id' => $payload['timetable_time_slot_id'],
             'timetable_column_heading_id' => $payload['timetable_column_heading_id'],
             'date' => $payload['date'],
@@ -469,7 +494,7 @@ class LecturerRequestsService {
             $this->syncTemporaryTimetable($payload);
 
             if (($existingRequest['action'] ?? '') !== $payload['action']) {
-                $this->notifyLecturerForRequestStatus($payload['id'], $payload['lab_id'] ?? null);
+                $this->notifyLecturerForRequestStatus($payload['id'], $labId);
             }
         }
 
