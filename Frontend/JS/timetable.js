@@ -541,6 +541,8 @@ const initSchedulingForm = () => {
     const timeSlotSelect = document.getElementById('time_slot');
     const daySelect = document.getElementById('day');
     const lectureGroupSelect = document.getElementById('lecture_group_select');
+    const selectedLabIdInput = document.getElementById('selected_lab_id');
+    const selectedLabNameInput = document.getElementById('selected_lab_name');
     const requestDateInput = document.getElementById('request_date');
     const requestTextarea = document.getElementById('request');
     const closeBtn = document.getElementById('scheduling-form-close');
@@ -550,7 +552,7 @@ const initSchedulingForm = () => {
     const lecturerRequestFormContainer = document.getElementById('lecturer-request-form-container');
     const tableBody = document.getElementById('timetable-body');
 
-    if (!formSection || !viewSection || !labAllocationModal || !labAllocationCloseBtn || !labAllocationTitle || !labAllocationSummary || !labAllocationOverflow || !labAllocationList || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn || !lecturerRequestFormContainer) return;
+    if (!formSection || !viewSection || !labAllocationModal || !labAllocationCloseBtn || !labAllocationTitle || !labAllocationSummary || !labAllocationOverflow || !labAllocationList || !formElement || !cellIdInput || !yearSelect || !subjectCodeSelect || !timeSlotSelect || !daySelect || !lectureGroupSelect || !selectedLabIdInput || !selectedLabNameInput || !requestDateInput || !requestTextarea || !tableBody || !lecturerRequestBtn || !lecturerRequestFormBtn || !lecturerRequestFormContainer) return;
 
     let selectedCellId = '';
     let selectedScheduleMeta = {
@@ -561,6 +563,7 @@ const initSchedulingForm = () => {
         cellId: '',
     };
     let selectedViewRecord = null;
+    let schedulingFormSource = 'direct';
 
     const setViewText = (id, value) => {
         const el = document.getElementById(id);
@@ -749,12 +752,20 @@ const initSchedulingForm = () => {
     const resetSchedulingForm = () => {
         formElement.reset();
         cellIdInput.value = '';
+        selectedLabIdInput.value = '';
+        selectedLabNameInput.value = '';
+        selectedLabNameInput.placeholder = 'No lab selected';
         timeSlotSelect.value = '';
         daySelect.value = '';
         lectureGroupSelect.value = '';
         requestDateInput.value = getTodayDateValue();
         requestDateInput.min = getTodayDateValue();
         requestDateInput.setCustomValidity('');
+        timeSlotSelect.disabled = false;
+        daySelect.disabled = false;
+        timeSlotSelect.classList.remove('cursor-not-allowed', 'opacity-75');
+        daySelect.classList.remove('cursor-not-allowed', 'opacity-75');
+        schedulingFormSource = 'direct';
     };
 
     const showSchedulingModal = (modalElement) => {
@@ -785,6 +796,23 @@ const initSchedulingForm = () => {
         lecturerRequestFormContainer.classList.remove('flex');
     };
 
+    const setSchedulingTimeDayLock = (isLocked) => {
+        timeSlotSelect.disabled = isLocked;
+        daySelect.disabled = isLocked;
+        timeSlotSelect.classList.toggle('cursor-not-allowed', isLocked);
+        timeSlotSelect.classList.toggle('opacity-75', isLocked);
+        daySelect.classList.toggle('cursor-not-allowed', isLocked);
+        daySelect.classList.toggle('opacity-75', isLocked);
+    };
+
+    const applySelectedLabToForm = (record = null) => {
+        const labId = record?.lab_id || '';
+        const labName = record?.lab_name || record?.lab || '';
+        selectedLabIdInput.value = labId ? String(labId) : '';
+        selectedLabNameInput.value = labName ? String(labName) : '';
+        selectedLabNameInput.placeholder = labName ? 'Selected lab' : 'No lab selected';
+    };
+
     const openSchedulingForm = () => {
         if (!Boolean(getCurrentUserRole())) return;
 
@@ -793,9 +821,30 @@ const initSchedulingForm = () => {
             day: selectedScheduleMeta.day || getCellScheduleMeta(selectedCellId).day,
         };
         resetSchedulingForm();
+        schedulingFormSource = 'direct';
         cellIdInput.value = selectedScheduleMeta.cellId || selectedCellId;
         setSelectValueSafe(timeSlotSelect, scheduleMeta.timeSlot);
         setSelectValueSafe(daySelect, scheduleMeta.day);
+        syncRequestDateWithDay({ forceNextValidDate: true });
+        hideSchedulingModal(viewSection);
+        showSchedulingModal(formSection);
+    };
+
+    const openSchedulingFormFromSelectedLecture = () => {
+        if (!Boolean(getCurrentUserRole()) || !selectedViewRecord) return;
+
+        const scheduleMeta = {
+            timeSlot: selectedScheduleMeta.timeSlot || getCellScheduleMeta(selectedCellId).timeSlot,
+            day: selectedScheduleMeta.day || getCellScheduleMeta(selectedCellId).day,
+        };
+
+        resetSchedulingForm();
+        schedulingFormSource = 'lab-selection';
+        cellIdInput.value = selectedScheduleMeta.cellId || selectedCellId;
+        setSelectValueSafe(timeSlotSelect, scheduleMeta.timeSlot);
+        setSelectValueSafe(daySelect, scheduleMeta.day);
+        setSchedulingTimeDayLock(true);
+        applySelectedLabToForm(selectedViewRecord);
         syncRequestDateWithDay({ forceNextValidDate: true });
         hideSchedulingModal(viewSection);
         showSchedulingModal(formSection);
@@ -893,6 +942,7 @@ const initSchedulingForm = () => {
         const viewRecord = matchedRecord
             ? {
                 ...matchedRecord,
+                lab_id: selectedLab?.id || matchedRecord.lab_id || '',
                 lab: selectedLab?.lab_name || matchedRecord.lab || '',
                 lab_name: selectedLab?.lab_name || matchedRecord.lab || '',
             }
@@ -903,6 +953,7 @@ const initSchedulingForm = () => {
                 lecturer_name: '',
                 year: '',
                 group_name: '',
+                lab_id: selectedLab?.id || '',
                 lab: selectedLab?.lab_name || '',
                 lab_name: selectedLab?.lab_name || '',
             };
@@ -927,7 +978,7 @@ const initSchedulingForm = () => {
         hideSchedulingModal(labAllocationModal);
     });
 
-    lecturerRequestBtn.addEventListener('click', openSchedulingForm);
+    lecturerRequestBtn.addEventListener('click', openSchedulingFormFromSelectedLecture);
     lecturerRequestFormBtn.addEventListener('click', openSchedulingForm);
     syncLecturerRequestButtons(Boolean(getCurrentUserRole()));
     requestDateInput.min = getTodayDateValue();
@@ -986,6 +1037,7 @@ const initSchedulingForm = () => {
                 lecture_group_id: lectureGroupValue,
                 timetable_time_slot_id: selectedTimeSlot.id,
                 timetable_column_heading_id: selectedColumnHeading.id,
+                lab_id: selectedLabIdInput.value || '',
                 date: requestDateValue,
                 action: 'requested',
                 lecturer_request: lecturerRequestValue,

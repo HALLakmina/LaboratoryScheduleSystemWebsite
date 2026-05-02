@@ -58,6 +58,7 @@
             <section id="scheduling-form" class="hidden fixed inset-0 z-30 overflow-y-auto bg-gray-950/50 p-4">
                 <form class="mx-auto my-8 flex w-full max-w-xs flex-col gap-4 rounded-lg bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
                     <input type="hidden" name="cell_id" id="cell_id" value="" />
+                    <input type="hidden" name="selected_lab_id" id="selected_lab_id" value="" />
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-xs font-black uppercase tracking-[0.28em] text-gray-500">Request Lecture</p>
@@ -135,6 +136,18 @@
                         >
                             <option value="">--</option>
                         </select>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <label for="selected_lab_name" class="text-sm font-black uppercase tracking-wide text-gray-600">Selected Lab <span class="text-[10px] font-bold text-gray-400">(Optional)</span></label>
+                        <input
+                            type="text"
+                            name="selected_lab_name"
+                            id="selected_lab_name"
+                            value=""
+                            readonly
+                            placeholder="No lab selected"
+                            class="w-full rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-bold text-gray-900 outline-none transition focus:border-sky-400 focus:bg-white"
+                        />
                     </div>
                     <div class="flex flex-col gap-2">
                         <label for="request_date" class="text-sm font-black uppercase tracking-wide text-gray-600">Date</label>
