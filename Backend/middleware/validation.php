@@ -533,6 +533,7 @@ class Validation {
             ->key('lecturer_request', v::stringType()->notEmpty()->length(1, 1000)->setName('lecturer_request'))
             ->key('action', v::optional(v::in(['requested', 'confirmed', 'canceled']))->setName('action'), false)
             ->key('lab_id', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('lab_id'), false)
+            ->key('admin_message', v::optional(v::stringType()->length(1, 255))->setName('admin_message'), false)
             ->key('created_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('created_by'), false)
             ->key('updated_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('updated_by'), false);
 
@@ -566,6 +567,10 @@ class Validation {
 
         if (($payload['action'] ?? '') === 'confirmed' && trim((string)($payload['lab_id'] ?? '')) === '') {
             $this->failValidation(['lab_id is required when confirming a lecturer request.']);
+        }
+
+        if (($payload['action'] ?? '') === 'canceled' && trim((string)($payload['admin_message'] ?? '')) === '') {
+            $this->failValidation(['admin_message is required when canceling a lecturer request.']);
         }
     }
 

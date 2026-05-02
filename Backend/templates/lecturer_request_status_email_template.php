@@ -13,6 +13,7 @@ class LecturerRequestStatusEmailTemplate {
         $date = htmlspecialchars((string)($data['date'] ?? '-'), ENT_QUOTES, 'UTF-8');
         $labName = htmlspecialchars((string)($data['lab_name'] ?? 'Not assigned'), ENT_QUOTES, 'UTF-8');
         $requestMessage = nl2br(htmlspecialchars((string)($data['lecturer_request'] ?? '-'), ENT_QUOTES, 'UTF-8'));
+        $adminMessage = nl2br(htmlspecialchars((string)($data['admin_message'] ?? '-'), ENT_QUOTES, 'UTF-8'));
         $isConfirmed = ($data['action'] ?? '') === 'confirmed';
         $title = $isConfirmed ? 'Lecture Request Confirmed' : 'Lecture Request Canceled';
         $statusText = strtoupper((string)($data['action'] ?? 'updated'));
@@ -20,6 +21,9 @@ class LecturerRequestStatusEmailTemplate {
         $statusBg = $isConfirmed ? '#dcfce7' : '#fee2e2';
         $labRow = $isConfirmed
             ? "<tr><td style=\"padding: 8px; font-weight: 700;\">Lab</td><td style=\"padding: 8px;\">{$labName}</td></tr>"
+            : '';
+        $adminMessageRow = !$isConfirmed
+            ? "<tr><td style=\"padding: 8px; font-weight: 700; vertical-align: top;\">Cancel Reason</td><td style=\"padding: 8px;\">{$adminMessage}</td></tr>"
             : '';
 
         return [
@@ -42,6 +46,7 @@ class LecturerRequestStatusEmailTemplate {
                         <tr><td style=\"padding: 8px; font-weight: 700;\">Time Slot</td><td style=\"padding: 8px;\">{$timeSlot}</td></tr>
                         <tr><td style=\"padding: 8px; font-weight: 700;\">Date</td><td style=\"padding: 8px;\">{$date}</td></tr>
                         {$labRow}
+                        {$adminMessageRow}
                         <tr><td style=\"padding: 8px; font-weight: 700; vertical-align: top;\">Request</td><td style=\"padding: 8px;\">{$requestMessage}</td></tr>
                     </table>
                 </div>
@@ -56,6 +61,7 @@ class LecturerRequestStatusEmailTemplate {
                 . "Time Slot: " . ($data['time_slot_label'] ?? '-') . "\n"
                 . "Date: " . ($data['date'] ?? '-') . "\n"
                 . ($isConfirmed ? "Lab: " . ($data['lab_name'] ?? 'Not assigned') . "\n" : '')
+                . (!$isConfirmed ? "Cancel Reason: " . ($data['admin_message'] ?? '-') . "\n" : '')
                 . "Request: " . ($data['lecturer_request'] ?? '-') . "\n",
         ];
     }

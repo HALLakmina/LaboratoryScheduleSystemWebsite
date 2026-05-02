@@ -118,6 +118,7 @@ class LecturerRequestsService {
                 lr.date,
                 lr.action,
                 lr.lecturer_request,
+                lr.admin_message,
                 lr.lecturer_id,
                 u.email AS lecturer_email,
                 CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
@@ -348,6 +349,7 @@ class LecturerRequestsService {
                     lr.date,
                     lr.action,
                     lr.lecturer_request,
+                    lr.admin_message,
                     lr.send_at,
                     CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
                     ps.subject,
@@ -467,7 +469,8 @@ class LecturerRequestsService {
                     timetable_column_heading_id = :timetable_column_heading_id,
                     date = :date,
                     action = :action,
-                    lecturer_request = :lecturer_request
+                    lecturer_request = :lecturer_request,
+                    admin_message = :admin_message
                 WHERE id = :id";
 
         $property = [
@@ -482,6 +485,7 @@ class LecturerRequestsService {
             'date' => $payload['date'],
             'action' => $payload['action'],
             'lecturer_request' => $payload['lecturer_request'],
+            'admin_message' => trim((string)($payload['admin_message'] ?? '')) !== '' ? trim((string)$payload['admin_message']) : null,
         ];
 
         $result = $DB_CON->execute($query, $property);
@@ -509,7 +513,8 @@ class LecturerRequestsService {
                 lecture_group_id,
                 timetable_time_slot_id,
                 timetable_column_heading_id,
-                date
+                date,
+                action
              FROM lecturer_requests
              WHERE id = :id
              LIMIT 1",
@@ -518,6 +523,13 @@ class LecturerRequestsService {
 
         if (!$request) {
             throw new Exception('Lecturer request not found.');
+        }
+
+        $today = date('Y-m-d');
+        $isPastRequest = !empty($request['date']) && $request['date'] < $today;
+        $isCanceledRequest = (string)($request['action'] ?? '') === 'canceled';
+        if (!$isPastRequest && !$isCanceledRequest) {
+            throw new Exception('Lecturer request can only be deleted after the request date has passed or when it is canceled.');
         }
 
         $this->deleteTemporaryTimetableForRequest($request);

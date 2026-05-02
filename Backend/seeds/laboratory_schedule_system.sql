@@ -84,6 +84,7 @@ CREATE TABLE `lecturer_requests` (
   `timetable_column_heading_id` int(11) NOT NULL,
   `date` date NOT NULL,
   `lecturer_request` longtext DEFAULT NULL,
+  `admin_message` varchar(255) DEFAULT NULL,
   `action` enum('requested','confirmed','canceled') NOT NULL DEFAULT 'requested',
   `send_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
