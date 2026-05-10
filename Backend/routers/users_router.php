@@ -29,7 +29,7 @@ class UsersRouter {
     private function routeService(): void {
         $authorMiddleware = function ($req = null, $res = null) {
             $jwt = new JwtToken();
-            $jwt->getJwtToken($req);
+            $jwt->validateToken($req, $res);
         };
 
         $this->router->get('/', function ($req = null, $res = null) {

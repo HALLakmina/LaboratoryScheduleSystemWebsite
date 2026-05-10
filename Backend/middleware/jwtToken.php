@@ -1,8 +1,10 @@
 <?php
     namespace Backend\Middleware;
-    require_once __DIR__ . '/../vendor/autoload.php'; // ✅ load composer packages
+    require_once __DIR__ . '/../vendor/autoload.php';
+    require_once __DIR__ . '/../utils/route.php';
     use Firebase\JWT\JWT;
     use Firebase\JWT\Key;
+    use Backend\Utils\Route;
     use Dotenv\Dotenv;
     use Exception;
     class JwtToken{
@@ -38,27 +40,22 @@
             $jwt = JWT::encode($payload, $jwt_secret_key, 'HS256');
             return $jwt;
         }
-        public function getJwtToken($req=null){
-            
-            $jwt_secret_key = $this->secret_key;
-            $jwtToken = $req['cookie']('token');
-            if ($jwtToken) {
-                try {
-                    $decoded = JWT::decode($jwtToken, new Key($jwt_secret_key, 'HS256'));
-                    $userData = (array)$decoded->data;
+        public function validateToken($req = null, $res = null) {
+            $jwtToken = is_callable($req['cookie'] ?? null) ? $req['cookie']('token') : null;
 
-                    echo json_encode([
-                        'message' => 'Access granted',
-                        'user' => $userData
-                    ]);
-
-                } catch (Exception $e) {
-                    http_response_code(401);
-                    echo json_encode(['error' => 'Invalid token: ' . $e->getMessage()]);
-                }
-            } else {
+            if (!$jwtToken) {
                 http_response_code(401);
                 echo json_encode(['error' => 'No token found']);
+                exit;
+            }
+
+            try {
+                $decoded = JWT::decode($jwtToken, new Key($this->secret_key, 'HS256'));
+                Route::getInstance()->request['user'] = (array)$decoded->data;
+            } catch (Exception $e) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Invalid token: ' . $e->getMessage()]);
+                exit;
             }
         }
     }
