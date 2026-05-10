@@ -301,14 +301,12 @@ class TimetableService {
     public function createLab($payload) {
         $DB_CON = new DbConnection();
         $query = "INSERT INTO labs
-                    (lab_name, lab_location, created_by, updated_by)
+                    (lab_name, lab_location)
                     VALUES
-                    (:lab_name, :lab_location, :created_by, :updated_by)";
+                    (:lab_name, :lab_location)";
         $result = $DB_CON->execute($query, [
             'lab_name' => $payload['lab_name'],
             'lab_location' => $payload['lab_location'],
-            'created_by' => $payload['created_by'],
-            'updated_by' => $payload['updated_by'],
         ]);
 
         if ($result === false) {
@@ -324,14 +322,12 @@ class TimetableService {
         $query = "UPDATE labs
                     SET
                         lab_name = :lab_name,
-                        lab_location = :lab_location,
-                        updated_by = :updated_by
+                        lab_location = :lab_location
                     WHERE id = :id";
         $result = $DB_CON->execute($query, [
             'id' => $payload['id'],
             'lab_name' => $payload['lab_name'],
             'lab_location' => $payload['lab_location'],
-            'updated_by' => $payload['updated_by'],
         ]);
 
         if ($result === false) {

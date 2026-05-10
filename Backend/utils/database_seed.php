@@ -106,7 +106,7 @@ class DatabaseSeed {
         return true;
     }
 
-    public function seedUsers() {
+    public function seedUsers(): array {
         if (!is_file($this->seedUsersPath)) {
             throw new RuntimeException('Seed users file not found: ' . $this->seedUsersPath);
         }
@@ -117,14 +117,12 @@ class DatabaseSeed {
         }
 
         $pdo = $this->createDatabaseConnection();
-        $count = 0;
 
         foreach ($seedUsers as $user) {
             $this->upsertUser($pdo, $user);
-            $count++;
         }
 
-        return $count;
+        return $seedUsers;
     }
 
     public function createUser($user) {

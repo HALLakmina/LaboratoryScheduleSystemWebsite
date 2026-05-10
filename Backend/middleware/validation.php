@@ -58,13 +58,6 @@ class Validation {
         );
     }
 
-    private function auditFieldRule($fieldName) {
-        return v::key(
-            $fieldName,
-            v::optional(v::stringType()->notEmpty()->length(1, 255))->setName($fieldName)
-        );
-    }
-
     private function failValidation(array $errors) {
         http_response_code(400);
         echo json_encode([
@@ -100,9 +93,7 @@ class Validation {
             )
             ->key('email', v::email()->length(3, 254)->setName('email'))
             ->key('mobile_number', v::regex('/^0?7[0-9]{8}$/')->setName('mobile_number'))
-            ->key('role', v::in(['admin', 'lecturer'])->setName('role'))
-            ->key('created_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('updated_by'));
+            ->key('role', v::in(['admin', 'lecturer'])->setName('role'));
 
         if ($requirePassword) {
             $validator = $validator->key(
@@ -170,7 +161,6 @@ class Validation {
                         ->regex('/[^A-Za-z0-9]/')
                         ->setName('new_password')
                 )
-                ->key('updated_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('updated_by'))
         );
     }
 
@@ -189,9 +179,7 @@ class Validation {
 
     private function yearRule($requireId = false) {
         $validator = v::arrayType()
-            ->key('year', v::stringType()->notEmpty()->length(1, 50)->setName('year'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('year', v::stringType()->notEmpty()->length(1, 50)->setName('year'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -202,9 +190,7 @@ class Validation {
 
     private function lectureGroupRule($requireId = false) {
         $validator = v::arrayType()
-            ->key('group_name', v::stringType()->notEmpty()->length(1, 100)->setName('group_name'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('group_name', v::stringType()->notEmpty()->length(1, 100)->setName('group_name'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -216,9 +202,7 @@ class Validation {
     private function labRule($requireId = false) {
         $validator = v::arrayType()
             ->key('lab_name', v::stringType()->notEmpty()->length(1, 150)->setName('lab_name'))
-            ->key('lab_location', v::stringType()->notEmpty()->length(1, 255)->setName('lab_location'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('lab_location', v::stringType()->notEmpty()->length(1, 255)->setName('lab_location'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -231,9 +215,7 @@ class Validation {
         $validator = v::arrayType()
             ->key('subject_cord', v::stringType()->notEmpty()->length(1, 50)->setName('subject_cord'))
             ->key('subject', v::stringType()->notEmpty()->length(1, 255)->setName('subject'))
-            ->key('year_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('year_id'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('year_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('year_id'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -246,9 +228,7 @@ class Validation {
         $validator = v::arrayType()
             ->key('time_slot_number', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('time_slot_number'))
             ->key('start_time', v::time('H:i')->setName('start_time'))
-            ->key('end_time', v::time('H:i')->setName('end_time'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('end_time', v::time('H:i')->setName('end_time'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -262,9 +242,7 @@ class Validation {
             ->key('column_heading', v::stringType()->notEmpty()->length(1, 100)->setName('column_heading'))
             ->key('column_number', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('column_number'))
             ->key('column_heading_number', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('column_heading_number'))
-            ->key('status', v::in(['active', 'deactive'])->setName('status'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('status', v::in(['active', 'deactive'])->setName('status'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -280,9 +258,7 @@ class Validation {
             ->key('lecture_group_id', $this->optionalPositiveIntValueRule()->setName('lecture_group_id'))
             ->key('lab_id', $this->optionalPositiveIntValueRule()->setName('lab_id'))
             ->key('subject_cord', v::optional(v::stringType()->length(1, 50))->setName('subject_cord'))
-            ->key('action', v::in(['active', 'free', 'cancel'])->setName('action'))
-            ->key('created_by', v::optional(v::stringType()->length(1, 255))->setName('created_by'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('action', v::in(['active', 'free', 'cancel'])->setName('action'));
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -293,8 +269,7 @@ class Validation {
 
     private function timetableSettingsRule($requireReset = false) {
         $validator = v::arrayType()
-            ->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'))
-            ->key('updated_by', v::optional(v::stringType()->length(1, 255))->setName('updated_by'));
+            ->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
 
         if (!$requireReset) {
             $validator = $validator
@@ -484,21 +459,14 @@ class Validation {
         $this->assertPayload($this->getPayload($req), $this->timetableSettingsRule(true));
     }
 
-    private function newsRule($requireId = false, $requireCreatedBy = false) {
+    private function newsRule($requireId = false) {
         $validator = v::arrayType()
             ->key('title', v::stringType()->notEmpty()->length(1, 255)->setName('title'))
             ->key('description', v::optional(v::stringType()->length(1, 5000))->setName('description'), false)
             ->key('start_date', v::optional(v::date('Y-m-d'))->setName('start_date'), false)
             ->key('end_date', v::optional(v::date('Y-m-d'))->setName('end_date'), false)
             ->key('start_at', v::optional(v::time('H:i'))->setName('start_at'), false)
-            ->key('end_at', v::optional(v::time('H:i'))->setName('end_at'), false)
-            ->key('updated_by', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('updated_by'));
-
-        if ($requireCreatedBy) {
-            $validator = $validator->key('created_by', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('created_by'));
-        } else {
-            $validator = $validator->key('created_by', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('created_by'), false);
-        }
+            ->key('end_at', v::optional(v::time('H:i'))->setName('end_at'), false);
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
@@ -509,12 +477,12 @@ class Validation {
 
     public function newsCreate($req = null, $res = null) {
         $payload = $this->getPayload($req);
-        $this->assertPayload($payload, $this->newsRule(false, true));
+        $this->assertPayload($payload, $this->newsRule(false));
     }
 
     public function newsUpdate($req = null, $res = null) {
         $payload = $this->getPayload($req);
-        $this->assertPayload($payload, $this->newsRule(true, false));
+        $this->assertPayload($payload, $this->newsRule(true));
     }
 
     public function newsDelete($req = null, $res = null) {
@@ -533,9 +501,7 @@ class Validation {
             ->key('lecturer_request', v::stringType()->notEmpty()->length(1, 1000)->setName('lecturer_request'))
             ->key('action', v::optional(v::in(['requested', 'confirmed', 'canceled']))->setName('action'), false)
             ->key('lab_id', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('lab_id'), false)
-            ->key('admin_message', v::optional(v::stringType()->length(1, 255))->setName('admin_message'), false)
-            ->key('created_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('created_by'), false)
-            ->key('updated_by', v::optional(v::stringType()->notEmpty()->length(1, 255))->setName('updated_by'), false);
+            ->key('admin_message', v::optional(v::stringType()->length(1, 255))->setName('admin_message'), false);
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));

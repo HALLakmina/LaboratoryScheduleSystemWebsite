@@ -4,6 +4,7 @@ require_once __DIR__ . "/../services/users_service.php";
 require_once __DIR__ . "/../middleware/jwtToken.php";
 use Backend\Services\UsersService;
 use Backend\Middleware\JwtToken;
+use Backend\Utils\Route;
 use Exception;
 
 class UsersController {
@@ -15,12 +16,11 @@ class UsersController {
 
     private function getPayload($req) {
         $payload = $req['body'] ?? [];
+        return is_array($payload) ? $payload : [];
+    }
 
-        if (!is_array($payload)) {
-            return [];
-        }
-
-        return $payload;
+    private function getAuthUser() {
+        return Route::getInstance()->request['user'] ?? [];
     }
 
     /**
@@ -36,21 +36,22 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
     }
 
-    /**
-     * Create user - POST /api/v1/user
-     * Body: user payload (validated by middleware)
-     */
     public function create($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['created_by'] = $actor['userName'] ?? null;
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->create($payload);
             echo json_encode([
                 'status' => '200',
@@ -59,9 +60,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -70,6 +73,8 @@ class UsersController {
     public function update($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->update($payload);
             echo json_encode([
                 'status' => '200',
@@ -78,9 +83,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -97,9 +104,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -108,6 +117,8 @@ class UsersController {
     public function resetPassword($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->resetPassword($payload);
             echo json_encode([
                 'status' => '200',
@@ -116,9 +127,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -138,6 +151,7 @@ class UsersController {
             $foundUser = $this->usersService->getByEmail($email);
 
             if (!$foundUser || empty($foundUser)) {
+                http_response_code(401);
                 echo json_encode([
                     'status' => '401',
                     'message' => 'Wrong email or password.'
@@ -148,6 +162,7 @@ class UsersController {
             $user = $foundUser[0];
 
             if (!password_verify($password, $user['password'])) {
+                http_response_code(401);
                 echo json_encode([
                     'status' => '401',
                     'message' => 'Wrong email or password.'
@@ -160,17 +175,17 @@ class UsersController {
             if ($userName === '') {
                 $userName = ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '');
             }
-            $jwtToken = $jwt->createJwtToken($userName, $user['role'], $user['email']);
+            $jwtToken = $jwt->createJwtToken($userName, $user['role'], $user['email'], $user['id']);
 
-            $isDeployment = false;
+            $isSecure = ($_ENV['APP_ENV'] ?? 'local') === 'production';
             $res = $res ?? [];
             if (is_callable($res['cookie'] ?? null)) {
                 $res['cookie']('token', $jwtToken, [
-                    'expires' => time() + (60 * 60 * 24),
-                    'path' => '/',
-                    'secure' => $isDeployment,
+                    'expires'  => time() + (60 * 60 * 24),
+                    'path'     => '/',
+                    'secure'   => $isSecure,
                     'httponly' => true,
-                    'samesite' => $isDeployment ? 'none' : 'lax',
+                    'samesite' => $isSecure ? 'none' : 'lax',
                 ]);
             }
 
@@ -188,9 +203,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -201,16 +218,16 @@ class UsersController {
      */
     public function logout($req = null, $res = null) {
         try {
-            $isDeployment = false;
+            $isSecure = ($_ENV['APP_ENV'] ?? 'local') === 'production';
             $res = $res ?? [];
 
             if (is_callable($res['cookie'] ?? null)) {
                 $res['cookie']('token', '', [
-                    'expires' => time() - 3600,
-                    'path' => '/',
-                    'secure' => $isDeployment,
+                    'expires'  => time() - 3600,
+                    'path'     => '/',
+                    'secure'   => $isSecure,
                     'httponly' => true,
-                    'samesite' => $isDeployment ? 'none' : 'lax',
+                    'samesite' => $isSecure ? 'none' : 'lax',
                 ]);
             }
 
@@ -220,9 +237,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }

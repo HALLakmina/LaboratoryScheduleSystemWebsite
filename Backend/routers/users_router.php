@@ -29,8 +29,9 @@ class UsersRouter {
     private function routeService(): void {
         $authorMiddleware = function ($req = null, $res = null) {
             $jwt = new JwtToken();
-            $jwt->getJwtToken($req);
+            $jwt->validateToken($req, $res);
         };
+        $adminMiddleware = JwtToken::requireRole('admin');
 
         $this->router->get('/', function ($req = null, $res = null) {
             $this->usersController->getAll($req, $res);
@@ -56,19 +57,19 @@ class UsersRouter {
             $this->validation->userLogin($req, $res);
         };
 
-        $this->router->post('/', [$userCreateValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/', [$authorMiddleware, $adminMiddleware, $userCreateValidation], function ($req = null, $res = null) {
             $this->usersController->create($req, $res);
         });
 
-        $this->router->post('/update', [$userUpdateValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/update', [$authorMiddleware, $adminMiddleware, $userUpdateValidation], function ($req = null, $res = null) {
             $this->usersController->update($req, $res);
         });
 
-        $this->router->post('/delete', [$userDeleteValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/delete', [$authorMiddleware, $adminMiddleware, $userDeleteValidation], function ($req = null, $res = null) {
             $this->usersController->delete($req, $res);
         });
 
-        $this->router->post('/reset-password', [$userResetPasswordValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/reset-password', [$authorMiddleware, $adminMiddleware, $userResetPasswordValidation], function ($req = null, $res = null) {
             $this->usersController->resetPassword($req, $res);
         });
 

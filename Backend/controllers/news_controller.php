@@ -4,6 +4,7 @@ namespace Backend\Controllers;
 require_once __DIR__ . '/../services/news_service.php';
 
 use Backend\Services\NewsService;
+use Backend\Utils\Route;
 use Exception;
 
 class NewsController {
@@ -23,9 +24,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -50,9 +53,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -61,6 +66,9 @@ class NewsController {
     public function create($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['created_by'] = (int)($actor['userId'] ?? 0);
+            $payload['updated_by'] = (int)($actor['userId'] ?? 0);
             $respond = $this->newsService->create($payload, $_FILES['image'] ?? null);
             echo json_encode([
                 'status' => '200',
@@ -69,9 +77,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -80,6 +90,8 @@ class NewsController {
     public function update($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['updated_by'] = (int)($actor['userId'] ?? 0);
             $respond = $this->newsService->update($payload, $_FILES['image'] ?? null);
             echo json_encode([
                 'status' => '200',
@@ -88,9 +100,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -107,9 +121,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -120,11 +136,14 @@ class NewsController {
         if (!is_array($payload)) {
             $payload = [];
         }
-
         if (!empty($_POST)) {
             $payload = array_merge($payload, $_POST);
         }
         return $payload;
+    }
+
+    private function getAuthUser() {
+        return Route::getInstance()->request['user'] ?? [];
     }
 }
 ?>
