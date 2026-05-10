@@ -4,6 +4,7 @@ namespace Backend\Controllers;
 require_once __DIR__ . '/../services/lecturer_requests_service.php';
 
 use Backend\Services\LecturerRequestsService;
+use Backend\Utils\Route;
 use Exception;
 
 class LecturerRequestsController {
@@ -15,17 +16,19 @@ class LecturerRequestsController {
 
     private function getPayload($req) {
         $payload = $req['body'] ?? [];
+        return is_array($payload) ? $payload : [];
+    }
 
-        if (!is_array($payload)) {
-            return [];
-        }
-
-        return $payload;
+    private function getAuthUser() {
+        return Route::getInstance()->request['user'] ?? [];
     }
 
     public function create($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['created_by'] = $actor['userName'] ?? null;
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $respond = $this->lecturerRequestsService->create($payload);
             echo json_encode([
                 'status' => '200',
@@ -63,6 +66,8 @@ class LecturerRequestsController {
     public function update($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $respond = $this->lecturerRequestsService->update($payload);
             echo json_encode([
                 'status' => '200',

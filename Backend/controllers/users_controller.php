@@ -4,6 +4,7 @@ require_once __DIR__ . "/../services/users_service.php";
 require_once __DIR__ . "/../middleware/jwtToken.php";
 use Backend\Services\UsersService;
 use Backend\Middleware\JwtToken;
+use Backend\Utils\Route;
 use Exception;
 
 class UsersController {
@@ -15,12 +16,11 @@ class UsersController {
 
     private function getPayload($req) {
         $payload = $req['body'] ?? [];
+        return is_array($payload) ? $payload : [];
+    }
 
-        if (!is_array($payload)) {
-            return [];
-        }
-
-        return $payload;
+    private function getAuthUser() {
+        return Route::getInstance()->request['user'] ?? [];
     }
 
     /**
@@ -44,13 +44,12 @@ class UsersController {
         }
     }
 
-    /**
-     * Create user - POST /api/v1/user
-     * Body: user payload (validated by middleware)
-     */
     public function create($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['created_by'] = $actor['userName'] ?? null;
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->create($payload);
             echo json_encode([
                 'status' => '200',
@@ -70,6 +69,8 @@ class UsersController {
     public function update($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->update($payload);
             echo json_encode([
                 'status' => '200',
@@ -108,6 +109,8 @@ class UsersController {
     public function resetPassword($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $actor = $this->getAuthUser();
+            $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->resetPassword($payload);
             echo json_encode([
                 'status' => '200',
@@ -160,7 +163,7 @@ class UsersController {
             if ($userName === '') {
                 $userName = ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '');
             }
-            $jwtToken = $jwt->createJwtToken($userName, $user['role'], $user['email']);
+            $jwtToken = $jwt->createJwtToken($userName, $user['role'], $user['email'], $user['id']);
 
             $isDeployment = false;
             $res = $res ?? [];

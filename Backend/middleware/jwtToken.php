@@ -18,25 +18,24 @@
             $this->secret_key = $_ENV['JWT_KEY'];
             $this->domain =$_ENV['DOMAIN'];
         }
-        public function createJwtToken($userName, $role, $email){
+        public function createJwtToken($userName, $role, $email, $userId) {
 
             $jwt_secret_key = $this->secret_key;
 
-            // Payload
             $payload = [
-                'iss' => 'http://'.$this->domain,        // Issuer
-                'aud' => 'http://'.$this->domain,        // Audience
-                'iat' => time(),                    // Issued at
-                'nbf' => time(),                    // Not before
-                'exp' => time() + (60 * 60*24),        // Expiration time (24 hour)
-                'data' => [                         // Custom data
-                    'userName'=>$userName,
-                    'role' => $role,
-                    'email' => $email
+                'iss' => 'http://'.$this->domain,
+                'aud' => 'http://'.$this->domain,
+                'iat' => time(),
+                'nbf' => time(),
+                'exp' => time() + (60 * 60 * 24),
+                'data' => [
+                    'userId'   => (int)$userId,
+                    'userName' => $userName,
+                    'role'     => $role,
+                    'email'    => $email,
                 ]
             ];
 
-            // Generate token
             $jwt = JWT::encode($payload, $jwt_secret_key, 'HS256');
             return $jwt;
         }
