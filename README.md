@@ -1,131 +1,187 @@
 # Laboratory Schedule System Website
 
-Laboratory Schedule System Website is a PHP and JavaScript web application for managing laboratory schedules, lecturer requests, temporary timetable changes, news updates, and administration tasks for a faculty or department.
+A PHP and JavaScript web application for managing laboratory schedules, lecturer requests, temporary timetable changes, news updates, and administration tasks for a faculty or department.
 
-The project runs on:
-- `XAMPP Apache`
-- `MySQL`
-- `PHP`
-- `Vanilla JavaScript`
+## Stack
+
+| Layer    | Technology                                            |
+|----------|-------------------------------------------------------|
+| Server   | XAMPP (Apache + MySQL / MariaDB)                      |
+| Backend  | PHP 8+, Composer                                      |
+| Frontend | PHP templates, Vanilla JavaScript, Tailwind CSS (CDN) |
+| Database | MySQL / MariaDB                                       |
+
+---
 
 ## Overview
 
-This system helps lecturers and administrators coordinate laboratory usage more clearly.
+**Lecturers** can:
+- view the permanent weekly timetable and filter it by week (current week + up to 3 weeks ahead)
+- view temporary timetable changes for any visible week
+- submit requests for extra lecture slots
+- check slot availability before submitting a request
+- receive email notifications when a request is confirmed or cancelled
 
-Main use cases:
-- view the permanent timetable
-- view temporary timetable changes for the current week
-- send lecturer requests for extra lecture slots
-- confirm or cancel lecturer requests from the admin panel
-- manage timetable settings, timetable records, labs, groups, years, subjects, users, and news
+**Admins** can:
+- review incoming lecturer requests, check slot availability, confirm (with lab assignment) or cancel (with a mandatory reason)
+- manage the full timetable structure — settings, column headings, time slots, cells
+- assign lecturers to practical subjects and define their responsibility type (e.g. Lab In-Charge, Demonstrator)
+- manage reference data — years, lecture groups, labs, subjects, lecturer responsibility types
+- manage user accounts (create, update, delete, reset passwords)
+- publish and manage news items with optional image uploads
+
+---
 
 ## Features
 
-### Public timetable
-- dynamic timetable built from database settings
-- weekly temporary timetable override support
+### Public Timetable
+- dynamic timetable grid built from database configuration (columns, rows, break row all configurable)
+- week-by-week filter — current week + up to 3 future weeks
+- temporary timetable overlay showing confirmed lecturer requests for the selected week
 - timetable slot summary with lecture codes
 - lab allocation modal for each time slot
-- lecture detail modal
-- lecturer request form for logged-in users
+- lab list modal showing the lecture schedule for a selected lab
+- lecturer request form (shown to logged-in users when a slot is available)
+- submit-locking prevents duplicate form submissions
 
-### Lecturer request flow
-- lecturers can submit requests with:
-  - subject
-  - year
-  - group
-  - day
-  - time slot
-  - date
-  - request description
-- admins can:
-  - review incoming requests
-  - check slot availability
-  - assign a lab
-  - confirm or cancel requests
-- confirmed requests are stored in `temporary_timetable`
+### Lecturer Request Flow
+- lecturers submit requests with: subject, year, group, day, time slot, date, description
+- slot availability check before submission prevents double-booking
+- email notification sent to all admins when a new request arrives
+- admins confirm (assign a lab) or cancel (provide a mandatory cancel reason)
+- email notification sent to the requesting lecturer on confirmation or cancellation
+- confirmed requests are written to `temporary_timetable` and appear in the weekly view
 
-### Admin panel
-- overview dashboard
-- timetable settings management
-- timetable CRUD management
-- incoming lecturer request management
-- news CRUD management
-- years CRUD management
-- groups CRUD management
-- labs CRUD management
-- subjects CRUD management
-- users CRUD management
+### Lecturer Assignments
+- admins define responsibility types (e.g. Lab In-Charge, Demonstrator, Assistant)
+- admins assign lecturers to practical subjects with an optional responsibility type
+- assignments are stored in `subject_lecture_relations` linked to `lecturer_responsibility`
+- both sections are fully manageable from the admin panel (create, update, delete)
 
-### News
-- create, update, and delete news
-- upload and manage images
-- public news list and viewer
+### Admin Panel
+- overview dashboard with system statistics
+- timetable settings management (rows, columns, break row)
+- timetable CRUD — manage the permanent lecture schedule
+- incoming lecturer requests with confirm / cancel workflow
+- news management with image upload support
+- years, groups, labs, subjects CRUD
+- user management — create, update, delete, reset passwords
+- Responsibilities — manage lecturer responsibility type definitions
+- Lecturer Assignments — assign lecturers to subjects with responsibility
 
-### Backend validation
-- request validation uses `respect/validation`
-- middleware-based validation for:
-  - users
-  - timetable
-  - lecturer requests
-  - news
+### Email Notifications
+- powered by `phpmailer/phpmailer`
+- configured via SMTP environment variables (graceful fallback when not configured)
+- templates:
+  - new request → all admins
+  - confirmed / cancelled → requesting lecturer (includes cancel reason when cancelled)
+
+### Authentication & Authorization
+- login issues a signed JWT stored in an **HttpOnly** cookie
+- `validateToken` middleware verifies the JWT on every protected route
+- `requireRole('admin')` middleware guards all admin-only state-changing routes
+- `created_by` / `updated_by` / `assigned_by` audit fields are populated automatically from the JWT — clients never send these values
+- public GET routes (timetable, news, responsibilities, assignments) require no authentication
+
+---
 
 ## Project Structure
 
 ```text
 LaboratoryScheduleSystemWebsite/
-|-- Frontend/
-|   |-- Components/
-|   |-- Pages/
-|   |   |-- AdminPanel/
-|   |   |-- login.php
-|   |   |-- news.php
-|   |   `-- timetable.php
-|   |-- API/
-|   `-- JS/
-|-- Backend/
-|   |-- controllers/
-|   |-- middleware/
-|   |-- routers/
-|   |-- services/
-|   |-- scripts/
-|   |-- seeds/
-|   |-- utils/
-|   `-- server.php
-`-- README.md
+├── Backend/
+│   ├── controllers/
+│   │   ├── lecturer_assignments_controller.php   ← new
+│   │   ├── lecturer_requests_controller.php
+│   │   ├── news_controller.php
+│   │   ├── timetable_controller.php
+│   │   └── users_controller.php
+│   ├── middleware/
+│   │   ├── jwtToken.php          # validateToken + requireRole('admin')
+│   │   └── validation.php        # Respect\Validation rules for all endpoints
+│   ├── routers/
+│   │   ├── lecturer_assignments_router.php
+│   │   ├── lecturer_requests_router.php
+│   │   ├── news_router.php
+│   │   ├── timetable_router.php
+│   │   └── users_router.php
+│   ├── services/
+│   │   ├── lecturer_assignments_service.php
+│   │   ├── lecturer_requests_service.php
+│   │   ├── news_service.php
+│   │   ├── timetable_service.php
+│   │   └── users_service.php
+│   ├── templates/
+│   │   ├── admin_lecturer_request_email_template.php
+│   │   └── lecturer_request_status_email_template.php
+│   ├── seeds/
+│   │   ├── laboratory_schedule_system.sql   # full DB schema
+│   │   └── users_seed.php
+│   ├── scripts/
+│   │   └── run_seed.php          # one-time setup CLI script
+│   ├── utils/
+│   │   ├── route.php
+│   │   ├── httpOnlyCookie.php
+│   │   └── database_seed.php
+│   ├── DB/
+│   │   └── dbConnection.php
+│   ├── server.php                # API entry point + CORS headers
+│   ├── .htaccess
+│   ├── .env                      # not in repo
+│   └── .env-example
+├── Frontend/
+│   ├── API/
+│   │   ├── lecturerAssignmentsApi.js
+│   │   ├── lecturerRequestApi.js
+│   │   ├── newsApi.js
+│   │   ├── timetableApi.js
+│   │   └── userApi.js
+│   ├── Components/
+│   │   ├── NavigationBar.php
+│   │   └── FooterBar.php
+│   ├── JS/
+│   │   ├── admin.js
+│   │   ├── login.js
+│   │   ├── loginUser.js
+│   │   ├── main.js
+│   │   ├── news.js
+│   │   ├── timetable.js
+│   │   └── utils.js
+│   ├── Pages/
+│   │   ├── AdminPanel/admin.php
+│   │   ├── login.php
+│   │   ├── news.php
+│   │   └── timetable.php
+│   ├── resources/img/
+│   ├── config.php
+│   └── index.php
+├── storage/
+│   └── images/                   # uploaded news images (auto-created)
+├── database_migration_lecturer_requests.sql
+└── README.md
 ```
+
+---
 
 ## Requirements
 
-Before running the project, install:
+- XAMPP (Apache + MySQL)
+- PHP 8.1 or later
+- Composer
 
-- `XAMPP`
-- `PHP 8+`
-- `Composer`
-- `MySQL` through XAMPP
+---
 
-## Running the Project on XAMPP
+## Setup
 
 ### 1. Place the project in `htdocs`
 
-Put the project folder inside your XAMPP `htdocs` directory.
-
-Example:
-
-```text
+```
 D:\Software\RunApps\xampp\htdocs\LaboratoryScheduleSystemWebsite
 ```
 
-### 2. Start Apache and MySQL
-
-Open the XAMPP Control Panel and start:
-
-- `Apache`
-- `MySQL`
+### 2. Start Apache and MySQL in the XAMPP Control Panel
 
 ### 3. Install backend dependencies
-
-Open a terminal in the project root and run:
 
 ```bash
 cd Backend
@@ -134,161 +190,262 @@ composer install
 
 ### 4. Create the environment file
 
-Copy the example file:
-
 ```bash
 copy Backend\.env-example Backend\.env
 ```
 
-Then edit:
+Edit `Backend/.env` — see the full environment variable reference below.
 
-```text
-Backend/.env
-```
-
-Example values from `Backend/.env-example`:
-
-```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your-database-password
-DB_NAME=timetable_system
-JWT_KEY=your-secret-key
-DOMAIN=localhost
-```
-
-What each value means:
-
-- `DB_HOST`: MySQL server host. In XAMPP this is usually `localhost`.
-- `DB_USER`: MySQL username. In a default XAMPP setup this is usually `root`.
-- `DB_PASSWORD`: MySQL password for the selected user. Leave it empty only if your local MySQL user has no password.
-- `DB_NAME`: database name the application will create and use.
-- `JWT_KEY`: secret key used for authentication-related token handling.
-- `DOMAIN`: current local domain, usually `localhost`.
-
-Important:
-- the application reads runtime database settings from `Backend/.env`
-- use `Backend/.env-example` as the base template for local setup
-- the included SQL schema file is `Backend/seeds/laboratory_schedule_system.sql`
-- the schema filename and `DB_NAME` do not need to match
-- if you change `DB_NAME`, the seed script will create and use that database name
-
-### 5. Run the seed script
-
-This project includes a one-time seed script that:
-- creates the database if it does not exist
-- imports the schema from `Backend/seeds/laboratory_schedule_system.sql`
-- inserts the initial users
-
-Run:
+### 5. Run the one-time seed script
 
 ```bash
 php Backend/scripts/run_seed.php
 ```
 
-### 6. Open the project in the browser
+This script:
+- creates the database if it does not exist
+- imports the full schema from `Backend/seeds/laboratory_schedule_system.sql`
+- inserts the initial admin and lecturer accounts
 
-Use:
+**The terminal output shows the generated credentials — save them before closing the window.**
 
-```text
+After a successful run it creates `Backend/seeds/.seed.lock`. The script refuses to run again while this file exists (delete it to re-seed on a fresh database).
+
+### 6. Open the application
+
+```
 http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
 ```
 
-## Seed Users
+---
 
-The default seed users are defined in:
+## Environment Variables
 
-```text
-Backend/seeds/users_seed.php
-```
+All configuration goes in `Backend/.env`. Use `Backend/.env-example` as the template.
 
-Default accounts:
+### Application
 
-### Admin
-- Email: `admin@laboratory.local`
-- Password: `Admin@123`
-
-### Lecturer
-- Email: `lecturer@laboratory.local`
-- Password: `Lecturer@123`
-
-## Seed Script Behavior
-
-The seed script is intentionally locked to one-time use.
-
-After a successful run, it creates:
-
-```text
-Backend/seeds/.seed.lock
-```
-
-If you run the seed command again after success, it will stop and show a lock message.
-
-## Backend Notes
-
-### API entry point
-
-Backend API entry:
-
-```text
-Backend/server.php
-```
-
-### Validation
-
-Validation logic is centralized in:
-
-```text
-Backend/middleware/validation.php
-```
-
-It uses:
-
-```json
-"respect/validation": "^2.4"
-```
-
-### Image storage
-
-News images are stored in:
-
-```text
-Backend/storage/images
-```
-
-## Main Pages
-
-- Home: `Frontend/index.php`
-- Timetable: `Frontend/Pages/timetable.php`
-- News: `Frontend/Pages/news.php`
-- Login: `Frontend/Pages/login.php`
-- Admin Panel: `Frontend/Pages/AdminPanel/admin.php`
-
-## Technologies Used
-
-### Frontend
-- PHP
-- HTML
-- Tailwind-style utility classes
-- Vanilla JavaScript
-
-### Backend
-- PHP
-- Composer
-- `respect/validation`
+| Variable          | Required | Description                                                         | Example              |
+|-------------------|----------|---------------------------------------------------------------------|----------------------|
+| `APP_ENV`         | No       | Set to `production` to enable secure cookies on HTTPS deployments. | `local`              |
+| `ALLOWED_ORIGINS` | No       | Comma-separated list of origins the API reflects in CORS headers.  | `http://localhost`   |
 
 ### Database
-- MySQL
 
-## Development Notes
+| Variable      | Required | Description                                   | Example                         |
+|---------------|----------|-----------------------------------------------|---------------------------------|
+| `DB_HOST`     | Yes      | MySQL host — usually `localhost` in XAMPP.    | `localhost`                     |
+| `DB_USER`     | Yes      | MySQL username.                               | `root`                          |
+| `DB_PASSWORD` | Yes      | MySQL password. Leave empty if none.          | `your-database-password`        |
+| `DB_NAME`     | Yes      | Database name the application will create.   | `laboratory_schedule_system`    |
 
-- The timetable is database-driven.
-- Temporary timetable data is shown week-by-week.
-- Admin actions update timetable-related tables directly from the admin panel.
-- Lecturer request confirmation can create temporary timetable records.
+### Authentication
+
+| Variable  | Required | Description                                                             | Example           |
+|-----------|----------|-------------------------------------------------------------------------|-------------------|
+| `JWT_KEY` | Yes      | Secret key used to sign and verify JWT tokens. Use a long random value. | `your-secret-key` |
+| `DOMAIN`  | Yes      | Domain used in JWT issuer / audience claims.                            | `localhost`       |
+
+### Email (SMTP) — all optional
+
+When `SMTP_HOST` or `SMTP_FROM_EMAIL` is not set, email notifications are silently skipped. The rest of the system works normally.
+
+| Variable          | Description                                    | Example                        |
+|-------------------|------------------------------------------------|--------------------------------|
+| `SMTP_HOST`       | SMTP server hostname.                          | `smtp.gmail.com`               |
+| `SMTP_PORT`       | SMTP port.                                     | `587`                          |
+| `SMTP_USERNAME`   | SMTP login username.                           | `you@example.com`              |
+| `SMTP_PASSWORD`   | SMTP login password or app-specific password.  | `your-smtp-password`           |
+| `SMTP_ENCRYPTION` | `tls` or `ssl`.                               | `tls`                          |
+| `SMTP_AUTH`       | Whether SMTP authentication is required.       | `true`                         |
+| `SMTP_FROM_EMAIL` | Sender address shown in outgoing emails.       | `no-reply@example.com`         |
+| `SMTP_FROM_NAME`  | Sender display name.                           | `Laboratory Schedule System`   |
+
+### Seed passwords — optional
+
+Set these before running the seed to use your own passwords. If not set, the seed generates random passwords and prints them to the terminal.
+
+| Variable                | Description                              |
+|-------------------------|------------------------------------------|
+| `SEED_ADMIN_PASSWORD`   | Initial password for the admin account.  |
+| `SEED_LECTURER_PASSWORD`| Initial password for the lecturer account.|
+
+---
+
+## Seed Accounts
+
+| Role     | Email                       | Password                                                              |
+|----------|-----------------------------|-----------------------------------------------------------------------|
+| Admin    | `admin@laboratory.local`    | Printed to terminal on first run, or `SEED_ADMIN_PASSWORD` from `.env` |
+| Lecturer | `lecturer@laboratory.local` | Printed to terminal on first run, or `SEED_LECTURER_PASSWORD` from `.env` |
+
+No default passwords are committed to the repository.
+
+---
+
+## API Endpoints
+
+Base: `/LaboratoryScheduleSystemWebsite/Backend/api/v1`
+
+**Auth key** — 🔓 public · 🔑 authenticated · 🛡️ admin only
+
+### Users `/user`
+
+| Method | Path              | Auth | Description                   |
+|--------|-------------------|------|-------------------------------|
+| GET    | `/`               | 🔑  | List all users                |
+| POST   | `/`               | 🛡️  | Create a user                 |
+| POST   | `/update`         | 🛡️  | Update a user                 |
+| POST   | `/delete`         | 🛡️  | Delete a user                 |
+| POST   | `/reset-password` | 🛡️  | Reset a user's password       |
+| POST   | `/login`          | 🔓  | Login — returns JWT cookie    |
+| POST   | `/logout`         | 🔓  | Logout — clears JWT cookie    |
+
+### Timetable `/timetable`
+
+| Method | Path                     | Auth | Description                                 |
+|--------|--------------------------|------|---------------------------------------------|
+| GET    | `/`                      | 🔓  | Get full timetable                          |
+| GET    | `/temporary`             | 🔓  | Get temporary timetable (date range filter) |
+| GET    | `/years`                 | 🔓  | List years                                  |
+| GET    | `/timeSlots`             | 🔓  | List time slots                             |
+| GET    | `/columnHeadings`        | 🔓  | List column headings                        |
+| GET    | `/lectureGroups`         | 🔓  | List lecture groups                         |
+| GET    | `/labs`                  | 🔓  | List labs                                   |
+| GET    | `/cells`                 | 🔓  | List timetable cells                        |
+| GET    | `/settings`              | 🔓  | Get timetable settings                      |
+| GET    | `/subjectCodes`          | 🔓  | List subject codes                          |
+| POST   | `/`                      | 🛡️  | Create timetable record                     |
+| POST   | `/update`                | 🛡️  | Update timetable record                     |
+| POST   | `/delete`                | 🛡️  | Delete timetable record                     |
+| POST   | `/settings/update`       | 🛡️  | Update timetable settings                   |
+| POST   | `/settings/reset`        | 🛡️  | Reset timetable settings                    |
+| POST   | `/years`                 | 🛡️  | Create year                                 |
+| POST   | `/years/update`          | 🛡️  | Update year                                 |
+| POST   | `/years/delete`          | 🛡️  | Delete year                                 |
+| POST   | `/lectureGroups`         | 🛡️  | Create group                                |
+| POST   | `/lectureGroups/update`  | 🛡️  | Update group                                |
+| POST   | `/lectureGroups/delete`  | 🛡️  | Delete group                                |
+| POST   | `/labs`                  | 🛡️  | Create lab                                  |
+| POST   | `/labs/update`           | 🛡️  | Update lab                                  |
+| POST   | `/labs/delete`           | 🛡️  | Delete lab                                  |
+| POST   | `/columnHeadings`        | 🛡️  | Create column heading                       |
+| POST   | `/columnHeadings/update` | 🛡️  | Update column heading                       |
+| POST   | `/columnHeadings/delete` | 🛡️  | Delete column heading                       |
+| POST   | `/timeSlots`             | 🛡️  | Create time slot                            |
+| POST   | `/timeSlots/update`      | 🛡️  | Update time slot                            |
+| POST   | `/timeSlots/delete`      | 🛡️  | Delete time slot                            |
+| POST   | `/subjects`              | 🛡️  | Create subject                              |
+| POST   | `/subjects/update`       | 🛡️  | Update subject                              |
+| POST   | `/subjects/delete`       | 🛡️  | Delete subject                              |
+
+### Lecturer Requests `/lecturer-request`
+
+| Method | Path                  | Auth | Description                               |
+|--------|-----------------------|------|-------------------------------------------|
+| GET    | `/`                   | 🔑  | List all lecturer requests                |
+| POST   | `/`                   | 🔑  | Submit a new lecturer request             |
+| POST   | `/check-availability` | 🔑  | Check slot availability for a date        |
+| POST   | `/update`             | 🛡️  | Confirm or cancel a request (admin)       |
+| POST   | `/delete`             | 🛡️  | Delete a request (admin)                  |
+
+### News `/news`
+
+| Method | Path      | Auth | Description          |
+|--------|-----------|------|----------------------|
+| GET    | `/`       | 🔓  | List all news items  |
+| GET    | `/byId`   | 🔓  | Get a single news item |
+| POST   | `/`       | 🛡️  | Create a news item   |
+| POST   | `/update` | 🛡️  | Update a news item   |
+| POST   | `/delete` | 🛡️  | Delete a news item   |
+
+### Lecturer Assignments `/lecturer-assignment` *(new)*
+
+| Method | Path                      | Auth | Description                                           |
+|--------|---------------------------|------|-------------------------------------------------------|
+| GET    | `/responsibilities`       | 🔓  | List all responsibility types                         |
+| POST   | `/responsibilities`       | 🛡️  | Create a responsibility type                          |
+| POST   | `/responsibilities/update`| 🛡️  | Update a responsibility type                          |
+| POST   | `/responsibilities/delete`| 🛡️  | Delete a responsibility type                          |
+| GET    | `/assignments`            | 🔓  | List all subject–lecturer assignments (with joins)    |
+| POST   | `/assignments`            | 🛡️  | Assign a lecturer to a subject                        |
+| POST   | `/assignments/update`     | 🛡️  | Update an assignment                                  |
+| POST   | `/assignments/delete`     | 🛡️  | Remove an assignment                                  |
+
+---
+
+## Database Schema
+
+Full schema: `Backend/seeds/laboratory_schedule_system.sql`
+
+| Table                       | Purpose                                                     |
+|-----------------------------|-------------------------------------------------------------|
+| `users`                     | Admin and lecturer accounts                                 |
+| `timetable_settings`        | Grid dimensions (rows, columns, break row)                  |
+| `timetable_time_slots`      | Time slot definitions                                       |
+| `timetable_column_headings` | Column (day) headings                                       |
+| `timetable`                 | Permanent timetable records                                 |
+| `timetable_cells`           | Grid cell reference points                                  |
+| `temporary_timetable`       | Confirmed lecturer requests shown in the weekly view        |
+| `years`                     | Academic years                                              |
+| `lecture_groups`            | Student groups                                              |
+| `labs`                      | Laboratory rooms                                            |
+| `practical_subjects`        | Subjects with year associations                             |
+| `subject_group_relations`   | Subject ↔ group assignments                                 |
+| `lecturer_responsibility`   | Responsibility type definitions (Lab In-Charge, etc.)       |
+| `subject_lecture_relations` | Subject ↔ lecturer assignments with optional responsibility |
+| `lecturer_requests`         | Incoming lecturer slot requests                             |
+| `news`                      | News items                                                  |
+| `images`                    | Uploaded images linked to news items                        |
+
+### Database Migration
+
+If upgrading an existing installation that predates the lecturer request enhancements, apply:
+
+```bash
+mysql -u root -p < database_migration_lecturer_requests.sql
+```
+
+---
+
+## Backend Libraries
+
+| Package                   | Version | Purpose                            |
+|---------------------------|---------|------------------------------------|
+| `vlucas/phpdotenv`        | ^5.6    | Environment variable loading       |
+| `firebase/php-jwt`        | ^6.11   | JWT creation and verification      |
+| `respect/validation`      | ^2.4    | Request body validation middleware |
+| `phpmailer/phpmailer`     | ^7.0    | SMTP email notifications           |
+| `paragonie/sodium_compat` | ^2.4    | Cryptographic compatibility        |
+
+---
+
+## Pages
+
+| Page        | Path                                  |
+|-------------|---------------------------------------|
+| Home        | `Frontend/index.php`                  |
+| Timetable   | `Frontend/Pages/timetable.php`        |
+| News        | `Frontend/Pages/news.php`             |
+| Login       | `Frontend/Pages/login.php`            |
+| Admin Panel | `Frontend/Pages/AdminPanel/admin.php` |
+
+---
+
+## Notes
+
+- The timetable grid is fully database-driven — dimensions, headings, and time slots are all configurable from the admin panel without any code changes.
+- Temporary timetable records are keyed by date, so confirmed lecturer requests appear only on the day they are scheduled.
+- Admin cancellations require a cancel reason (`admin_message`), which is included in the notification email sent to the requesting lecturer.
+- Audit fields (`created_by`, `updated_by`, `assigned_by`) are populated automatically from the authenticated user's JWT token. Clients never send these values.
+- The `lecturer_responsibility` table stores reusable responsibility labels. Deleting a responsibility sets `responsibility_id` to `NULL` on related assignments (FK `ON DELETE SET NULL`) — existing assignments are not removed.
+- News images are stored in `storage/images/` at the project root. This directory is created automatically on the first upload.
+- The seed script is locked after its first successful run. Delete `Backend/seeds/.seed.lock` to allow re-seeding on a fresh database.
+
+---
 
 ## Author
 
-- Lahiru Lakmina
+- **Lahiru Lakmina**
 - Email: `lahirulakmina1999@gmail.com`
-- GitHub: `HALLakmina`
+- GitHub: [HALLakmina](https://github.com/HALLakmina)
