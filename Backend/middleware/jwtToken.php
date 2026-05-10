@@ -57,6 +57,17 @@
                 exit;
             }
         }
+
+        public static function requireRole(string $requiredRole): callable {
+            return function ($req = null, $res = null) use ($requiredRole) {
+                $user = Route::getInstance()->request['user'] ?? [];
+                if (($user['role'] ?? '') !== $requiredRole) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Forbidden: admin access required']);
+                    exit;
+                }
+            };
+        }
     }
 
 ?>

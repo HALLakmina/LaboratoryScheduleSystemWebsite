@@ -36,9 +36,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -58,9 +60,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -79,9 +83,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -98,9 +104,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -119,9 +127,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -141,6 +151,7 @@ class UsersController {
             $foundUser = $this->usersService->getByEmail($email);
 
             if (!$foundUser || empty($foundUser)) {
+                http_response_code(401);
                 echo json_encode([
                     'status' => '401',
                     'message' => 'Wrong email or password.'
@@ -151,6 +162,7 @@ class UsersController {
             $user = $foundUser[0];
 
             if (!password_verify($password, $user['password'])) {
+                http_response_code(401);
                 echo json_encode([
                     'status' => '401',
                     'message' => 'Wrong email or password.'
@@ -165,15 +177,15 @@ class UsersController {
             }
             $jwtToken = $jwt->createJwtToken($userName, $user['role'], $user['email'], $user['id']);
 
-            $isDeployment = false;
+            $isSecure = ($_ENV['APP_ENV'] ?? 'local') === 'production';
             $res = $res ?? [];
             if (is_callable($res['cookie'] ?? null)) {
                 $res['cookie']('token', $jwtToken, [
-                    'expires' => time() + (60 * 60 * 24),
-                    'path' => '/',
-                    'secure' => $isDeployment,
+                    'expires'  => time() + (60 * 60 * 24),
+                    'path'     => '/',
+                    'secure'   => $isSecure,
                     'httponly' => true,
-                    'samesite' => $isDeployment ? 'none' : 'lax',
+                    'samesite' => $isSecure ? 'none' : 'lax',
                 ]);
             }
 
@@ -191,9 +203,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -204,16 +218,16 @@ class UsersController {
      */
     public function logout($req = null, $res = null) {
         try {
-            $isDeployment = false;
+            $isSecure = ($_ENV['APP_ENV'] ?? 'local') === 'production';
             $res = $res ?? [];
 
             if (is_callable($res['cookie'] ?? null)) {
                 $res['cookie']('token', '', [
-                    'expires' => time() - 3600,
-                    'path' => '/',
-                    'secure' => $isDeployment,
+                    'expires'  => time() - 3600,
+                    'path'     => '/',
+                    'secure'   => $isSecure,
                     'httponly' => true,
-                    'samesite' => $isDeployment ? 'none' : 'lax',
+                    'samesite' => $isSecure ? 'none' : 'lax',
                 ]);
             }
 
@@ -223,9 +237,11 @@ class UsersController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }

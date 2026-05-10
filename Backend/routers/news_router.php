@@ -27,6 +27,7 @@ class NewsRouter {
         $authorMiddleware = function ($req = null, $res = null) {
             (new JwtToken())->validateToken($req, $res);
         };
+        $adminMiddleware = JwtToken::requireRole('admin');
 
         $createValidation = function ($req = null, $res = null) {
             $this->validation->newsCreate($req, $res);
@@ -48,15 +49,15 @@ class NewsRouter {
             $this->newsController->getById($req, $res);
         });
 
-        $this->router->post('/', [$authorMiddleware, $createValidation], function ($req = null, $res = null) {
+        $this->router->post('/', [$authorMiddleware, $adminMiddleware, $createValidation], function ($req = null, $res = null) {
             $this->newsController->create($req, $res);
         });
 
-        $this->router->post('/update', [$authorMiddleware, $updateValidation], function ($req = null, $res = null) {
+        $this->router->post('/update', [$authorMiddleware, $adminMiddleware, $updateValidation], function ($req = null, $res = null) {
             $this->newsController->update($req, $res);
         });
 
-        $this->router->post('/delete', [$authorMiddleware, $deleteValidation], function ($req = null, $res = null) {
+        $this->router->post('/delete', [$authorMiddleware, $adminMiddleware, $deleteValidation], function ($req = null, $res = null) {
             $this->newsController->delete($req, $res);
         });
     }

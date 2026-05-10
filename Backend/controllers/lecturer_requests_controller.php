@@ -37,9 +37,11 @@ class LecturerRequestsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[LecturerRequestsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -55,9 +57,11 @@ class LecturerRequestsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[LecturerRequestsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -76,9 +80,11 @@ class LecturerRequestsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[LecturerRequestsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -95,9 +101,11 @@ class LecturerRequestsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[LecturerRequestsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -110,6 +118,7 @@ class LecturerRequestsController {
 
             foreach ($requiredFields as $field) {
                 if (!isset($payload[$field]) || trim((string)$payload[$field]) === '') {
+                    http_response_code(400);
                     echo json_encode([
                         'status' => '400',
                         'message' => $field . ' is required.',
@@ -126,9 +135,11 @@ class LecturerRequestsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[LecturerRequestsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }

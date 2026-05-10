@@ -24,9 +24,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -51,9 +53,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -73,9 +77,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -94,9 +100,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }
@@ -113,9 +121,11 @@ class NewsController {
             ]);
             exit;
         } catch (Exception $e) {
+            error_log('[NewsController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
             echo json_encode([
                 'status' => '500',
-                'message' => $e->getMessage()
+                'message' => 'An internal error occurred'
             ]);
             exit;
         }

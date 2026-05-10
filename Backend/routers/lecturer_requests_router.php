@@ -27,6 +27,7 @@ class LecturerRequestsRouter {
         $authorMiddleware = function ($req = null, $res = null) {
             (new JwtToken())->validateToken($req, $res);
         };
+        $adminMiddleware = JwtToken::requireRole('admin');
 
         $createValidation = function ($req = null, $res = null) {
             $this->validation->lecturerRequestCreate($req, $res);
@@ -48,7 +49,7 @@ class LecturerRequestsRouter {
             $this->lecturerRequestsController->create($req, $res);
         });
 
-        $this->router->post('/update', [$authorMiddleware, $updateValidation], function ($req = null, $res = null) {
+        $this->router->post('/update', [$authorMiddleware, $adminMiddleware, $updateValidation], function ($req = null, $res = null) {
             $this->lecturerRequestsController->update($req, $res);
         });
 
@@ -56,7 +57,7 @@ class LecturerRequestsRouter {
             $this->lecturerRequestsController->checkAvailability($req, $res);
         });
 
-        $this->router->post('/delete', [$authorMiddleware, $deleteValidation], function ($req = null, $res = null) {
+        $this->router->post('/delete', [$authorMiddleware, $adminMiddleware, $deleteValidation], function ($req = null, $res = null) {
             $this->lecturerRequestsController->delete($req, $res);
         });
     }
