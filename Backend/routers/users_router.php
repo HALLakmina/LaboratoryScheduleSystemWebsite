@@ -56,19 +56,19 @@ class UsersRouter {
             $this->validation->userLogin($req, $res);
         };
 
-        $this->router->post('/', [$userCreateValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/', [$authorMiddleware, $userCreateValidation], function ($req = null, $res = null) {
             $this->usersController->create($req, $res);
         });
 
-        $this->router->post('/update', [$userUpdateValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/update', [$authorMiddleware, $userUpdateValidation], function ($req = null, $res = null) {
             $this->usersController->update($req, $res);
         });
 
-        $this->router->post('/delete', [$userDeleteValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/delete', [$authorMiddleware, $userDeleteValidation], function ($req = null, $res = null) {
             $this->usersController->delete($req, $res);
         });
 
-        $this->router->post('/reset-password', [$userResetPasswordValidation, $authorMiddleware], function ($req = null, $res = null) {
+        $this->router->post('/reset-password', [$authorMiddleware, $userResetPasswordValidation], function ($req = null, $res = null) {
             $this->usersController->resetPassword($req, $res);
         });
 

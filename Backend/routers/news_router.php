@@ -3,9 +3,11 @@ namespace Backend\Routers;
 
 require_once __DIR__ . '/../controllers/news_controller.php';
 require_once __DIR__ . '/../middleware/validation.php';
+require_once __DIR__ . '/../middleware/jwtToken.php';
 
 use Backend\Controllers\NewsController;
 use Backend\Middleware\Validation;
+use Backend\Middleware\JwtToken;
 use Backend\Utils\Route;
 
 class NewsRouter {
@@ -22,6 +24,10 @@ class NewsRouter {
     }
 
     private function routeNews() {
+        $authorMiddleware = function ($req = null, $res = null) {
+            (new JwtToken())->validateToken($req, $res);
+        };
+
         $createValidation = function ($req = null, $res = null) {
             $this->validation->newsCreate($req, $res);
         };
@@ -42,15 +48,15 @@ class NewsRouter {
             $this->newsController->getById($req, $res);
         });
 
-        $this->router->post('/', [$createValidation], function ($req = null, $res = null) {
+        $this->router->post('/', [$authorMiddleware, $createValidation], function ($req = null, $res = null) {
             $this->newsController->create($req, $res);
         });
 
-        $this->router->post('/update', [$updateValidation], function ($req = null, $res = null) {
+        $this->router->post('/update', [$authorMiddleware, $updateValidation], function ($req = null, $res = null) {
             $this->newsController->update($req, $res);
         });
 
-        $this->router->post('/delete', [$deleteValidation], function ($req = null, $res = null) {
+        $this->router->post('/delete', [$authorMiddleware, $deleteValidation], function ($req = null, $res = null) {
             $this->newsController->delete($req, $res);
         });
     }
