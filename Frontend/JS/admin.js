@@ -1,4 +1,5 @@
 import { getTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, createLectureGroup, updateLectureGroup, deleteLectureGroup, getLabs, createLab, updateLab, deleteLab, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
+import { getResponsibilities, createResponsibility, updateResponsibility, deleteResponsibility, getAssignments, createAssignment, updateAssignment, deleteAssignment } from '../API/lecturerAssignmentsApi.js';
 import { getLecturerRequests, updateLecturerRequest, checkLecturerRequestAvailability, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../API/userApi.js';
@@ -336,6 +337,8 @@ const initAdminPanel = async () => {
         newsItems: [],
         subjects: [],
         users: [],
+        responsibilities: [],
+        assignments: [],
     };
 
     const buildCard = (label, value, themeClass = 'bg-white text-gray-950') => `
@@ -888,6 +891,12 @@ const initAdminPanel = async () => {
     };
 
     const renderAdminPanel = () => {
+        // Make adminState accessible to the assignments sub-panel
+        window.__adminStateRef = adminState;
+        if (typeof window.__renderLecturerAssignments === 'function') {
+            window.__renderLecturerAssignments(adminState);
+        }
+
         const {
             timetableSettings,
             timeSlots,
@@ -1270,6 +1279,8 @@ const initAdminPanel = async () => {
             lectureGroupsResponse,
             labsResponse,
             timetableCellsResponse,
+            responsibilitiesResponse,
+            assignmentsResponse,
         ] = await Promise.all([
             getTimetableSettings(),
             getTimeSlots(),
@@ -1283,6 +1294,8 @@ const initAdminPanel = async () => {
             getLectureGroups(),
             getLabs(),
             getTimetableCells(),
+            getResponsibilities(),
+            getAssignments(),
         ]);
 
         adminState.timetableSettings = settingsResponse.status === '200' ? settingsResponse.data : null;
@@ -1296,9 +1309,9 @@ const initAdminPanel = async () => {
         adminState.newsItems = newsResponse.status === '200' && Array.isArray(newsResponse.data) ? newsResponse.data : [];
         adminState.subjects = subjectsResponse.status === '200' && Array.isArray(subjectsResponse.data) ? subjectsResponse.data : [];
         adminState.years = yearsResponse.status === '200' && Array.isArray(yearsResponse.data) ? yearsResponse.data : [];
-        adminState.users = usersResponse.status === '200' && Array.isArray(usersResponse.data)
-            ? usersResponse.data
-            : [];
+        adminState.users = usersResponse.status === '200' && Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        adminState.responsibilities = responsibilitiesResponse.status === '200' && Array.isArray(responsibilitiesResponse.data) ? responsibilitiesResponse.data : [];
+        adminState.assignments = assignmentsResponse.status === '200' && Array.isArray(assignmentsResponse.data) ? assignmentsResponse.data : [];
 
         fullTimetableSettingsData = adminState.timetableSettings;
         fullTimeSlotsData = adminState.timeSlots;
@@ -2190,4 +2203,315 @@ const initAdminPanel = async () => {
  * Logged users can open scheduling-form from lecturer-request button.
  */
 
-export { initAdminSideNav, initAdminPanel };
+const initLecturerAssignmentsPanel = () => {
+    // ── DOM references ────────────────────────────────────────────────
+    const responsibilitiesContainer   = document.getElementById('admin-responsibilities-list');
+    const assignmentsContainer        = document.getElementById('admin-assignments-list');
+    const responsibilityCreateButton  = document.getElementById('admin-responsibility-create-btn');
+    const assignmentCreateButton      = document.getElementById('admin-assignment-create-btn');
+
+    const responsibilityFormModal     = document.getElementById('admin-responsibility-form-modal');
+    const responsibilityForm          = document.getElementById('admin-responsibility-form');
+    const responsibilityFormTitle     = document.getElementById('admin-responsibility-form-title');
+    const responsibilityFormClose     = document.getElementById('admin-responsibility-form-close');
+    const responsibilityFormCancel    = document.getElementById('admin-responsibility-form-cancel');
+    const responsibilityIdInput       = document.getElementById('admin-responsibility-id');
+    const responsibilityNameInput     = document.getElementById('admin-responsibility-name');
+
+    const assignmentFormModal         = document.getElementById('admin-assignment-form-modal');
+    const assignmentForm              = document.getElementById('admin-assignment-form');
+    const assignmentFormTitle         = document.getElementById('admin-assignment-form-title');
+    const assignmentFormClose         = document.getElementById('admin-assignment-form-close');
+    const assignmentFormCancel        = document.getElementById('admin-assignment-form-cancel');
+    const assignmentIdInput           = document.getElementById('admin-assignment-id');
+    const assignmentSubjectSelect     = document.getElementById('admin-assignment-subject');
+    const assignmentLecturerSelect    = document.getElementById('admin-assignment-lecturer');
+    const assignmentResponsibilitySelect = document.getElementById('admin-assignment-responsibility');
+
+    if (!responsibilitiesContainer || !assignmentsContainer || !responsibilityCreateButton
+        || !assignmentCreateButton || !responsibilityFormModal || !responsibilityForm
+        || !assignmentFormModal || !assignmentForm) {
+        return;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    const showModal  = (el) => { el.classList.remove('hidden'); document.body.classList.add('overflow-hidden'); el.scrollTop = 0; };
+    const hideModal  = (el) => { el.classList.add('hidden'); if (!document.querySelector('.fixed:not(.hidden)')) document.body.classList.remove('overflow-hidden'); };
+
+    const populateSelect = (selectEl, items, valueKey, labelKey, emptyLabel = 'Select') => {
+        const current = selectEl.value;
+        selectEl.innerHTML = `<option value="">${escapeHtml(emptyLabel)}</option>`
+            + items.map(item => `<option value="${escapeHtml(String(item[valueKey] || ''))}">${escapeHtml(String(item[labelKey] || ''))}</option>`).join('');
+        if (current) selectEl.value = current;
+    };
+
+    const getLecturers = () => {
+        const adminStateEl = document.getElementById('admin-assignments-list');
+        if (!adminStateEl) return [];
+        return window.__adminState?.users?.filter(u => u.role === 'lecturer') ?? [];
+    };
+
+    // ── Render responsibilities ───────────────────────────────────────
+    const renderResponsibilities = (items) => {
+        if (!responsibilitiesContainer) return;
+        if (!items.length) {
+            responsibilitiesContainer.innerHTML = `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No responsibilities defined yet.</div>`;
+            return;
+        }
+        responsibilitiesContainer.innerHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Responsibility</th>
+                        <th class="px-4 py-3">Created By</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.responsibility || '-')}</td>
+                            <td class="px-4 py-3 text-gray-500">${escapeHtml(item.created_by || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-responsibility-action="update" data-responsibility-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-responsibility-action="delete" data-responsibility-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+    };
+
+    // ── Render assignments ────────────────────────────────────────────
+    const renderAssignments = (items) => {
+        if (!assignmentsContainer) return;
+        if (!items.length) {
+            assignmentsContainer.innerHTML = `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No assignments yet. Use the button above to assign a lecturer to a subject.</div>`;
+            return;
+        }
+        assignmentsContainer.innerHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Year</th>
+                        <th class="px-4 py-3">Subject Code</th>
+                        <th class="px-4 py-3">Subject Name</th>
+                        <th class="px-4 py-3">Lecturer</th>
+                        <th class="px-4 py-3">Responsibility</th>
+                        <th class="px-4 py-3">Assigned By</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(item => `
+                        <tr class="border-b border-gray-200 align-top">
+                            <td class="px-4 py-3">${escapeHtml(item.year || '-')}</td>
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.subject_cord || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.subject_name || '-')}</td>
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.lecturer_name || '-')}</td>
+                            <td class="px-4 py-3">${item.responsibility_name
+                                ? `<span class="px-3 py-1 rounded-full text-xs font-black bg-sky-100 text-sky-700">${escapeHtml(item.responsibility_name)}</span>`
+                                : '<span class="text-gray-400">—</span>'}</td>
+                            <td class="px-4 py-3 text-gray-500">${escapeHtml(item.assigned_by || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-assignment-action="update" data-assignment-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-assignment-action="delete" data-assignment-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+    };
+
+    // ── Responsibility form open/close ────────────────────────────────
+    const resetResponsibilityForm = () => {
+        responsibilityForm.reset();
+        responsibilityIdInput.value = '';
+        responsibilityFormTitle.textContent = 'New Responsibility';
+    };
+
+    const openResponsibilityForm = (record = null) => {
+        resetResponsibilityForm();
+        if (record) {
+            responsibilityFormTitle.textContent = 'Update Responsibility';
+            responsibilityIdInput.value = record.id || '';
+            responsibilityNameInput.value = record.responsibility || '';
+        }
+        showModal(responsibilityFormModal);
+    };
+
+    const hideResponsibilityForm = () => {
+        hideModal(responsibilityFormModal);
+        resetResponsibilityForm();
+    };
+
+    // ── Assignment form open/close ────────────────────────────────────
+    const resetAssignmentForm = () => {
+        assignmentForm.reset();
+        assignmentIdInput.value = '';
+        assignmentFormTitle.textContent = 'New Assignment';
+    };
+
+    const openAssignmentForm = (record = null, state) => {
+        resetAssignmentForm();
+
+        populateSelect(assignmentSubjectSelect, state.subjects, 'subject_cord',
+            item => `${item.subject_cord} — ${item.subject}`, 'Select subject');
+        assignmentSubjectSelect.innerHTML = `<option value="">Select subject</option>`
+            + state.subjects.map(s => `<option value="${escapeHtml(s.subject_cord)}">${escapeHtml(s.subject_cord + ' — ' + s.subject + (s.year ? ' (' + s.year + ')' : ''))}</option>`).join('');
+
+        const lecturers = (state.users || []).filter(u => u.role === 'lecturer');
+        assignmentLecturerSelect.innerHTML = `<option value="">Select lecturer</option>`
+            + lecturers.map(u => `<option value="${escapeHtml(String(u.id))}">${escapeHtml(u.lecturer_name || (u.first_name + ' ' + u.last_name))}</option>`).join('');
+
+        assignmentResponsibilitySelect.innerHTML = `<option value="">No responsibility (optional)</option>`
+            + state.responsibilities.map(r => `<option value="${escapeHtml(String(r.id))}">${escapeHtml(r.responsibility)}</option>`).join('');
+
+        if (record) {
+            assignmentFormTitle.textContent = 'Update Assignment';
+            assignmentIdInput.value = record.id || '';
+            assignmentSubjectSelect.value = record.subject_cord || '';
+            assignmentLecturerSelect.value = String(record.lecturer_id || '');
+            assignmentResponsibilitySelect.value = String(record.responsibility_id || '');
+        }
+        showModal(assignmentFormModal);
+    };
+
+    const hideAssignmentForm = () => {
+        hideModal(assignmentFormModal);
+        resetAssignmentForm();
+    };
+
+    // ── Reload helper (updates both containers) ───────────────────────
+    const reloadAssignmentData = async (state) => {
+        try {
+            const [rRes, aRes] = await Promise.all([getResponsibilities(), getAssignments()]);
+            state.responsibilities = rRes.status === '200' && Array.isArray(rRes.data) ? rRes.data : state.responsibilities;
+            state.assignments      = aRes.status === '200' && Array.isArray(aRes.data) ? aRes.data : state.assignments;
+        } catch (_) { /* non-critical */ }
+        renderResponsibilities(state.responsibilities);
+        renderAssignments(state.assignments);
+    };
+
+    // ── Event: nav buttons already bound; expose render for initial load ──
+    // Called from renderAdminPanel in the main init block — we attach a hook below.
+    window.__renderLecturerAssignments = (state) => {
+        renderResponsibilities(state.responsibilities);
+        renderAssignments(state.assignments);
+    };
+
+    // ── Responsibility form submit ─────────────────────────────────────
+    responsibilityCreateButton.addEventListener('click', () => openResponsibilityForm());
+    responsibilityFormClose.addEventListener('click',  hideResponsibilityForm);
+    responsibilityFormCancel.addEventListener('click', hideResponsibilityForm);
+
+    responsibilityForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            id:             responsibilityIdInput.value || '',
+            responsibility: responsibilityNameInput.value.trim(),
+        };
+        try {
+            const result = payload.id
+                ? await updateResponsibility(payload)
+                : await createResponsibility(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save responsibility.');
+                return;
+            }
+            window.alert(result.message || 'Responsibility saved.');
+            hideResponsibilityForm();
+            const state = window.__adminStateRef;
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to save responsibility.');
+        }
+    });
+
+    responsibilitiesContainer.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-responsibility-action]');
+        if (!btn) return;
+        const id     = btn.getAttribute('data-responsibility-id') || '';
+        const action = btn.getAttribute('data-responsibility-action') || '';
+        const state  = window.__adminStateRef;
+        const record = state?.responsibilities.find(r => String(r.id) === String(id));
+        if (!record) return;
+
+        if (action === 'update') { openResponsibilityForm(record); return; }
+
+        if (!window.confirm('Delete this responsibility? Assignments using it will lose their responsibility link.')) return;
+        try {
+            const result = await deleteResponsibility(id);
+            window.alert(result.message || 'Responsibility deleted.');
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to delete responsibility.');
+        }
+    });
+
+    // ── Assignment form submit ────────────────────────────────────────
+    assignmentCreateButton.addEventListener('click', () => openAssignmentForm(null, window.__adminStateRef || { subjects: [], users: [], responsibilities: [] }));
+    assignmentFormClose.addEventListener('click',  hideAssignmentForm);
+    assignmentFormCancel.addEventListener('click', hideAssignmentForm);
+
+    assignmentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            id:                assignmentIdInput.value || '',
+            subject_cord:      assignmentSubjectSelect.value || '',
+            lecturer_id:       assignmentLecturerSelect.value || '',
+            responsibility_id: assignmentResponsibilitySelect.value || '',
+        };
+
+        if (!payload.subject_cord) { window.alert('Please select a subject.'); return; }
+        if (!payload.lecturer_id)  { window.alert('Please select a lecturer.'); return; }
+
+        try {
+            const result = payload.id
+                ? await updateAssignment(payload)
+                : await createAssignment(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save assignment.');
+                return;
+            }
+            window.alert(result.message || 'Assignment saved.');
+            hideAssignmentForm();
+            const state = window.__adminStateRef;
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to save assignment.');
+        }
+    });
+
+    assignmentsContainer.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-assignment-action]');
+        if (!btn) return;
+        const id     = btn.getAttribute('data-assignment-id') || '';
+        const action = btn.getAttribute('data-assignment-action') || '';
+        const state  = window.__adminStateRef;
+        const record = state?.assignments.find(a => String(a.id) === String(id));
+        if (!record) return;
+
+        if (action === 'update') {
+            openAssignmentForm(record, state || { subjects: [], users: [], responsibilities: [] });
+            return;
+        }
+
+        if (!window.confirm('Delete this assignment?')) return;
+        try {
+            const result = await deleteAssignment(id);
+            window.alert(result.message || 'Assignment deleted.');
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to delete assignment.');
+        }
+    });
+};
+
+export { initAdminSideNav, initAdminPanel, initLecturerAssignmentsPanel };

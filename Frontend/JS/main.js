@@ -1,5 +1,5 @@
 import { initTimetablePage } from './timetable.js';
-import { initAdminPanel, initAdminSideNav } from './admin.js';
+import { initAdminPanel, initAdminSideNav, initLecturerAssignmentsPanel } from './admin.js';
 import { initNewsPage } from './news.js';
 import { initLoginForm } from './login.js';
 import { initAuthNavButton } from './loginUser.js';
@@ -13,5 +13,6 @@ initLoadingSystem();
     initNewsPage,
     initAdminSideNav,
     initAdminPanel,
+    initLecturerAssignmentsPanel,
     initTimetablePage,
 ].forEach((initializer) => initializer());

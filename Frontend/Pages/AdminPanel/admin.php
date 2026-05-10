@@ -28,6 +28,8 @@
                         <button type="button" data-admin-target="admin-labs" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Labs</button>
                         <button type="button" data-admin-target="admin-subjects" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Subjects</button>
                         <button type="button" data-admin-target="admin-users" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Users</button>
+                        <button type="button" data-admin-target="admin-responsibilities" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Responsibilities</button>
+                        <button type="button" data-admin-target="admin-assignments" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Lecturer Assignments</button>
                     </nav>
                 </aside>
 
@@ -181,6 +183,30 @@
                             <button id="admin-user-create-btn" type="button" class="bg-emerald-600 text-white font-black px-4 py-3 rounded-lg hover:bg-emerald-700">New User</button>
                         </div>
                         <div id="admin-users-list" class="pt-5 overflow-x-auto"></div>
+                    </section>
+
+                    <section id="admin-responsibilities" data-admin-section class="hidden bg-white/92 rounded-lg p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Responsibilities</p>
+                                <h2 class="text-2xl font-black">Manage Lecturer Responsibilities</h2>
+                                <p class="pt-2 text-sm text-gray-600">Define responsibility types that can be assigned to lecturers (e.g. Lab In-Charge, Demonstrator).</p>
+                            </div>
+                            <button id="admin-responsibility-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-lg hover:bg-sky-700">New Responsibility</button>
+                        </div>
+                        <div id="admin-responsibilities-list" class="pt-5 overflow-x-auto"></div>
+                    </section>
+
+                    <section id="admin-assignments" data-admin-section class="hidden bg-white/92 rounded-lg p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Lecturer Assignments</p>
+                                <h2 class="text-2xl font-black">Assign Lecturers to Subjects</h2>
+                                <p class="pt-2 text-sm text-gray-600">Link lecturers to practical subjects and optionally set their responsibility type.</p>
+                            </div>
+                            <button id="admin-assignment-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-lg hover:bg-sky-700">New Assignment</button>
+                        </div>
+                        <div id="admin-assignments-list" class="pt-5 overflow-x-auto"></div>
                     </section>
                 </div>
             </section>
@@ -508,6 +534,52 @@
                 </div>
             </form>
         </section>
+        <!-- Responsibility form modal -->
+        <section id="admin-responsibility-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-responsibility-form" class="w-full max-w-2xl bg-white rounded-lg p-5 shadow-2xl grid grid-cols-1 gap-4 my-8 mx-auto">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Responsibility</p>
+                        <h3 id="admin-responsibility-form-title" class="text-2xl font-black">New Responsibility</h3>
+                    </div>
+                    <button type="button" id="admin-responsibility-form-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <input type="hidden" id="admin-responsibility-id">
+                <input type="text" id="admin-responsibility-name" placeholder="Responsibility name (e.g. Lab In-Charge)" class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3" required>
+                <div class="flex gap-3 justify-end">
+                    <button id="admin-responsibility-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-lg hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-lg hover:bg-sky-700">Save Responsibility</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Assignment form modal -->
+        <section id="admin-assignment-form-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <form id="admin-assignment-form" class="w-full max-w-3xl bg-white rounded-lg p-5 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-4 my-8 mx-auto">
+                <div class="md:col-span-2 flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Lecturer Assignment</p>
+                        <h3 id="admin-assignment-form-title" class="text-2xl font-black">New Assignment</h3>
+                    </div>
+                    <button type="button" id="admin-assignment-form-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <input type="hidden" id="admin-assignment-id">
+                <select id="admin-assignment-subject" class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3" required>
+                    <option value="">Select subject</option>
+                </select>
+                <select id="admin-assignment-lecturer" class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3" required>
+                    <option value="">Select lecturer</option>
+                </select>
+                <select id="admin-assignment-responsibility" class="md:col-span-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3">
+                    <option value="">No responsibility (optional)</option>
+                </select>
+                <div class="md:col-span-2 flex gap-3 justify-end">
+                    <button id="admin-assignment-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-lg hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-lg hover:bg-sky-700">Save Assignment</button>
+                </div>
+            </form>
+        </section>
+
         <?php include __DIR__ . '/../../Components/FooterBar.php';?>
     </body>
     <script type="module" src="../../JS/main.js"></script>
