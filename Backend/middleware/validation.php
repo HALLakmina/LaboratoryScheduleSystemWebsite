@@ -543,5 +543,49 @@ class Validation {
     public function lecturerRequestDelete($req = null, $res = null) {
         $this->deleteById($req, $res);
     }
+
+    // ── Lecturer Responsibility ───────────────────────────────────────
+
+    private function responsibilityRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('responsibility', v::stringType()->notEmpty()->length(1, 100)->setName('responsibility'));
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    public function responsibilityCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->responsibilityRule(false));
+    }
+
+    public function responsibilityUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->responsibilityRule(true));
+    }
+
+    // ── Subject–Lecturer Assignment ───────────────────────────────────
+
+    private function assignmentRule($requireId = false) {
+        $validator = v::arrayType()
+            ->key('subject_cord', v::stringType()->notEmpty()->length(1, 20)->setName('subject_cord'))
+            ->key('lecturer_id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('lecturer_id'))
+            ->key('responsibility_id', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('responsibility_id'), false);
+
+        if ($requireId) {
+            $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));
+        }
+
+        return $validator;
+    }
+
+    public function assignmentCreate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->assignmentRule(false));
+    }
+
+    public function assignmentUpdate($req = null, $res = null) {
+        $this->assertPayload($this->getPayload($req), $this->assignmentRule(true));
+    }
 }
 ?>

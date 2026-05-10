@@ -92,6 +92,21 @@ CREATE TABLE `lecturer_requests` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `lecturer_responsibility`
+--
+
+CREATE TABLE `lecturer_responsibility` (
+  `id` int(11) NOT NULL,
+  `responsibility` varchar(100) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` varchar(100) NOT NULL,
+  `updated_by` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `lecture_groups`
 --
 
@@ -166,6 +181,7 @@ CREATE TABLE `subject_lecture_relations` (
   `id` int(11) NOT NULL,
   `subject_cord` varchar(20) NOT NULL,
   `lecturer_id` int(11) NOT NULL,
+  `responsibility_id` int(11) DEFAULT NULL,
   `assigned_by` varchar(50) DEFAULT NULL,
   `assigned_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -365,6 +381,13 @@ ALTER TABLE `lecturer_requests`
   ADD KEY `fk_request_lecture_group` (`lecture_group_id`);
 
 --
+-- Indexes for table `lecturer_responsibility`
+--
+ALTER TABLE `lecturer_responsibility`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `responsibility` (`responsibility`);
+
+--
 -- Indexes for table `lecture_groups`
 --
 ALTER TABLE `lecture_groups`
@@ -401,7 +424,8 @@ ALTER TABLE `subject_group_relations`
 ALTER TABLE `subject_lecture_relations`
   ADD PRIMARY KEY (`id`),
   ADD KEY `subject_cord` (`subject_cord`),
-  ADD KEY `lecturer_id` (`lecturer_id`);
+  ADD KEY `lecturer_id` (`lecturer_id`),
+  ADD KEY `fk_subject_lecturer_responsibility` (`responsibility_id`);
 
 --
 -- Indexes for table `temporary_timetable`
@@ -494,6 +518,12 @@ ALTER TABLE `labs`
 --
 ALTER TABLE `lecturer_requests`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+
+--
+-- AUTO_INCREMENT for table `lecturer_responsibility`
+--
+ALTER TABLE `lecturer_responsibility`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `lecture_groups`
@@ -626,6 +656,7 @@ ALTER TABLE `subject_group_relations`
 -- Constraints for table `subject_lecture_relations`
 --
 ALTER TABLE `subject_lecture_relations`
+  ADD CONSTRAINT `fk_subject_lecturer_responsibility` FOREIGN KEY (`responsibility_id`) REFERENCES `lecturer_responsibility` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `subject_lecture_relations_ibfk_1` FOREIGN KEY (`subject_cord`) REFERENCES `practical_subjects` (`subject_cord`) ON DELETE CASCADE,
   ADD CONSTRAINT `subject_lecture_relations_ibfk_2` FOREIGN KEY (`lecturer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
