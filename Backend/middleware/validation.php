@@ -548,7 +548,8 @@ class Validation {
 
     private function responsibilityRule($requireId = false) {
         $validator = v::arrayType()
-            ->key('responsibility', v::stringType()->notEmpty()->length(1, 100)->setName('responsibility'));
+            ->key('responsibility', v::stringType()->notEmpty()->length(1, 100)->setName('responsibility'))
+            ->key('responsible_level', v::optional(v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/')))->setName('responsible_level'), false);
 
         if ($requireId) {
             $validator = $validator->key('id', v::anyOf(v::intVal()->positive(), v::stringType()->regex('/^[1-9][0-9]*$/'))->setName('id'));

@@ -75,7 +75,7 @@
             </section>
 
             <section class="overflow-hidden rounded-lg bg-white/92 shadow-2xl ring-1 ring-white/70">
-                <div class="max-h-[calc(100svh-15rem)] w-full overflow-x-auto overflow-y-auto" style="scrollbar-width: thin;">
+                <div class="max-h-[calc(100svh-15rem)] w-full overflow-x-auto overflow-y-auto pb-10" style="scrollbar-width: thin;">
                     <table id="timetable" class="w-full min-w-[860px] border-separate border-spacing-0 text-sm text-left rtl:text-right">
                         <thead id="timetable-head" class="sticky top-0 z-20"></thead>
                         <tbody id="timetable-body"></tbody>

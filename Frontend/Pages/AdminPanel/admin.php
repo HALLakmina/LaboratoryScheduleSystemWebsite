@@ -546,6 +546,10 @@
                 </div>
                 <input type="hidden" id="admin-responsibility-id">
                 <input type="text" id="admin-responsibility-name" placeholder="Responsibility name (e.g. Lab In-Charge)" class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3" required>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-black uppercase tracking-wide text-gray-500">Responsible Level <span class="text-gray-400 font-normal normal-case tracking-normal">(optional — level 1 = Lecturer In-Charge)</span></label>
+                    <input type="number" id="admin-responsibility-level" min="1" placeholder="e.g. 1" class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3">
+                </div>
                 <div class="flex gap-3 justify-end">
                     <button id="admin-responsibility-form-cancel" type="button" class="bg-gray-200 text-gray-900 font-black px-5 py-3 rounded-lg hover:bg-gray-300">Cancel</button>
                     <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-lg hover:bg-sky-700">Save Responsibility</button>

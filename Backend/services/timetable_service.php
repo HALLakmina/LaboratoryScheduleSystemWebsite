@@ -71,8 +71,9 @@ class TimetableService {
                     ps.subject,
                     ps.year_id,
                     y.year,
-                    sl.lecturer_id,
-                    CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
+                    ic.lecturer_id,
+                    ic.lecturer_name,
+                    oth.other_lecturers
                 FROM timetable t
                 LEFT JOIN (
                     SELECT
@@ -86,8 +87,26 @@ class TimetableService {
                 LEFT JOIN labs l ON t.lab_id = l.id
                 LEFT JOIN practical_subjects ps ON t.subject_cord = ps.subject_cord
                 LEFT JOIN years y ON ps.year_id = y.id
-                LEFT JOIN subject_lecture_relations sl ON ps.subject_cord = sl.subject_cord
-                LEFT JOIN users u ON sl.lecturer_id = u.id";
+                LEFT JOIN (
+                    SELECT slr.subject_cord,
+                           slr.lecturer_id,
+                           TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))) AS lecturer_name
+                    FROM subject_lecture_relations slr
+                    JOIN lecturer_responsibility lr ON slr.responsibility_id = lr.id AND lr.responsible_level = 1
+                    JOIN users u ON slr.lecturer_id = u.id
+                ) ic ON ic.subject_cord = t.subject_cord
+                LEFT JOIN (
+                    SELECT slr.subject_cord,
+                           GROUP_CONCAT(
+                               TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                               ORDER BY u.last_name ASC SEPARATOR ', '
+                           ) AS other_lecturers
+                    FROM subject_lecture_relations slr
+                    LEFT JOIN lecturer_responsibility lr ON slr.responsibility_id = lr.id
+                    JOIN users u ON slr.lecturer_id = u.id
+                    WHERE lr.id IS NULL OR lr.responsible_level IS NULL OR lr.responsible_level != 1
+                    GROUP BY slr.subject_cord
+                ) oth ON oth.subject_cord = t.subject_cord";
     }
 
     public function getAllTimeSchedules() {
@@ -113,8 +132,9 @@ class TimetableService {
                     ps.subject,
                     ps.year_id,
                     y.year,
-                    sl.lecturer_id,
-                    CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name
+                    ic.lecturer_id,
+                    ic.lecturer_name,
+                    oth.other_lecturers
                 FROM temporary_timetable tt
                 LEFT JOIN (
                     SELECT
@@ -128,8 +148,26 @@ class TimetableService {
                 LEFT JOIN labs l ON tt.lab_id = l.id
                 LEFT JOIN practical_subjects ps ON tt.subject_cord = ps.subject_cord
                 LEFT JOIN years y ON ps.year_id = y.id
-                LEFT JOIN subject_lecture_relations sl ON ps.subject_cord = sl.subject_cord
-                LEFT JOIN users u ON sl.lecturer_id = u.id
+                LEFT JOIN (
+                    SELECT slr.subject_cord,
+                           slr.lecturer_id,
+                           TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))) AS lecturer_name
+                    FROM subject_lecture_relations slr
+                    JOIN lecturer_responsibility lr ON slr.responsibility_id = lr.id AND lr.responsible_level = 1
+                    JOIN users u ON slr.lecturer_id = u.id
+                ) ic ON ic.subject_cord = tt.subject_cord
+                LEFT JOIN (
+                    SELECT slr.subject_cord,
+                           GROUP_CONCAT(
+                               TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                               ORDER BY u.last_name ASC SEPARATOR ', '
+                           ) AS other_lecturers
+                    FROM subject_lecture_relations slr
+                    LEFT JOIN lecturer_responsibility lr ON slr.responsibility_id = lr.id
+                    JOIN users u ON slr.lecturer_id = u.id
+                    WHERE lr.id IS NULL OR lr.responsible_level IS NULL OR lr.responsible_level != 1
+                    GROUP BY slr.subject_cord
+                ) oth ON oth.subject_cord = tt.subject_cord
                 WHERE tt.action != 'canceled'";
 
         $property = [];
