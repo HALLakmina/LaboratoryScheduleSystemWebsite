@@ -728,7 +728,7 @@ const initSchedulingForm = () => {
         setViewText('subject-name', record?.subject || '');
         setViewText('subject-code', record?.subject_cord || record?.lectureId || '');
         setViewText('lecture-in-charge', record?.lecturer_name || '');
-        setViewText('lecture', record?.year || '');
+        setViewText('lecture', record?.other_lecturers || '');
         setViewText('lecture-group', record?.group_name || '');
         setViewText('lab', record?.lab || record?.lab_name || '');
     };
