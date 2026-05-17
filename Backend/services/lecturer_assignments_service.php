@@ -35,35 +35,42 @@ class LecturerAssignmentsService {
 
     public function getResponsibilities() {
         return $this->fetchAllRows(
-            "SELECT id, responsibility, created_by, updated_by, created_at, updated_at
+            "SELECT id, responsibility, responsible_level, created_by, updated_by, created_at, updated_at
              FROM lecturer_responsibility
-             ORDER BY responsibility ASC"
+             ORDER BY ISNULL(responsible_level) ASC, responsible_level ASC, responsibility ASC"
         );
     }
 
     public function createResponsibility($payload) {
+        $responsibleLevel = !empty($payload['responsible_level']) ? (int)$payload['responsible_level'] : null;
+
         $this->executeQuery(
-            "INSERT INTO lecturer_responsibility (responsibility, created_by, updated_by)
-             VALUES (:responsibility, :created_by, :updated_by)",
+            "INSERT INTO lecturer_responsibility (responsibility, responsible_level, created_by, updated_by)
+             VALUES (:responsibility, :responsible_level, :created_by, :updated_by)",
             [
-                'responsibility' => $payload['responsibility'],
-                'created_by'     => $payload['created_by'] ?? '',
-                'updated_by'     => $payload['updated_by'] ?? '',
+                'responsibility'  => $payload['responsibility'],
+                'responsible_level' => $responsibleLevel,
+                'created_by'      => $payload['created_by'] ?? '',
+                'updated_by'      => $payload['updated_by'] ?? '',
             ]
         );
         return 'Responsibility created successfully';
     }
 
     public function updateResponsibility($payload) {
+        $responsibleLevel = !empty($payload['responsible_level']) ? (int)$payload['responsible_level'] : null;
+
         $this->executeQuery(
             "UPDATE lecturer_responsibility
-             SET responsibility = :responsibility,
-                 updated_by     = :updated_by
+             SET responsibility    = :responsibility,
+                 responsible_level = :responsible_level,
+                 updated_by        = :updated_by
              WHERE id = :id",
             [
-                'id'             => $payload['id'],
-                'responsibility' => $payload['responsibility'],
-                'updated_by'     => $payload['updated_by'] ?? '',
+                'id'                => $payload['id'],
+                'responsibility'    => $payload['responsibility'],
+                'responsible_level' => $responsibleLevel,
+                'updated_by'        => $payload['updated_by'] ?? '',
             ]
         );
         return 'Responsibility updated successfully';
@@ -93,7 +100,8 @@ class LecturerAssignmentsService {
                 TRIM(CONCAT(COALESCE(u.honorifics,''), ' ',
                             u.first_name, ' ', u.last_name))              AS lecturer_name,
                 u.initials                                                AS lecturer_initials,
-                lr.responsibility                                         AS responsibility_name
+                lr.responsibility                                         AS responsibility_name,
+                lr.responsible_level                                     AS responsible_level
              FROM subject_lecture_relations slr
              LEFT JOIN practical_subjects ps ON slr.subject_cord = ps.subject_cord
              LEFT JOIN years y               ON ps.year_id = y.id

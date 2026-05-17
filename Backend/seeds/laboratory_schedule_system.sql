@@ -98,6 +98,7 @@ CREATE TABLE `lecturer_requests` (
 CREATE TABLE `lecturer_responsibility` (
   `id` int(11) NOT NULL,
   `responsibility` varchar(100) NOT NULL,
+  `responsible_level` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `created_by` varchar(100) NOT NULL,
@@ -385,7 +386,8 @@ ALTER TABLE `lecturer_requests`
 --
 ALTER TABLE `lecturer_responsibility`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `responsibility` (`responsibility`);
+  ADD UNIQUE KEY `responsibility` (`responsibility`),
+  ADD UNIQUE KEY `uk_responsible_level` (`responsible_level`);
 
 --
 -- Indexes for table `lecture_groups`
