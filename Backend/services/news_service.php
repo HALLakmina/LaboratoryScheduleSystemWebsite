@@ -207,10 +207,25 @@ class NewsService {
     }
 
     private function createImageRecord($imageFile, $uploadedBy) {
-        $this->ensureImageStorageDirectory();
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $allowedMimeTypes  = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
         $originalName = $imageFile['name'] ?? '';
-        $storedName = $this->generateStoredName($originalName);
+        $extension    = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+        if (!in_array($extension, $allowedExtensions, true)) {
+            throw new Exception('Invalid image file type. Allowed types: jpg, jpeg, png, gif, webp.');
+        }
+
+        $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($imageFile['tmp_name']);
+        if (!in_array($mimeType, $allowedMimeTypes, true)) {
+            throw new Exception('Invalid image content. The uploaded file is not a recognised image.');
+        }
+
+        $this->ensureImageStorageDirectory();
+
+        $storedName       = $this->generateStoredName($originalName);
         $relativeFilePath = $this->imageStorageRelativePath . $storedName;
         $absoluteFilePath = $this->imageStorageAbsolutePath . DIRECTORY_SEPARATOR . $storedName;
 

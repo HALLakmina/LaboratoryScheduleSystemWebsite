@@ -33,7 +33,7 @@ class UsersRouter {
         };
         $adminMiddleware = JwtToken::requireRole('admin');
 
-        $this->router->get('/', function ($req = null, $res = null) {
+        $this->router->get('/', [$authorMiddleware, $adminMiddleware], function ($req = null, $res = null) {
             $this->usersController->getAll($req, $res);
         });
 

@@ -1,7 +1,7 @@
 import { getTimetableData, getTemporaryTimetableData, getSubjectCodes, getYears, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, getTimetableCells, getLabs } from '../API/timetableApi.js';
 import { sendLecturerRequest } from '../API/lecturerRequestApi.js';
 import { getCurrentUserRole, getStoredUser } from './loginUser.js';
-import { bindAsyncFormSubmit } from './utils.js';
+import { bindAsyncFormSubmit, escapeHtml } from './utils.js';
 
 /**
  * Populates subject code select elements (filter_by_subject, subject_code) from API
@@ -168,7 +168,7 @@ const renderTimetableHead = () => {
     tableHead.innerHTML = `
         <tr>
             <th scope="col" class="sticky left-0 z-30 min-w-[96px] bg-gray-950 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.28em] text-sky-100 shadow-[4px_0_12px_rgba(15,23,42,0.18)]">Time</th>
-            ${activeColumnHeadings.map(item => `<th scope="col" class="min-w-[160px] bg-gray-950 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.28em] text-sky-100">${item.column_heading}</th>`).join('')}
+            ${activeColumnHeadings.map(item => `<th scope="col" class="min-w-[160px] bg-gray-950 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.28em] text-sky-100">${escapeHtml(item.column_heading)}</th>`).join('')}
         </tr>
     `;
 };
@@ -565,7 +565,7 @@ const renderTimetableTable = (data) => {
                 ? `<div class="flex flex-wrap gap-2">
                         ${slotGroup.records.map((record) => `
                             <span class="rounded-full bg-gray-950 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
-                                ${record?.subject_cord || '-'}
+                                ${escapeHtml(record?.subject_cord || '-')}
                             </span>
                         `).join('')}
                     </div>`
@@ -1008,8 +1008,8 @@ const initSchedulingForm = () => {
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <p class="text-sm font-black uppercase tracking-wide text-gray-500">${entry.lab?.lab_name || 'Lab'}</p>
-                                <p class="pt-1 text-base font-black text-gray-950">${entry.lectureId || '-'}</p>
+                                <p class="text-sm font-black uppercase tracking-wide text-gray-500">${escapeHtml(entry.lab?.lab_name || 'Lab')}</p>
+                                <p class="pt-1 text-base font-black text-gray-950">${escapeHtml(entry.lectureId || '-')}</p>
                             </div>
                             <span class="${badgeClass} rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white">${label}</span>
                         </div>
