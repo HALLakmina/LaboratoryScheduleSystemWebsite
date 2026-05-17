@@ -160,7 +160,11 @@ class UsersService {
 
     public function getAll() {
         $DB_CON = new DbConnection;
-        $query = "SELECT * FROM users";
+        $query = "SELECT id, initials, initials_stand_for, first_name, last_name,
+                         honorifics, nic, email, mobile_number, role,
+                         created_by, updated_by, created_at, updated_at
+                  FROM users
+                  ORDER BY id ASC";
         $DB_CON->selectData($query);
         $result = $DB_CON->fetchAll();
         if ($result === false) {
