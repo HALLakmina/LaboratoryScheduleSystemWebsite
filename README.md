@@ -25,8 +25,8 @@ A PHP and JavaScript web application for managing laboratory schedules, lecturer
 **Admins** can:
 - review incoming lecturer requests, check slot availability, confirm (with lab assignment) or cancel (with a mandatory reason)
 - manage the full timetable structure — settings, column headings, time slots, cells
-- assign lecturers to practical subjects and define their responsibility type (e.g. Lab In-Charge, Demonstrator)
-- manage reference data — years, lecture groups, labs, subjects, lecturer responsibility types
+- assign lecturers to practical subjects with an optional responsibility type and a numeric responsible level (`responsible_level`); the lecturer at level 1 is automatically treated as the subject's Lecturer In-Charge
+- manage reference data — years, lecture groups, labs, subjects, and lecturer responsibility types (each type carries an optional unique level number)
 - manage user accounts (create, update, delete, reset passwords)
 - publish and manage news items with optional image uploads
 
@@ -41,6 +41,9 @@ A PHP and JavaScript web application for managing laboratory schedules, lecturer
 - timetable slot summary with lecture codes
 - lab allocation modal for each time slot
 - lab list modal showing the lecture schedule for a selected lab
+- time-slot detail panel shows two separate fields:
+  - **Lecturer In-Charge** — the lecturer assigned with `responsible_level = 1`
+  - **Lecturers** — all other assigned lecturers for the subject (comma-separated)
 - lecturer request form (shown to logged-in users when a slot is available)
 - submit-locking prevents duplicate form submissions
 
@@ -53,10 +56,20 @@ A PHP and JavaScript web application for managing laboratory schedules, lecturer
 - confirmed requests are written to `temporary_timetable` and appear in the weekly view
 
 ### Lecturer Assignments
-- admins define responsibility types (e.g. Lab In-Charge, Demonstrator, Assistant)
-- admins assign lecturers to practical subjects with an optional responsibility type
-- assignments are stored in `subject_lecture_relations` linked to `lecturer_responsibility`
-- both sections are fully manageable from the admin panel (create, update, delete)
+
+#### Responsibility Types (`lecturer_responsibility`)
+- admins create responsibility type definitions (e.g. Lab In-Charge, Demonstrator, Assistant)
+- each type carries an optional unique `responsible_level` integer
+- `responsible_level = 1` designates the Lecturer In-Charge — at most one such assignment is allowed per subject
+- `responsible_level` values have a unique constraint in the database; only leveled responsibilities appear in the assignment form dropdown
+
+#### Subject–Lecturer Assignments (`subject_lecture_relations`)
+- a lecturer can be assigned to a subject once, with or without a responsibility
+- each subject may have many assigned lecturers but only one with `responsible_level = 1` (enforced in the frontend before any API call)
+- the admin panel prevents two common mistakes at save time:
+  - assigning the same lecturer to the same subject more than once
+  - assigning two different lecturers to the same subject with `responsible_level = 1`
+- the timetable API returns `lecturer_name` (in-charge) and `other_lecturers` (comma-separated) separately so the public timetable page can display them in distinct fields
 
 ### Admin Panel
 - overview dashboard with system statistics
@@ -66,8 +79,8 @@ A PHP and JavaScript web application for managing laboratory schedules, lecturer
 - news management with image upload support
 - years, groups, labs, subjects CRUD
 - user management — create, update, delete, reset passwords
-- Responsibilities — manage lecturer responsibility type definitions
-- Lecturer Assignments — assign lecturers to subjects with responsibility
+- Responsibilities — create, update, and delete responsibility type definitions; each type has a name and an optional unique `responsible_level` number (level 1 = Lecturer In-Charge)
+- Lecturer Assignments — assign lecturers to subjects with an optional leveled responsibility; uniqueness rules enforced in the UI
 
 ### Email Notifications
 - powered by `phpmailer/phpmailer`
@@ -392,18 +405,26 @@ Full schema: `Backend/seeds/laboratory_schedule_system.sql`
 | `labs`                      | Laboratory rooms                                            |
 | `practical_subjects`        | Subjects with year associations                             |
 | `subject_group_relations`   | Subject ↔ group assignments                                 |
-| `lecturer_responsibility`   | Responsibility type definitions (Lab In-Charge, etc.)       |
-| `subject_lecture_relations` | Subject ↔ lecturer assignments with optional responsibility |
+| `lecturer_responsibility`   | Responsibility type definitions with optional unique `responsible_level` (`1` = Lecturer In-Charge) |
+| `subject_lecture_relations` | Subject ↔ lecturer assignments; one lecturer per subject may hold `responsible_level = 1` |
 | `lecturer_requests`         | Incoming lecturer slot requests                             |
 | `news`                      | News items                                                  |
 | `images`                    | Uploaded images linked to news items                        |
 
-### Database Migration
+### Database Migrations
 
-If upgrading an existing installation that predates the lecturer request enhancements, apply:
+**Lecturer requests** — if upgrading from a version that predates the lecturer request feature:
 
 ```bash
 mysql -u root -p < database_migration_lecturer_requests.sql
+```
+
+**Responsible level** — if upgrading from a version that predates the `responsible_level` enhancement, add the column and its unique index to an existing `lecturer_responsibility` table:
+
+```sql
+ALTER TABLE `lecturer_responsibility`
+  ADD COLUMN `responsible_level` int(11) DEFAULT NULL,
+  ADD UNIQUE KEY `uk_responsible_level` (`responsible_level`);
 ```
 
 ---
@@ -438,7 +459,9 @@ mysql -u root -p < database_migration_lecturer_requests.sql
 - Temporary timetable records are keyed by date, so confirmed lecturer requests appear only on the day they are scheduled.
 - Admin cancellations require a cancel reason (`admin_message`), which is included in the notification email sent to the requesting lecturer.
 - Audit fields (`created_by`, `updated_by`, `assigned_by`) are populated automatically from the authenticated user's JWT token. Clients never send these values.
-- The `lecturer_responsibility` table stores reusable responsibility labels. Deleting a responsibility sets `responsibility_id` to `NULL` on related assignments (FK `ON DELETE SET NULL`) — existing assignments are not removed.
+- The `lecturer_responsibility` table stores reusable responsibility type definitions. Each type has a name and an optional unique `responsible_level` integer. Deleting a responsibility type sets `responsibility_id` to `NULL` on related assignments (FK `ON DELETE SET NULL`) — existing assignments are not removed.
+- `responsible_level = 1` identifies the Lecturer In-Charge for a subject. The database enforces uniqueness of `responsible_level` across responsibility types; the frontend enforces that at most one assignment per subject may carry a `responsible_level = 1` responsibility.
+- The timetable API splits subject lecturers into two response fields: `lecturer_name` (the `responsible_level = 1` holder) and `other_lecturers` (all other assigned lecturers, comma-separated). Both fields are `null` when no assignment exists.
 - News images are stored in `storage/images/` at the project root. This directory is created automatically on the first upload.
 - The seed script is locked after its first successful run. Delete `Backend/seeds/.seed.lock` to allow re-seeding on a fresh database.
 
