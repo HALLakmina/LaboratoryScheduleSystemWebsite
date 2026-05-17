@@ -2217,6 +2217,7 @@ const initLecturerAssignmentsPanel = () => {
     const responsibilityFormCancel    = document.getElementById('admin-responsibility-form-cancel');
     const responsibilityIdInput       = document.getElementById('admin-responsibility-id');
     const responsibilityNameInput     = document.getElementById('admin-responsibility-name');
+    const responsibilityLevelInput    = document.getElementById('admin-responsibility-level');
 
     const assignmentFormModal         = document.getElementById('admin-assignment-form-modal');
     const assignmentForm              = document.getElementById('admin-assignment-form');
@@ -2263,14 +2264,23 @@ const initLecturerAssignmentsPanel = () => {
                 <thead class="bg-gray-100 uppercase text-gray-600">
                     <tr>
                         <th class="px-4 py-3">Responsibility</th>
+                        <th class="px-4 py-3">Level</th>
                         <th class="px-4 py-3">Created By</th>
                         <th class="px-4 py-3">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${items.map(item => `
+                    ${items.map(item => {
+                        const level = item.responsible_level;
+                        const levelBadge = (level !== null && level !== undefined && level !== '')
+                            ? `<span class="px-3 py-1 rounded-full text-xs font-black ${Number(level) === 1 ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}">
+                                   Level ${escapeHtml(String(level))}${Number(level) === 1 ? ' · In-Charge' : ''}
+                               </span>`
+                            : '<span class="text-gray-400">—</span>';
+                        return `
                         <tr class="border-b border-gray-200">
                             <td class="px-4 py-3 font-bold">${escapeHtml(item.responsibility || '-')}</td>
+                            <td class="px-4 py-3">${levelBadge}</td>
                             <td class="px-4 py-3 text-gray-500">${escapeHtml(item.created_by || '-')}</td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-2">
@@ -2278,8 +2288,8 @@ const initLecturerAssignmentsPanel = () => {
                                     <button type="button" data-responsibility-action="delete" data-responsibility-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
                                 </div>
                             </td>
-                        </tr>
-                    `).join('')}
+                        </tr>`;
+                    }).join('')}
                 </tbody>
             </table>`;
     };
@@ -2312,7 +2322,13 @@ const initLecturerAssignmentsPanel = () => {
                             <td class="px-4 py-3">${escapeHtml(item.subject_name || '-')}</td>
                             <td class="px-4 py-3 font-bold">${escapeHtml(item.lecturer_name || '-')}</td>
                             <td class="px-4 py-3">${item.responsibility_name
-                                ? `<span class="px-3 py-1 rounded-full text-xs font-black bg-sky-100 text-sky-700">${escapeHtml(item.responsibility_name)}</span>`
+                                ? (() => {
+                                    const lvl = item.responsible_level;
+                                    const isInCharge = lvl !== null && lvl !== undefined && Number(lvl) === 1;
+                                    const colorClass = isInCharge ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700';
+                                    const levelPrefix = (lvl !== null && lvl !== undefined) ? `L${escapeHtml(String(lvl))} · ` : '';
+                                    return `<span class="px-3 py-1 rounded-full text-xs font-black ${colorClass}">${levelPrefix}${escapeHtml(item.responsibility_name)}</span>`;
+                                  })()
                                 : '<span class="text-gray-400">—</span>'}</td>
                             <td class="px-4 py-3 text-gray-500">${escapeHtml(item.assigned_by || '-')}</td>
                             <td class="px-4 py-3">
@@ -2331,6 +2347,7 @@ const initLecturerAssignmentsPanel = () => {
     const resetResponsibilityForm = () => {
         responsibilityForm.reset();
         responsibilityIdInput.value = '';
+        if (responsibilityLevelInput) responsibilityLevelInput.value = '';
         responsibilityFormTitle.textContent = 'New Responsibility';
     };
 
@@ -2340,6 +2357,11 @@ const initLecturerAssignmentsPanel = () => {
             responsibilityFormTitle.textContent = 'Update Responsibility';
             responsibilityIdInput.value = record.id || '';
             responsibilityNameInput.value = record.responsibility || '';
+            if (responsibilityLevelInput) {
+                responsibilityLevelInput.value = (record.responsible_level !== null && record.responsible_level !== undefined)
+                    ? String(record.responsible_level)
+                    : '';
+            }
         }
         showModal(responsibilityFormModal);
     };
@@ -2368,8 +2390,15 @@ const initLecturerAssignmentsPanel = () => {
         assignmentLecturerSelect.innerHTML = `<option value="">Select lecturer</option>`
             + lecturers.map(u => `<option value="${escapeHtml(String(u.id))}">${escapeHtml(u.lecturer_name || (u.first_name + ' ' + u.last_name))}</option>`).join('');
 
-        assignmentResponsibilitySelect.innerHTML = `<option value="">No responsibility (optional)</option>`
-            + state.responsibilities.map(r => `<option value="${escapeHtml(String(r.id))}">${escapeHtml(r.responsibility)}</option>`).join('');
+        const leveledResponsibilities = (state.responsibilities || []).filter(
+            r => r.responsible_level !== null && r.responsible_level !== undefined && r.responsible_level !== ''
+        );
+        assignmentResponsibilitySelect.innerHTML = `<option value="">No responsibility</option>`
+            + leveledResponsibilities.map(r => {
+                const lvl = r.responsible_level;
+                const label = `Level ${escapeHtml(String(lvl))}${Number(lvl) === 1 ? ' (In-Charge)' : ''} — ${escapeHtml(r.responsibility)}`;
+                return `<option value="${escapeHtml(String(r.id))}">${label}</option>`;
+            }).join('');
 
         if (record) {
             assignmentFormTitle.textContent = 'Update Assignment';
@@ -2411,9 +2440,11 @@ const initLecturerAssignmentsPanel = () => {
 
     responsibilityForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const levelRaw = responsibilityLevelInput?.value?.trim() || '';
         const payload = {
-            id:             responsibilityIdInput.value || '',
-            responsibility: responsibilityNameInput.value.trim(),
+            id:                responsibilityIdInput.value || '',
+            responsibility:    responsibilityNameInput.value.trim(),
+            responsible_level: levelRaw !== '' ? parseInt(levelRaw, 10) : '',
         };
         try {
             const result = payload.id
@@ -2471,6 +2502,41 @@ const initLecturerAssignmentsPanel = () => {
         if (!payload.subject_cord) { window.alert('Please select a subject.'); return; }
         if (!payload.lecturer_id)  { window.alert('Please select a lecturer.'); return; }
 
+        const state = window.__adminStateRef;
+        const existing = state?.assignments || [];
+
+        // Bug 1: same lecturer already assigned to the same subject
+        const duplicateLecturer = existing.find(a =>
+            String(a.subject_cord) === String(payload.subject_cord) &&
+            String(a.lecturer_id)  === String(payload.lecturer_id)  &&
+            String(a.id) !== String(payload.id)
+        );
+        if (duplicateLecturer) {
+            window.alert('This lecturer is already assigned to this subject.\nEach lecturer can only be assigned to a subject once.');
+            return;
+        }
+
+        // Bug 2: a second Level-1 (In-Charge) for the same subject
+        if (payload.responsibility_id) {
+            const selectedResp = (state?.responsibilities || []).find(
+                r => String(r.id) === String(payload.responsibility_id)
+            );
+            if (selectedResp && Number(selectedResp.responsible_level) === 1) {
+                const existingInCharge = existing.find(a =>
+                    String(a.subject_cord) === String(payload.subject_cord) &&
+                    String(a.id) !== String(payload.id) &&
+                    Number(a.responsible_level) === 1
+                );
+                if (existingInCharge) {
+                    window.alert(
+                        'This subject already has a Lecturer In-Charge (Level 1).\n' +
+                        'Remove or update the existing Level 1 assignment first.'
+                    );
+                    return;
+                }
+            }
+        }
+
         try {
             const result = payload.id
                 ? await updateAssignment(payload)
@@ -2482,7 +2548,6 @@ const initLecturerAssignmentsPanel = () => {
             }
             window.alert(result.message || 'Assignment saved.');
             hideAssignmentForm();
-            const state = window.__adminStateRef;
             if (state) await reloadAssignmentData(state);
         } catch (err) {
             window.alert(err.message || 'Failed to save assignment.');
