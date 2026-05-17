@@ -1,0 +1,2582 @@
+import { getTimetableData, getSubjectCodes, getYears, createYear, updateYear, deleteYear, getTimeSlots, getColumnHeadings, getTimetableSettings, getLectureGroups, createLectureGroup, updateLectureGroup, deleteLectureGroup, getLabs, createLab, updateLab, deleteLab, getTimetableCells, createTimetableRecord, updateTimetableRecord, deleteTimetableRecord, updateTimetableSettings, resetTimetableSettings, createColumnHeading, updateColumnHeading, deleteColumnHeading, createTimeSlot, updateTimeSlot, deleteTimeSlot, createSubject, updateSubject, deleteSubject } from '../API/timetableApi.js';
+import { getResponsibilities, createResponsibility, updateResponsibility, deleteResponsibility, getAssignments, createAssignment, updateAssignment, deleteAssignment } from '../API/lecturerAssignmentsApi.js';
+import { getLecturerRequests, updateLecturerRequest, checkLecturerRequestAvailability, deleteLecturerRequest } from '../API/lecturerRequestApi.js';
+import { getNews, createNews, updateNews, deleteNews } from '../API/newsApi.js';
+import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../API/userApi.js';
+import { getCurrentUserRole, getStoredUser } from './loginUser.js';
+import { bindAsyncFormSubmit, escapeHtml } from './utils.js';
+
+let fullTimeSlotsData = [];
+let fullColumnHeadingsData = [];
+let fullTimetableSettingsData = null;
+let fullSubjectCodesData = [];
+let fullYearsData = [];
+
+const formatTimePart = (timeValue) => {
+    if (!timeValue) return '';
+
+    const [rawHours, rawMinutes] = String(timeValue).split(':');
+    const hours = Number(rawHours);
+    const minutes = rawMinutes ?? '00';
+    const displayHours = hours > 12 ? hours - 12 : hours;
+    return `${displayHours}.${minutes}`;
+};
+
+const formatTimeSlotLabel = (startTime, endTime) => `${formatTimePart(startTime)}/${formatTimePart(endTime)}`;
+const getActiveTimeSlots = () => {
+    if (!fullTimetableSettingsData || !Array.isArray(fullTimeSlotsData)) return fullTimeSlotsData;
+
+    const breakRowNumber = Number(fullTimetableSettingsData.break_row_number || 0);
+    if (!breakRowNumber) return fullTimeSlotsData;
+
+    return fullTimeSlotsData.filter((_, index) => index !== breakRowNumber - 1);
+};
+
+const getAvailableColumnHeadings = () => (
+    Array.isArray(fullColumnHeadingsData)
+        ? fullColumnHeadingsData.filter((item) => String(item.status || 'active') !== 'deactive')
+        : []
+);
+
+const getAdminColumnHeadingById = (columnHeadingId, items = fullColumnHeadingsData) => (
+    Array.isArray(items)
+        ? items.find((item) => String(item.id) === String(columnHeadingId)) || null
+        : null
+);
+
+const getAdminTimeSlotById = (timeSlotId, items = fullTimeSlotsData) => (
+    Array.isArray(items)
+        ? items.find((item) => String(item.id) === String(timeSlotId)) || null
+        : null
+);
+
+const getTimetableCellGrid = (timetableCells = []) => {
+    if (!fullTimetableSettingsData || !Array.isArray(timetableCells)) return [];
+
+    const columnCount = Number(fullTimetableSettingsData.table_column_count || 0);
+    if (!columnCount || !timetableCells.length) return [];
+
+    const orderedCellIds = timetableCells
+        .slice()
+        .sort((left, right) => Number(left.id || 0) - Number(right.id || 0))
+        .map((item) => Number(item.id || 0))
+        .filter((value) => value > 0);
+
+    const grid = [];
+    for (let index = 0; index < orderedCellIds.length; index += columnCount) {
+        grid.push(orderedCellIds.slice(index, index + columnCount));
+    }
+
+    return grid;
+};
+
+const findAdminTimetableCellByRefs = (timetableCells = [], timeSlotId, columnHeadingId) => (
+    timetableCells.find((item) => (
+        String(item.time_slot_id || '') === String(timeSlotId)
+        && String(item.column_heading_id || '') === String(columnHeadingId)
+    )) || null
+);
+
+const initAdminSideNav = () => {
+    const adminSideNav = document.getElementById('admin-side-nav');
+    const adminNavToggle = document.getElementById('admin-nav-toggle');
+    const adminSideNavLabel = document.getElementById('admin-side-nav-label');
+    const adminSideNavMenu = document.getElementById('admin-side-nav-menu');
+
+    if (!adminSideNav || !adminNavToggle || !adminSideNavLabel || !adminSideNavMenu) {
+        return;
+    }
+
+    const syncAdminNavToggle = (isOpen) => {
+        adminNavToggle.textContent = isOpen ? 'CLOSE' : 'MENU';
+        adminNavToggle.classList.toggle('bg-red-600', isOpen);
+        adminNavToggle.classList.toggle('hover:bg-red-700', isOpen);
+        adminNavToggle.classList.toggle('bg-gray-950', !isOpen);
+        adminNavToggle.classList.toggle('hover:bg-sky-700', !isOpen);
+        adminSideNav.classList.toggle('-translate-x-[70%]', !isOpen);
+        adminSideNav.classList.toggle('bg-transparent', !isOpen);
+        adminSideNav.classList.toggle('shadow-none', !isOpen);
+        adminSideNav.classList.toggle('bg-white/95', isOpen);
+        adminSideNav.classList.toggle('shadow-2xl', isOpen);
+        adminSideNavLabel.classList.toggle('opacity-0', !isOpen);
+        adminSideNavMenu.classList.toggle('opacity-0', !isOpen);
+        adminSideNavMenu.classList.toggle('pointer-events-none', !isOpen);
+        adminSideNavMenu.classList.toggle('pointer-events-auto', isOpen);
+    };
+
+    const isAdminNavOpen = () => !adminSideNav.classList.contains('-translate-x-[70%]');
+
+    const openAdminNav = () => {
+        syncAdminNavToggle(true);
+    };
+
+    const closeAdminNav = () => {
+        syncAdminNavToggle(false);
+    };
+
+    adminNavToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (isAdminNavOpen()) {
+            closeAdminNav();
+            return;
+        }
+
+        openAdminNav();
+    });
+
+    document.addEventListener('admin-nav-close', closeAdminNav);
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1280) {
+            adminSideNav.classList.remove('-translate-x-[70%]', 'bg-white/20', 'shadow-none');
+            adminSideNav.classList.add('bg-white/95', 'shadow-2xl');
+            adminSideNavLabel.classList.remove('opacity-0');
+            adminSideNavMenu.classList.remove('opacity-0', 'pointer-events-none');
+            adminSideNavMenu.classList.add('pointer-events-auto');
+            return;
+        }
+
+        if (!isAdminNavOpen()) {
+            syncAdminNavToggle(false);
+        }
+    });
+
+    syncAdminNavToggle(false);
+};
+
+const initAdminPanel = async () => {
+    const adminPanel = document.getElementById('admin-panel');
+    if (!adminPanel) return;
+
+    const currentUser = getStoredUser();
+    if (!currentUser || getCurrentUserRole() !== 'admin') {
+        window.location.href = '../timetable.php';
+        return;
+    }
+
+    const statsContainer = document.getElementById('admin-stats');
+    const timetableSummary = document.getElementById('admin-timetable-summary');
+    const settingsTableContainer = document.getElementById('admin-settings-table');
+    const columnHeadingsContainer = document.getElementById('admin-column-headings');
+    const timeSlotsContainer = document.getElementById('admin-time-slots');
+    const requestsContainer = document.getElementById('admin-requests-list');
+    const newsContainer = document.getElementById('admin-news-list');
+    const yearsContainer = document.getElementById('admin-years-list');
+    const groupsContainer = document.getElementById('admin-groups-list');
+    const labsContainer = document.getElementById('admin-labs-list');
+    const subjectsContainer = document.getElementById('admin-subjects-list');
+    const usersContainer = document.getElementById('admin-users-list');
+    const manageTimetableContainer = document.getElementById('admin-manage-timetable-list');
+    const refreshButton = document.getElementById('admin-refresh-btn');
+    const newsCreateButton = document.getElementById('admin-news-create-btn');
+    const newsFormModal = document.getElementById('admin-news-form-modal');
+    const newsForm = document.getElementById('admin-news-form');
+    const newsFormCloseButton = document.getElementById('admin-news-form-close');
+    const newsFormCancelButton = document.getElementById('admin-news-form-cancel');
+    const newsFormTitle = document.getElementById('admin-news-form-title');
+    const newsIdInput = document.getElementById('admin-news-id');
+    const newsTitleInput = document.getElementById('admin-news-title');
+    const newsDescriptionInput = document.getElementById('admin-news-description');
+    const newsStartDateInput = document.getElementById('admin-news-start-date');
+    const newsEndDateInput = document.getElementById('admin-news-end-date');
+    const newsStartAtInput = document.getElementById('admin-news-start-at');
+    const newsEndAtInput = document.getElementById('admin-news-end-at');
+    const requestConfirmModal = document.getElementById('admin-request-confirm-modal');
+    const requestConfirmForm = document.getElementById('admin-request-confirm-form');
+    const requestConfirmCloseButton = document.getElementById('admin-request-confirm-close');
+    const requestConfirmCancelButton = document.getElementById('admin-request-confirm-cancel');
+    const requestConfirmIdInput = document.getElementById('admin-request-confirm-id');
+    const requestConfirmLecturerIdInput = document.getElementById('admin-request-confirm-lecturer-id');
+    const requestConfirmSubjectIdInput = document.getElementById('admin-request-confirm-subject-id');
+    const requestConfirmYearIdInput = document.getElementById('admin-request-confirm-year-id');
+    const requestConfirmTimeSlotIdInput = document.getElementById('admin-request-confirm-time-slot-id');
+    const requestConfirmColumnIdInput = document.getElementById('admin-request-confirm-column-id');
+    const requestConfirmGroupIdInput = document.getElementById('admin-request-confirm-group-id');
+    const requestConfirmTimeSlotInput = document.getElementById('admin-request-confirm-time-slot');
+    const requestConfirmDayInput = document.getElementById('admin-request-confirm-day');
+    const requestConfirmLecturerNameInput = document.getElementById('admin-request-confirm-lecturer-name');
+    const requestConfirmYearInput = document.getElementById('admin-request-confirm-year');
+    const requestConfirmSubjectInput = document.getElementById('admin-request-confirm-subject');
+    const requestConfirmGroupInput = document.getElementById('admin-request-confirm-group');
+    const requestConfirmLabSelect = document.getElementById('admin-request-confirm-lab');
+    const requestConfirmDateInput = document.getElementById('admin-request-confirm-date');
+    const requestConfirmDescriptionInput = document.getElementById('admin-request-confirm-description');
+    const requestCheckAvailabilityButton = document.getElementById('admin-request-check-availability');
+    const requestCheckResult = document.getElementById('admin-request-check-result');
+    const requestCancelModal = document.getElementById('admin-request-cancel-modal');
+    const requestCancelForm = document.getElementById('admin-request-cancel-form');
+    const requestCancelCloseButton = document.getElementById('admin-request-cancel-close');
+    const requestCancelDismissButton = document.getElementById('admin-request-cancel-dismiss');
+    const requestCancelIdInput = document.getElementById('admin-request-cancel-id');
+    const requestCancelLecturerIdInput = document.getElementById('admin-request-cancel-lecturer-id');
+    const requestCancelSubjectIdInput = document.getElementById('admin-request-cancel-subject-id');
+    const requestCancelYearIdInput = document.getElementById('admin-request-cancel-year-id');
+    const requestCancelTimeSlotIdInput = document.getElementById('admin-request-cancel-time-slot-id');
+    const requestCancelColumnIdInput = document.getElementById('admin-request-cancel-column-id');
+    const requestCancelGroupIdInput = document.getElementById('admin-request-cancel-group-id');
+    const requestCancelLabIdInput = document.getElementById('admin-request-cancel-lab-id');
+    const requestCancelSubjectInput = document.getElementById('admin-request-cancel-subject');
+    const requestCancelLecturerNameInput = document.getElementById('admin-request-cancel-lecturer-name');
+    const requestCancelDayTimeInput = document.getElementById('admin-request-cancel-day-time');
+    const requestCancelDateInput = document.getElementById('admin-request-cancel-date');
+    const requestCancelDescriptionInput = document.getElementById('admin-request-cancel-description');
+    const requestCancelMessageInput = document.getElementById('admin-request-cancel-message');
+    const yearCreateButton = document.getElementById('admin-year-create-btn');
+    const yearFormModal = document.getElementById('admin-year-form-modal');
+    const yearForm = document.getElementById('admin-year-form');
+    const yearFormCloseButton = document.getElementById('admin-year-form-close');
+    const yearFormCancelButton = document.getElementById('admin-year-form-cancel');
+    const yearFormTitle = document.getElementById('admin-year-form-title');
+    const yearIdInput = document.getElementById('admin-year-id');
+    const yearNameInput = document.getElementById('admin-year-name');
+    const groupCreateButton = document.getElementById('admin-group-create-btn');
+    const groupFormModal = document.getElementById('admin-group-form-modal');
+    const groupForm = document.getElementById('admin-group-form');
+    const groupFormCloseButton = document.getElementById('admin-group-form-close');
+    const groupFormCancelButton = document.getElementById('admin-group-form-cancel');
+    const groupFormTitle = document.getElementById('admin-group-form-title');
+    const groupIdInput = document.getElementById('admin-group-id');
+    const groupNameInput = document.getElementById('admin-group-name');
+    const labCreateButton = document.getElementById('admin-lab-create-btn');
+    const labFormModal = document.getElementById('admin-lab-form-modal');
+    const labForm = document.getElementById('admin-lab-form');
+    const labFormCloseButton = document.getElementById('admin-lab-form-close');
+    const labFormCancelButton = document.getElementById('admin-lab-form-cancel');
+    const labFormTitle = document.getElementById('admin-lab-form-title');
+    const labIdInput = document.getElementById('admin-lab-id');
+    const labNameInput = document.getElementById('admin-lab-name');
+    const labLocationInput = document.getElementById('admin-lab-location');
+    const userCreateButton = document.getElementById('admin-user-create-btn');
+    const userFormModal = document.getElementById('admin-user-form-modal');
+    const userForm = document.getElementById('admin-user-form');
+    const userFormCloseButton = document.getElementById('admin-user-form-close');
+    const userFormCancelButton = document.getElementById('admin-user-form-cancel');
+    const userFormTitle = document.getElementById('admin-user-form-title');
+    const userIdInput = document.getElementById('admin-user-id');
+    const userInitialsInput = document.getElementById('admin-user-initials');
+    const userInitialsStandForInput = document.getElementById('admin-user-initials-stand-for');
+    const userFirstNameInput = document.getElementById('admin-user-first-name');
+    const userLastNameInput = document.getElementById('admin-user-last-name');
+    const userHonorificsSelect = document.getElementById('admin-user-honorifics');
+    const userRoleSelect = document.getElementById('admin-user-role');
+    const userNicInput = document.getElementById('admin-user-nic');
+    const userEmailInput = document.getElementById('admin-user-email');
+    const userMobileInput = document.getElementById('admin-user-mobile');
+    const userPasswordFields = document.getElementById('admin-user-password-fields');
+    const userPasswordInput = document.getElementById('admin-user-password');
+    const userConfirmPasswordInput = document.getElementById('admin-user-confirm-password');
+    const subjectCreateButton = document.getElementById('admin-subject-create-btn');
+    const subjectFormModal = document.getElementById('admin-subject-form-modal');
+    const subjectForm = document.getElementById('admin-subject-form');
+    const subjectFormCloseButton = document.getElementById('admin-subject-form-close');
+    const subjectFormCancelButton = document.getElementById('admin-subject-form-cancel');
+    const subjectFormTitle = document.getElementById('admin-subject-form-title');
+    const subjectIdInput = document.getElementById('admin-subject-id');
+    const subjectCodeInput = document.getElementById('admin-subject-code');
+    const subjectNameInput = document.getElementById('admin-subject-name');
+    const subjectYearSelect = document.getElementById('admin-subject-year');
+    const settingsFormModal = document.getElementById('admin-settings-form-modal');
+    const settingsForm = document.getElementById('admin-settings-form');
+    const settingsFormCloseButton = document.getElementById('admin-settings-form-close');
+    const settingsIdInput = document.getElementById('admin-settings-id');
+    const settingsRowsInput = document.getElementById('admin-settings-rows');
+    const settingsColumnsInput = document.getElementById('admin-settings-columns');
+    const settingsBreakRowInput = document.getElementById('admin-settings-break-row');
+    const settingsFormCancelButton = document.getElementById('admin-settings-form-cancel');
+    const columnHeadingCreateButton = document.getElementById('admin-column-heading-create-btn');
+    const columnHeadingFormModal = document.getElementById('admin-column-heading-form-modal');
+    const columnHeadingForm = document.getElementById('admin-column-heading-form');
+    const columnHeadingFormCloseButton = document.getElementById('admin-column-heading-form-close');
+    const columnHeadingFormTitle = document.getElementById('admin-column-heading-form-title');
+    const columnHeadingIdInput = document.getElementById('admin-column-heading-id');
+    const columnHeadingNameInput = document.getElementById('admin-column-heading-name');
+    const columnHeadingNumberInput = document.getElementById('admin-column-heading-number');
+    const columnHeadingHeadingNumberInput = document.getElementById('admin-column-heading-heading-number');
+    const columnHeadingStatusInput = document.getElementById('admin-column-heading-status');
+    const columnHeadingFormCancelButton = document.getElementById('admin-column-heading-form-cancel');
+    const timeSlotCreateButton = document.getElementById('admin-time-slot-create-btn');
+    const timeSlotFormModal = document.getElementById('admin-time-slot-form-modal');
+    const timeSlotForm = document.getElementById('admin-time-slot-form');
+    const timeSlotFormCloseButton = document.getElementById('admin-time-slot-form-close');
+    const timeSlotFormTitle = document.getElementById('admin-time-slot-form-title');
+    const timeSlotIdInput = document.getElementById('admin-time-slot-id');
+    const timeSlotNumberInput = document.getElementById('admin-time-slot-number');
+    const timeSlotStartInput = document.getElementById('admin-time-slot-start');
+    const timeSlotEndInput = document.getElementById('admin-time-slot-end');
+    const timeSlotFormCancelButton = document.getElementById('admin-time-slot-form-cancel');
+    const timetableFormModal = document.getElementById('admin-timetable-form-modal');
+    const timetableForm = document.getElementById('admin-timetable-form');
+    const timetableCreateButton = document.getElementById('admin-timetable-create-btn');
+    const timetableFormCancelButton = document.getElementById('admin-timetable-form-cancel');
+    const timetableFormCloseButton = document.getElementById('admin-timetable-form-close');
+    const timetableFormTitle = document.getElementById('admin-timetable-form-title');
+    const timetableIdInput = document.getElementById('admin-timetable-id');
+    const timetableCellIdInput = document.getElementById('admin-timetable-cell-id');
+    const timetableSubjectSelect = document.getElementById('admin-timetable-subject');
+    const timetableGroupSelect = document.getElementById('admin-timetable-group');
+    const timetableLabSelect = document.getElementById('admin-timetable-lab');
+    const timetableActionSelect = document.getElementById('admin-timetable-action');
+    const timetableDaySelect = document.getElementById('admin-timetable-day');
+    const timetableTimeSlotSelect = document.getElementById('admin-timetable-time-slot');
+    const adminNavButtons = Array.from(document.querySelectorAll('.admin-nav-btn'));
+    const adminSections = Array.from(document.querySelectorAll('[data-admin-section]'));
+
+    if (!statsContainer || !timetableSummary || !settingsTableContainer || !columnHeadingsContainer || !timeSlotsContainer || !requestsContainer || !newsContainer || !yearsContainer || !groupsContainer || !labsContainer || !subjectsContainer || !usersContainer || !manageTimetableContainer || !refreshButton || !newsCreateButton || !newsFormModal || !newsForm || !newsFormCloseButton || !newsFormCancelButton || !newsFormTitle || !newsIdInput || !newsTitleInput || !newsDescriptionInput || !newsStartDateInput || !newsEndDateInput || !newsStartAtInput || !newsEndAtInput || !requestConfirmModal || !requestConfirmForm || !requestConfirmCloseButton || !requestConfirmCancelButton || !requestConfirmIdInput || !requestConfirmLecturerIdInput || !requestConfirmSubjectIdInput || !requestConfirmYearIdInput || !requestConfirmTimeSlotIdInput || !requestConfirmColumnIdInput || !requestConfirmGroupIdInput || !requestConfirmTimeSlotInput || !requestConfirmDayInput || !requestConfirmLecturerNameInput || !requestConfirmYearInput || !requestConfirmSubjectInput || !requestConfirmGroupInput || !requestConfirmLabSelect || !requestConfirmDateInput || !requestConfirmDescriptionInput || !requestCheckAvailabilityButton || !requestCheckResult || !requestCancelModal || !requestCancelForm || !requestCancelCloseButton || !requestCancelDismissButton || !requestCancelIdInput || !requestCancelLecturerIdInput || !requestCancelSubjectIdInput || !requestCancelYearIdInput || !requestCancelTimeSlotIdInput || !requestCancelColumnIdInput || !requestCancelGroupIdInput || !requestCancelLabIdInput || !requestCancelSubjectInput || !requestCancelLecturerNameInput || !requestCancelDayTimeInput || !requestCancelDateInput || !requestCancelDescriptionInput || !requestCancelMessageInput || !yearCreateButton || !yearFormModal || !yearForm || !yearFormCloseButton || !yearFormCancelButton || !yearFormTitle || !yearIdInput || !yearNameInput || !groupCreateButton || !groupFormModal || !groupForm || !groupFormCloseButton || !groupFormCancelButton || !groupFormTitle || !groupIdInput || !groupNameInput || !labCreateButton || !labFormModal || !labForm || !labFormCloseButton || !labFormCancelButton || !labFormTitle || !labIdInput || !labNameInput || !labLocationInput || !userCreateButton || !userFormModal || !userForm || !userFormCloseButton || !userFormCancelButton || !userFormTitle || !userIdInput || !userInitialsInput || !userInitialsStandForInput || !userFirstNameInput || !userLastNameInput || !userHonorificsSelect || !userRoleSelect || !userNicInput || !userEmailInput || !userMobileInput || !userPasswordFields || !userPasswordInput || !userConfirmPasswordInput || !subjectCreateButton || !subjectFormModal || !subjectForm || !subjectFormCloseButton || !subjectFormCancelButton || !subjectFormTitle || !subjectIdInput || !subjectCodeInput || !subjectNameInput || !subjectYearSelect || !settingsFormModal || !settingsForm || !settingsFormCloseButton || !settingsIdInput || !settingsRowsInput || !settingsColumnsInput || !settingsBreakRowInput || !settingsFormCancelButton || !columnHeadingCreateButton || !columnHeadingFormModal || !columnHeadingForm || !columnHeadingFormCloseButton || !columnHeadingFormTitle || !columnHeadingIdInput || !columnHeadingNameInput || !columnHeadingNumberInput || !columnHeadingHeadingNumberInput || !columnHeadingStatusInput || !columnHeadingFormCancelButton || !timeSlotCreateButton || !timeSlotFormModal || !timeSlotForm || !timeSlotFormCloseButton || !timeSlotFormTitle || !timeSlotIdInput || !timeSlotNumberInput || !timeSlotStartInput || !timeSlotEndInput || !timeSlotFormCancelButton || !timetableFormModal || !timetableForm || !timetableCreateButton || !timetableFormCancelButton || !timetableFormCloseButton || !timetableFormTitle || !timetableIdInput || !timetableCellIdInput || !timetableSubjectSelect || !timetableGroupSelect || !timetableLabSelect || !timetableActionSelect || !timetableDaySelect || !timetableTimeSlotSelect || !adminNavButtons.length || !adminSections.length) {
+        return;
+    }
+
+    const adminState = {
+        timetableSettings: null,
+        years: [],
+        timeSlots: [],
+        columnHeadings: [],
+        timetableCells: [],
+        lectureGroups: [],
+        labs: [],
+        timetableRecords: [],
+        lecturerRequests: [],
+        newsItems: [],
+        subjects: [],
+        users: [],
+        responsibilities: [],
+        assignments: [],
+    };
+
+    const buildCard = (label, value, themeClass = 'bg-white text-gray-950') => `
+        <article class="${themeClass} rounded-lg p-4 shadow-md">
+            <p class="text-xs uppercase tracking-[0.25em] font-black opacity-70">${escapeHtml(label)}</p>
+            <p class="text-3xl font-black pt-2">${escapeHtml(value)}</p>
+        </article>
+    `;
+
+    const formatNewsMeta = (newsItem) => {
+        const parts = [];
+        if (newsItem.start_date) parts.push(newsItem.start_date);
+        if (newsItem.end_date) parts.push(newsItem.end_date);
+        if (newsItem.start_at) parts.push(newsItem.start_at);
+        if (newsItem.end_at) parts.push(newsItem.end_at);
+        return parts.join(' | ') || 'No schedule set';
+    };
+
+    const formatTimeSlotRange = (item) => formatTimeSlotLabel(item.start_time, item.end_time);
+    const getRequestStatusClass = (status) => {
+        const normalized = String(status || '').toLowerCase();
+        if (normalized === 'confirmed') return 'bg-green-100 text-green-700';
+        if (normalized === 'canceled') return 'bg-red-100 text-red-700';
+        return 'bg-amber-100 text-amber-700';
+    };
+
+    const canDeleteLecturerRequest = (requestItem) => {
+        if (!requestItem) return false;
+        if (String(requestItem.action || '').toLowerCase() === 'canceled') return true;
+        const requestDate = String(requestItem.date || '');
+        if (!requestDate) return false;
+
+        const today = new Date();
+        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        return requestDate < todayKey;
+    };
+
+    const getTimetableStatusClass = (status) => {
+        const normalized = String(status || '').toLowerCase();
+        if (normalized === 'active') return 'bg-purple-100 text-purple-800';
+        if (normalized === 'cancel') return 'bg-red-100 text-red-700';
+        return 'bg-green-100 text-green-700';
+    };
+
+    const getOpenAdminModalCount = () => ([
+        newsFormModal,
+        requestConfirmModal,
+        requestCancelModal,
+        yearFormModal,
+        groupFormModal,
+        labFormModal,
+        userFormModal,
+        subjectFormModal,
+        settingsFormModal,
+        columnHeadingFormModal,
+        timeSlotFormModal,
+        timetableFormModal,
+    ].filter(modal => modal && !modal.classList.contains('hidden')).length);
+
+    const lockPageScroll = () => {
+        document.body.classList.add('overflow-hidden');
+    };
+
+    const unlockPageScrollIfSafe = () => {
+        if (getOpenAdminModalCount() === 0) {
+            document.body.classList.remove('overflow-hidden');
+        }
+    };
+
+    const showAdminModal = (modalElement) => {
+        if (!modalElement) return;
+        modalElement.classList.remove('hidden');
+        lockPageScroll();
+        modalElement.scrollTop = 0;
+    };
+
+    const hideAdminModal = (modalElement) => {
+        if (!modalElement) return;
+        modalElement.classList.add('hidden');
+        unlockPageScrollIfSafe();
+    };
+
+    const showAdminSection = (targetSectionId) => {
+        adminSections.forEach(section => {
+            section.classList.toggle('hidden', section.id !== targetSectionId);
+        });
+
+        adminNavButtons.forEach(button => {
+            const isActive = button.getAttribute('data-admin-target') === targetSectionId;
+            button.classList.toggle('bg-gray-950', isActive);
+            button.classList.toggle('text-white', isActive);
+            button.classList.toggle('text-gray-900', !isActive);
+            button.classList.toggle('hover:bg-sky-700', isActive);
+            button.classList.toggle('bg-gray-100', !isActive);
+            button.classList.toggle('hover:bg-sky-100', !isActive);
+        });
+    };
+
+    adminNavButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetSectionId = button.getAttribute('data-admin-target') || 'admin-overview-section';
+            showAdminSection(targetSectionId);
+            if (window.innerWidth < 1280) document.dispatchEvent(new CustomEvent('admin-nav-close'));
+        });
+    });
+
+    showAdminSection('admin-overview-section');
+
+    const getAuditValue = () => currentUser.email || String(currentUser.id || '');
+
+    const resetSettingsForm = () => {
+        settingsForm.reset();
+        settingsIdInput.value = '';
+    };
+
+    const openSettingsForm = (settings) => {
+        if (!settings) return;
+        settingsIdInput.value = settings.id || '';
+        settingsRowsInput.value = settings.table_row_count || 0;
+        settingsColumnsInput.value = settings.table_column_count || 0;
+        settingsBreakRowInput.value = settings.break_row_number || 0;
+        settingsBreakRowInput.max = settings.table_row_count || 0;
+        showAdminModal(settingsFormModal);
+    };
+
+    const hideSettingsForm = () => {
+        hideAdminModal(settingsFormModal);
+        resetSettingsForm();
+    };
+
+    const resetColumnHeadingForm = () => {
+        columnHeadingForm.reset();
+        columnHeadingIdInput.value = '';
+        columnHeadingHeadingNumberInput.value = '';
+        columnHeadingStatusInput.value = 'active';
+    };
+
+    const openColumnHeadingForm = (record = null) => {
+        resetColumnHeadingForm();
+        columnHeadingNumberInput.max = adminState.timetableSettings?.table_column_count || 0;
+        columnHeadingHeadingNumberInput.max = adminState.timetableSettings?.table_column_count || 0;
+        if (record) {
+            columnHeadingFormTitle.textContent = 'Update Column Heading';
+            columnHeadingIdInput.value = record.id || '';
+            columnHeadingNameInput.value = record.column_heading || '';
+            columnHeadingNumberInput.value = record.column_number || '';
+            columnHeadingHeadingNumberInput.value = record.column_heading_number || '';
+            columnHeadingStatusInput.value = record.status || 'active';
+        } else {
+            columnHeadingFormTitle.textContent = 'Add Column Heading';
+        }
+        showAdminModal(columnHeadingFormModal);
+    };
+
+    const hideColumnHeadingForm = () => {
+        hideAdminModal(columnHeadingFormModal);
+        resetColumnHeadingForm();
+    };
+
+    const resetTimeSlotForm = () => {
+        timeSlotForm.reset();
+        timeSlotIdInput.value = '';
+        timeSlotNumberInput.value = '';
+    };
+
+    const openTimeSlotForm = (record = null) => {
+        resetTimeSlotForm();
+        timeSlotNumberInput.max = adminState.timetableSettings?.table_row_count || 0;
+        if (record) {
+            timeSlotFormTitle.textContent = 'Update Time Slot';
+            timeSlotIdInput.value = record.id || '';
+            timeSlotNumberInput.value = record.time_slot_number || '';
+            timeSlotStartInput.value = record.start_time || '';
+            timeSlotEndInput.value = record.end_time || '';
+        } else {
+            timeSlotFormTitle.textContent = 'Add Time Slot';
+        }
+        showAdminModal(timeSlotFormModal);
+    };
+
+    const hideTimeSlotForm = () => {
+        hideAdminModal(timeSlotFormModal);
+        resetTimeSlotForm();
+    };
+
+    const resetNewsForm = () => {
+        newsForm.reset();
+        newsIdInput.value = '';
+    };
+
+    const openNewsForm = (record = null) => {
+        resetNewsForm();
+        if (record) {
+            newsFormTitle.textContent = 'Update News';
+            newsIdInput.value = record.id || '';
+            newsTitleInput.value = record.title || '';
+            newsDescriptionInput.value = record.description || '';
+            newsStartDateInput.value = record.start_date || '';
+            newsEndDateInput.value = record.end_date || '';
+            newsStartAtInput.value = record.start_at || '';
+            newsEndAtInput.value = record.end_at || '';
+        } else {
+            newsFormTitle.textContent = 'New News';
+        }
+        showAdminModal(newsFormModal);
+    };
+
+    const hideNewsForm = () => {
+        hideAdminModal(newsFormModal);
+        resetNewsForm();
+    };
+
+    const populateRequestConfirmLabOptions = () => {
+        requestConfirmLabSelect.innerHTML = `<option value="">Select lab</option>`;
+        adminState.labs.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id || '';
+            option.textContent = `${item.lab_name || ''}${item.lab_location ? ` - ${item.lab_location}` : ''}`;
+            requestConfirmLabSelect.appendChild(option);
+        });
+    };
+
+    const resetRequestConfirmForm = () => {
+        requestConfirmForm.reset();
+        requestConfirmIdInput.value = '';
+        requestConfirmLecturerIdInput.value = '';
+        requestConfirmSubjectIdInput.value = '';
+        requestConfirmYearIdInput.value = '';
+        requestConfirmTimeSlotIdInput.value = '';
+        requestConfirmColumnIdInput.value = '';
+        requestConfirmGroupIdInput.value = '';
+        requestConfirmLabSelect.value = '';
+        requestCheckResult.textContent = '';
+        requestCheckResult.className = 'text-sm font-bold text-gray-600 text-right';
+    };
+
+    const openRequestConfirmForm = (record) => {
+        populateRequestConfirmLabOptions();
+        resetRequestConfirmForm();
+        requestConfirmIdInput.value = record.id || '';
+        requestConfirmLecturerIdInput.value = record.lecturer_id || '';
+        requestConfirmSubjectIdInput.value = record.subject_id || '';
+        requestConfirmYearIdInput.value = record.year_id || '';
+        requestConfirmTimeSlotIdInput.value = record.timetable_time_slot_id || '';
+        requestConfirmColumnIdInput.value = record.timetable_column_heading_id || '';
+        requestConfirmGroupIdInput.value = record.lecture_group_id || record.group_id || '';
+        requestConfirmTimeSlotInput.value = record.start_time && record.end_time ? formatTimeSlotRange(record) : '';
+        requestConfirmDayInput.value = record.column_heading || '';
+        requestConfirmLecturerNameInput.value = record.lecturer_name || '';
+        requestConfirmYearInput.value = record.year || '';
+        requestConfirmSubjectInput.value = record.subject || record.subject_id || '';
+        requestConfirmGroupInput.value = record.group_name || '';
+        requestConfirmLabSelect.value = record.lab_id || '';
+        requestConfirmDateInput.value = record.date || '';
+        requestConfirmDescriptionInput.value = record.lecturer_request || '';
+        showAdminModal(requestConfirmModal);
+    };
+
+    const hideRequestConfirmForm = () => {
+        hideAdminModal(requestConfirmModal);
+        resetRequestConfirmForm();
+    };
+
+    const resetRequestCancelForm = () => {
+        requestCancelForm.reset();
+        requestCancelIdInput.value = '';
+        requestCancelLecturerIdInput.value = '';
+        requestCancelSubjectIdInput.value = '';
+        requestCancelYearIdInput.value = '';
+        requestCancelTimeSlotIdInput.value = '';
+        requestCancelColumnIdInput.value = '';
+        requestCancelGroupIdInput.value = '';
+        requestCancelLabIdInput.value = '';
+        requestCancelMessageInput.value = '';
+    };
+
+    const openRequestCancelForm = (record) => {
+        resetRequestCancelForm();
+        requestCancelIdInput.value = record.id || '';
+        requestCancelLecturerIdInput.value = record.lecturer_id || '';
+        requestCancelSubjectIdInput.value = record.subject_id || '';
+        requestCancelYearIdInput.value = record.year_id || '';
+        requestCancelTimeSlotIdInput.value = record.timetable_time_slot_id || '';
+        requestCancelColumnIdInput.value = record.timetable_column_heading_id || '';
+        requestCancelGroupIdInput.value = record.lecture_group_id || record.group_id || '';
+        requestCancelLabIdInput.value = record.lab_id || '';
+        requestCancelSubjectInput.value = record.subject || record.subject_id || '';
+        requestCancelLecturerNameInput.value = record.lecturer_name || '';
+        requestCancelDayTimeInput.value = `${record.column_heading || '-'} / ${record.start_time && record.end_time ? formatTimeSlotRange(record) : '-'}`;
+        requestCancelDateInput.value = record.date || '';
+        requestCancelDescriptionInput.value = record.lecturer_request || '';
+        requestCancelMessageInput.value = record.admin_message || '';
+        showAdminModal(requestCancelModal);
+    };
+
+    const hideRequestCancelForm = () => {
+        hideAdminModal(requestCancelModal);
+        resetRequestCancelForm();
+    };
+
+    const resetYearForm = () => {
+        yearForm.reset();
+        yearIdInput.value = '';
+    };
+
+    const openYearForm = (record = null) => {
+        resetYearForm();
+        if (record) {
+            yearFormTitle.textContent = 'Update Year';
+            yearIdInput.value = record.id || '';
+            yearNameInput.value = record.year || '';
+        } else {
+            yearFormTitle.textContent = 'New Year';
+        }
+        showAdminModal(yearFormModal);
+    };
+
+    const hideYearForm = () => {
+        hideAdminModal(yearFormModal);
+        resetYearForm();
+    };
+
+    const resetGroupForm = () => {
+        groupForm.reset();
+        groupIdInput.value = '';
+    };
+
+    const openGroupForm = (record = null) => {
+        resetGroupForm();
+        if (record) {
+            groupFormTitle.textContent = 'Update Group';
+            groupIdInput.value = record.id || '';
+            groupNameInput.value = record.group_name || '';
+        } else {
+            groupFormTitle.textContent = 'New Group';
+        }
+        showAdminModal(groupFormModal);
+    };
+
+    const hideGroupForm = () => {
+        hideAdminModal(groupFormModal);
+        resetGroupForm();
+    };
+
+    const resetLabForm = () => {
+        labForm.reset();
+        labIdInput.value = '';
+    };
+
+    const openLabForm = (record = null) => {
+        resetLabForm();
+        if (record) {
+            labFormTitle.textContent = 'Update Lab';
+            labIdInput.value = record.id || '';
+            labNameInput.value = record.lab_name || '';
+            labLocationInput.value = record.lab_location || '';
+        } else {
+            labFormTitle.textContent = 'New Lab';
+        }
+        showAdminModal(labFormModal);
+    };
+
+    const hideLabForm = () => {
+        hideAdminModal(labFormModal);
+        resetLabForm();
+    };
+
+    const populateSubjectYearOptions = () => {
+        setSelectOptions(
+            subjectYearSelect,
+            adminState.years,
+            'Select year',
+            (item) => item.id,
+            (item) => item.year || ''
+        );
+    };
+
+    const resetSubjectForm = () => {
+        subjectForm.reset();
+        subjectIdInput.value = '';
+    };
+
+    const openSubjectForm = (record = null) => {
+        populateSubjectYearOptions();
+        resetSubjectForm();
+        if (record) {
+            subjectFormTitle.textContent = 'Update Subject';
+            subjectIdInput.value = record.subject_id || record.id || '';
+            subjectCodeInput.value = record.subject_cord || '';
+            subjectNameInput.value = record.subject || '';
+            subjectYearSelect.value = record.year_id || '';
+        } else {
+            subjectFormTitle.textContent = 'New Subject';
+        }
+        showAdminModal(subjectFormModal);
+    };
+
+    const hideSubjectForm = () => {
+        hideAdminModal(subjectFormModal);
+        resetSubjectForm();
+    };
+
+    const resetUserForm = () => {
+        userForm.reset();
+        userIdInput.value = '';
+        userRoleSelect.value = '';
+        userPasswordInput.value = '';
+        userConfirmPasswordInput.value = '';
+        userPasswordFields.classList.remove('hidden');
+        userPasswordInput.required = true;
+        userConfirmPasswordInput.required = true;
+    };
+
+    const openUserForm = (record = null) => {
+        resetUserForm();
+        if (record) {
+            userFormTitle.textContent = 'Update User';
+            userIdInput.value = record.id || '';
+            userInitialsInput.value = record.initials || '';
+            userInitialsStandForInput.value = record.initials_stand_for || '';
+            userFirstNameInput.value = record.first_name || '';
+            userLastNameInput.value = record.last_name || '';
+            userHonorificsSelect.value = record.honorifics || '';
+            userRoleSelect.value = record.role || '';
+            userNicInput.value = record.nic || '';
+            userEmailInput.value = record.email || '';
+            userMobileInput.value = record.mobile_number || '';
+            userPasswordFields.classList.add('hidden');
+            userPasswordInput.required = false;
+            userConfirmPasswordInput.required = false;
+        } else {
+            userFormTitle.textContent = 'New User';
+        }
+        showAdminModal(userFormModal);
+    };
+
+    const hideUserForm = () => {
+        hideAdminModal(userFormModal);
+        resetUserForm();
+    };
+
+    const setSelectOptions = (selectElement, items, defaultLabel, getValue, getLabel) => {
+        selectElement.innerHTML = `<option value="">${defaultLabel}</option>`;
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = getValue(item);
+            option.textContent = getLabel(item);
+            selectElement.appendChild(option);
+        });
+    };
+
+    const populateAdminTimetableFormOptions = () => {
+        setSelectOptions(
+            timetableSubjectSelect,
+            adminState.subjects,
+            'Select subject code',
+            (item) => item.subject_cord || '',
+            (item) => `${item.subject_cord || ''}${item.subject ? ` - ${item.subject}` : ''}`
+        );
+        setSelectOptions(
+            timetableGroupSelect,
+            adminState.lectureGroups,
+            'Select group',
+            (item) => item.id,
+            (item) => item.group_name || ''
+        );
+        setSelectOptions(
+            timetableLabSelect,
+            adminState.labs,
+            'Select lab',
+            (item) => item.id,
+            (item) => `${item.lab_name || ''}${item.lab_location ? ` - ${item.lab_location}` : ''}`
+        );
+        setSelectOptions(
+            timetableDaySelect,
+            getAvailableColumnHeadings(),
+            'Select day',
+            (item) => item.id,
+            (item) => item.column_heading || ''
+        );
+        setSelectOptions(
+            timetableTimeSlotSelect,
+            getActiveTimeSlots(),
+            'Select time slot',
+            (item) => item.id,
+            (item) => formatTimeSlotLabel(item.start_time, item.end_time)
+        );
+    };
+
+    const getCellMetaByCellId = (cellId) => {
+        const targetCellId = Number(cellId);
+        const matchedCell = adminState.timetableCells.find((item) => Number(item.id) === targetCellId);
+        const matchedTimeSlot = getAdminTimeSlotById(matchedCell?.time_slot_id || '', adminState.timeSlots);
+        const matchedDay = getAdminColumnHeadingById(matchedCell?.column_heading_id || '', adminState.columnHeadings);
+        if (matchedCell) {
+            return {
+                dayId: matchedDay?.id || '',
+                dayLabel: matchedDay?.column_heading || '',
+                timeSlotId: matchedTimeSlot?.id || '',
+                timeSlotLabel: matchedTimeSlot ? formatTimeSlotLabel(matchedTimeSlot.start_time, matchedTimeSlot.end_time) : '',
+                timetableCellReferenceId: matchedCell?.id || '',
+            };
+        }
+
+        return {
+            dayId: '',
+            dayLabel: '',
+            timeSlotId: '',
+            timeSlotLabel: '',
+            timetableCellReferenceId: '',
+        };
+    };
+
+    const getTimetableCellReferenceId = (dayId, timeSlotId) => {
+        const matchedCell = findAdminTimetableCellByRefs(adminState.timetableCells, timeSlotId, dayId);
+        return matchedCell?.id || '';
+    };
+
+    const resetTimetableForm = () => {
+        timetableForm.reset();
+        timetableIdInput.value = '';
+        timetableCellIdInput.value = '';
+        timetableActionSelect.value = 'free';
+    };
+
+    const hideTimetableForm = () => {
+        hideAdminModal(timetableFormModal);
+        resetTimetableForm();
+    };
+
+    const openTimetableForm = (record = null) => {
+        populateAdminTimetableFormOptions();
+        resetTimetableForm();
+
+        if (record) {
+            timetableFormTitle.textContent = 'Update Timetable Record';
+            timetableIdInput.value = record.timetable_id || '';
+            timetableCellIdInput.value = record.timetable_cell_reference_id || '';
+            timetableSubjectSelect.value = record.subject_cord || '';
+            timetableGroupSelect.value = record.lecture_group_id || '';
+            timetableLabSelect.value = record.lab_id || '';
+            timetableActionSelect.value = record.action || 'free';
+            timetableDaySelect.value = record.column_heading_id || '';
+            timetableTimeSlotSelect.value = record.time_slot_id || '';
+        } else {
+            timetableFormTitle.textContent = 'New Timetable Record';
+        }
+
+        showAdminModal(timetableFormModal);
+    };
+
+    const renderAdminPanel = () => {
+        // Make adminState accessible to the assignments sub-panel
+        window.__adminStateRef = adminState;
+        if (typeof window.__renderLecturerAssignments === 'function') {
+            window.__renderLecturerAssignments(adminState);
+        }
+
+        const {
+            timetableSettings,
+            timeSlots,
+            columnHeadings,
+            timetableRecords,
+            lecturerRequests,
+            newsItems,
+            years,
+            lectureGroups,
+            labs,
+            subjects,
+            users,
+        } = adminState;
+
+        statsContainer.innerHTML = [
+            buildCard('Lecturer Requests', lecturerRequests.length, 'bg-white/95 text-gray-950'),
+            buildCard('News Posts', newsItems.length, 'bg-sky-200 text-gray-950'),
+            buildCard('Subjects', subjects.length, 'bg-amber-100 text-gray-950'),
+            buildCard('Users', users.length, 'bg-emerald-100 text-gray-950'),
+        ].join('');
+
+        timetableSummary.innerHTML = timetableSettings ? [
+            buildCard('Columns', timetableSettings.table_column_count, 'bg-gray-100 text-gray-950'),
+            buildCard('Rows', timetableSettings.table_row_count, 'bg-gray-100 text-gray-950'),
+            buildCard('Cells', timetableSettings.table_cell_count, 'bg-gray-100 text-gray-950'),
+            buildCard('Break Row', timetableSettings.break_row_number, 'bg-gray-100 text-gray-950'),
+        ].join('') : `<div class="md:col-span-4 bg-red-50 text-red-700 rounded-lg p-4 font-bold">No timetable settings found.</div>`;
+
+        settingsTableContainer.innerHTML = timetableSettings ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Rows</th>
+                        <th class="px-4 py-3">Columns</th>
+                        <th class="px-4 py-3">Cells</th>
+                        <th class="px-4 py-3">Break Row</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b border-gray-200">
+                        <td class="px-4 py-3 font-bold">${escapeHtml(timetableSettings.table_row_count)}</td>
+                        <td class="px-4 py-3">${escapeHtml(timetableSettings.table_column_count)}</td>
+                        <td class="px-4 py-3">${escapeHtml(timetableSettings.table_cell_count)}</td>
+                        <td class="px-4 py-3">${escapeHtml(timetableSettings.break_row_number)}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" id="admin-settings-update-btn" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                <button type="button" id="admin-settings-reset-btn" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Reset</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No timetable settings found.</div>`;
+
+        columnHeadingsContainer.innerHTML = columnHeadings.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Column Name</th>
+                        <th class="px-4 py-3">Column Number</th>
+                        <th class="px-4 py-3">Heading Number</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${columnHeadings.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.column_heading)}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.column_number)}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.column_heading_number || '-')}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-black ${String(item.status || 'active') === 'deactive' ? 'bg-gray-200 text-gray-700' : 'bg-green-100 text-green-700'}">${escapeHtml(item.status || 'active')}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-column-heading-action="update" data-column-heading-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-column-heading-action="delete" data-column-heading-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No column headings available.</div>`;
+
+        timeSlotsContainer.innerHTML = timeSlots.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Time Slot Number</th>
+                        <th class="px-4 py-3">Start Time</th>
+                        <th class="px-4 py-3">End Time</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${timeSlots.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.time_slot_number || '-')}</td>
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.start_time)}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.end_time)}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-time-slot-action="update" data-time-slot-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-time-slot-action="delete" data-time-slot-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No time slots available.</div>`;
+
+        manageTimetableContainer.innerHTML = timetableRecords.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Subject Name</th>
+                        <th class="px-4 py-3">Subject Code</th>
+                        <th class="px-4 py-3">Lecture In Charge</th>
+                        <th class="px-4 py-3">Lecture</th>
+                        <th class="px-4 py-3">Group</th>
+                        <th class="px-4 py-3">Lab</th>
+                        <th class="px-4 py-3">Day</th>
+                        <th class="px-4 py-3">Time Slot</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${timetableRecords.map(item => {
+                        const matchedHeading = getAdminColumnHeadingById(item.column_heading_id, columnHeadings);
+                        const matchedTimeSlot = getAdminTimeSlotById(item.time_slot_id, timeSlots);
+                        return `
+                            <tr class="border-b border-gray-200 align-top">
+                                <td class="px-4 py-3 font-bold">${escapeHtml(item.subject || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(item.subject_cord || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(item.lecturer_name || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(item.year || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(item.group_name || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(item.lab || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(matchedHeading?.column_heading || '-')}</td>
+                                <td class="px-4 py-3">${escapeHtml(matchedTimeSlot ? formatTimeSlotLabel(matchedTimeSlot.start_time, matchedTimeSlot.end_time) : '-')}</td>
+                                <td class="px-4 py-3"><span class="px-3 py-1 rounded-full text-xs font-black ${getTimetableStatusClass(item.action)}">${escapeHtml(item.action || 'free')}</span></td>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" data-timetable-action="update" data-timetable-id="${escapeHtml(item.timetable_id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                        <button type="button" data-timetable-action="delete" data-timetable-id="${escapeHtml(item.timetable_id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No timetable records found.</div>`;
+
+        requestsContainer.innerHTML = lecturerRequests.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Lecturer</th>
+                        <th class="px-4 py-3">Subject</th>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3">Day</th>
+                        <th class="px-4 py-3">Time</th>
+                        <th class="px-4 py-3">Action</th>
+                        <th class="px-4 py-3">Request</th>
+                        <th class="px-4 py-3">Manage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${lecturerRequests.map(item => {
+                        const allowDelete = canDeleteLecturerRequest(item);
+                        return `
+                        <tr class="border-b border-gray-200 align-top">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.lecturer_name || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.subject || item.subject_id || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.date || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.column_heading || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.start_time && item.end_time ? formatTimeSlotRange(item) : '-')}</td>
+                            <td class="px-4 py-3"><span class="px-3 py-1 rounded-full text-xs font-black ${getRequestStatusClass(item.action)}">${escapeHtml(item.action || 'requested')}</span></td>
+                            <td class="px-4 py-3 max-w-[280px]">
+                                <p>${escapeHtml(item.lecturer_request || '-')}</p>
+                                ${item.admin_message ? `<p class="pt-2 text-xs font-bold text-red-700">Admin message: ${escapeHtml(item.admin_message)}</p>` : ''}
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-request-action="confirmed" data-request-id="${escapeHtml(item.id)}" class="bg-green-600 text-white px-3 py-2 rounded-lg font-black hover:bg-green-700">Confirm</button>
+                                    <button type="button" data-request-action="canceled" data-request-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Cancel</button>
+                                    <button type="button" data-request-action="delete" data-request-id="${escapeHtml(item.id)}" class="bg-gray-900 text-white px-3 py-2 rounded-lg font-black hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50" ${allowDelete ? '' : 'disabled'}>Delete</button>
+                                </div>
+                                ${allowDelete ? '' : '<p class="pt-2 text-xs font-bold text-gray-500">Delete is allowed only after the request date passes or when the request is canceled.</p>'}
+                            </td>
+                        </tr>
+                    `;
+                    }).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No lecturer requests found.</div>`;
+
+        newsContainer.innerHTML = newsItems.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Title</th>
+                        <th class="px-4 py-3">Schedule</th>
+                        <th class="px-4 py-3">Description</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${newsItems.map(item => `
+                        <tr class="border-b border-gray-200 align-top">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.title || 'Untitled News')}</td>
+                            <td class="px-4 py-3">${escapeHtml(formatNewsMeta(item))}</td>
+                            <td class="px-4 py-3 max-w-[320px]">${escapeHtml(String(item.description || '').slice(0, 180) || 'No description.')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-news-action="update" data-news-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-news-action="delete" data-news-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No news available.</div>`;
+
+        yearsContainer.innerHTML = years.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Year</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${years.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.year || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-year-action="update" data-year-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-year-action="delete" data-year-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No years available.</div>`;
+
+        groupsContainer.innerHTML = lectureGroups.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Group Name</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${lectureGroups.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.group_name || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-group-action="update" data-group-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-group-action="delete" data-group-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No groups available.</div>`;
+
+        labsContainer.innerHTML = labs.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Lab Name</th>
+                        <th class="px-4 py-3">Location</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${labs.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.lab_name || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.lab_location || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-lab-action="update" data-lab-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-lab-action="delete" data-lab-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No labs available.</div>`;
+
+        subjectsContainer.innerHTML = subjects.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Subject Code</th>
+                        <th class="px-4 py-3">Subject Name</th>
+                        <th class="px-4 py-3">Year</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${subjects.map(item => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.subject_cord)}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.subject)}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.year || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-subject-action="update" data-subject-id="${escapeHtml(item.subject_id || item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-subject-action="delete" data-subject-id="${escapeHtml(item.subject_id || item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No subjects available.</div>`;
+
+        usersContainer.innerHTML = users.length ? `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Name</th>
+                        <th class="px-4 py-3">Role</th>
+                        <th class="px-4 py-3">Email</th>
+                        <th class="px-4 py-3">Mobile</th>
+                        <th class="px-4 py-3">NIC</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${users.map(user => `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(user.role || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(user.email || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(user.mobile_number || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(user.nic || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-user-action="update" data-user-id="${escapeHtml(user.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-user-action="reset-password" data-user-id="${escapeHtml(user.id)}" class="bg-amber-500 text-white px-3 py-2 rounded-lg font-black hover:bg-amber-600">Reset Password</button>
+                                    <button type="button" data-user-action="delete" data-user-id="${escapeHtml(user.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        ` : `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No users available.</div>`;
+    };
+
+    const loadAdminData = async () => {
+        const [
+            settingsResponse,
+            timeSlotsResponse,
+            columnHeadingsResponse,
+            lecturerRequestsResponse,
+            newsResponse,
+            subjectsResponse,
+            yearsResponse,
+            usersResponse,
+            timetableResponse,
+            lectureGroupsResponse,
+            labsResponse,
+            timetableCellsResponse,
+            responsibilitiesResponse,
+            assignmentsResponse,
+        ] = await Promise.all([
+            getTimetableSettings(),
+            getTimeSlots(),
+            getColumnHeadings(),
+            getLecturerRequests(),
+            getNews(),
+            getSubjectCodes(),
+            getYears(),
+            getUsers(),
+            getTimetableData(),
+            getLectureGroups(),
+            getLabs(),
+            getTimetableCells(),
+            getResponsibilities(),
+            getAssignments(),
+        ]);
+
+        adminState.timetableSettings = settingsResponse.status === '200' ? settingsResponse.data : null;
+        adminState.timeSlots = timeSlotsResponse.status === '200' && Array.isArray(timeSlotsResponse.data) ? timeSlotsResponse.data : [];
+        adminState.columnHeadings = columnHeadingsResponse.status === '200' && Array.isArray(columnHeadingsResponse.data) ? columnHeadingsResponse.data : [];
+        adminState.timetableRecords = timetableResponse.status === '200' && Array.isArray(timetableResponse.data) ? timetableResponse.data : [];
+        adminState.lectureGroups = lectureGroupsResponse.status === '200' && Array.isArray(lectureGroupsResponse.data) ? lectureGroupsResponse.data : [];
+        adminState.labs = labsResponse.status === '200' && Array.isArray(labsResponse.data) ? labsResponse.data : [];
+        adminState.timetableCells = timetableCellsResponse.status === '200' && Array.isArray(timetableCellsResponse.data) ? timetableCellsResponse.data : [];
+        adminState.lecturerRequests = lecturerRequestsResponse.status === '200' && Array.isArray(lecturerRequestsResponse.data) ? lecturerRequestsResponse.data : [];
+        adminState.newsItems = newsResponse.status === '200' && Array.isArray(newsResponse.data) ? newsResponse.data : [];
+        adminState.subjects = subjectsResponse.status === '200' && Array.isArray(subjectsResponse.data) ? subjectsResponse.data : [];
+        adminState.years = yearsResponse.status === '200' && Array.isArray(yearsResponse.data) ? yearsResponse.data : [];
+        adminState.users = usersResponse.status === '200' && Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        adminState.responsibilities = responsibilitiesResponse.status === '200' && Array.isArray(responsibilitiesResponse.data) ? responsibilitiesResponse.data : [];
+        adminState.assignments = assignmentsResponse.status === '200' && Array.isArray(assignmentsResponse.data) ? assignmentsResponse.data : [];
+
+        fullTimetableSettingsData = adminState.timetableSettings;
+        fullTimeSlotsData = adminState.timeSlots;
+        fullColumnHeadingsData = adminState.columnHeadings;
+        fullSubjectCodesData = adminState.subjects;
+        fullYearsData = adminState.years;
+    };
+
+    const reloadAdminPanel = async () => {
+        try {
+            refreshButton.disabled = true;
+            refreshButton.textContent = 'Refreshing...';
+            await loadAdminData();
+            renderAdminPanel();
+        } finally {
+            refreshButton.disabled = false;
+            refreshButton.textContent = 'Refresh Panel';
+        }
+    };
+
+    refreshButton.addEventListener('click', reloadAdminPanel);
+    newsCreateButton.addEventListener('click', openNewsForm);
+    newsFormCancelButton.addEventListener('click', hideNewsForm);
+    newsFormCloseButton.addEventListener('click', hideNewsForm);
+    yearCreateButton.addEventListener('click', openYearForm);
+    yearFormCancelButton.addEventListener('click', hideYearForm);
+    yearFormCloseButton.addEventListener('click', hideYearForm);
+    groupCreateButton.addEventListener('click', openGroupForm);
+    groupFormCancelButton.addEventListener('click', hideGroupForm);
+    groupFormCloseButton.addEventListener('click', hideGroupForm);
+    labCreateButton.addEventListener('click', openLabForm);
+    labFormCancelButton.addEventListener('click', hideLabForm);
+    labFormCloseButton.addEventListener('click', hideLabForm);
+    requestConfirmCancelButton.addEventListener('click', hideRequestConfirmForm);
+    requestConfirmCloseButton.addEventListener('click', hideRequestConfirmForm);
+    requestCancelDismissButton.addEventListener('click', hideRequestCancelForm);
+    requestCancelCloseButton.addEventListener('click', hideRequestCancelForm);
+    userCreateButton.addEventListener('click', openUserForm);
+    userFormCancelButton.addEventListener('click', hideUserForm);
+    userFormCloseButton.addEventListener('click', hideUserForm);
+    subjectCreateButton.addEventListener('click', openSubjectForm);
+    subjectFormCancelButton.addEventListener('click', hideSubjectForm);
+    subjectFormCloseButton.addEventListener('click', hideSubjectForm);
+    settingsFormCancelButton.addEventListener('click', hideSettingsForm);
+    settingsFormCloseButton.addEventListener('click', hideSettingsForm);
+    columnHeadingCreateButton.addEventListener('click', openColumnHeadingForm);
+    columnHeadingFormCancelButton.addEventListener('click', hideColumnHeadingForm);
+    columnHeadingFormCloseButton.addEventListener('click', hideColumnHeadingForm);
+    timeSlotCreateButton.addEventListener('click', openTimeSlotForm);
+    timeSlotFormCancelButton.addEventListener('click', hideTimeSlotForm);
+    timeSlotFormCloseButton.addEventListener('click', hideTimeSlotForm);
+    timetableCreateButton.addEventListener('click', () => {
+        openTimetableForm();
+        showAdminSection('admin-manage-timetable');
+    });
+    timetableFormCancelButton.addEventListener('click', hideTimetableForm);
+    timetableFormCloseButton.addEventListener('click', hideTimetableForm);
+
+    settingsTableContainer.addEventListener('click', async (e) => {
+        const updateButton = e.target.closest('#admin-settings-update-btn');
+        if (updateButton) {
+            openSettingsForm(adminState.timetableSettings);
+            return;
+        }
+
+        const resetButton = e.target.closest('#admin-settings-reset-btn');
+        if (!resetButton || !adminState.timetableSettings) return;
+
+        const isConfirmed = window.confirm('Do you want to reset the timetable settings?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await resetTimetableSettings({
+                id: adminState.timetableSettings.id,
+                updated_by: getAuditValue(),
+            });
+            window.alert(result.message || 'Timetable settings reset successfully.');
+            hideSettingsForm();
+            hideColumnHeadingForm();
+            hideTimeSlotForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-timetable-settings');
+        } catch (error) {
+            window.alert(error.message || 'Failed to reset timetable settings.');
+        }
+    });
+
+    bindAsyncFormSubmit(settingsForm, async (e) => {
+        e.preventDefault();
+
+        try {
+            const result = await updateTimetableSettings({
+                id: settingsIdInput.value || '',
+                table_row_count: settingsRowsInput.value || 0,
+                table_column_count: settingsColumnsInput.value || 0,
+                break_row_number: settingsBreakRowInput.value || 0,
+                updated_by: getAuditValue(),
+            });
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to update timetable settings.');
+                return;
+            }
+
+            window.alert(result.message || 'Timetable settings updated successfully.');
+            hideSettingsForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-timetable-settings');
+        } catch (error) {
+            window.alert(error.message || 'Failed to update timetable settings.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    columnHeadingsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-column-heading-action]');
+        if (!actionButton) return;
+
+        const headingId = actionButton.getAttribute('data-column-heading-id') || '';
+        const headingAction = actionButton.getAttribute('data-column-heading-action') || '';
+        const selectedHeading = adminState.columnHeadings.find(item => String(item.id) === String(headingId));
+        if (!selectedHeading) return;
+
+        if (headingAction === 'update') {
+            openColumnHeadingForm(selectedHeading);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this column heading?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteColumnHeading(headingId);
+            window.alert(result.message || 'Column heading deleted successfully.');
+            hideColumnHeadingForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-timetable-settings');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete column heading.');
+        }
+    });
+
+    bindAsyncFormSubmit(columnHeadingForm, async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: columnHeadingIdInput.value || '',
+            column_heading: columnHeadingNameInput.value.trim(),
+            column_number: columnHeadingNumberInput.value || '',
+            column_heading_number: columnHeadingHeadingNumberInput.value || '',
+            status: columnHeadingStatusInput.value || 'active',
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateColumnHeading(payload)
+                : await createColumnHeading(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save column heading.');
+                return;
+            }
+
+            window.alert(result.message || 'Column heading saved successfully.');
+            hideColumnHeadingForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-timetable-settings');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save column heading.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    timeSlotsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-time-slot-action]');
+        if (!actionButton) return;
+
+        const timeSlotId = actionButton.getAttribute('data-time-slot-id') || '';
+        const timeSlotAction = actionButton.getAttribute('data-time-slot-action') || '';
+        const selectedTimeSlot = adminState.timeSlots.find(item => String(item.id) === String(timeSlotId));
+        if (!selectedTimeSlot) return;
+
+        if (timeSlotAction === 'update') {
+            openTimeSlotForm(selectedTimeSlot);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this time slot?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteTimeSlot(timeSlotId);
+            window.alert(result.message || 'Time slot deleted successfully.');
+            hideTimeSlotForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-timetable-settings');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete time slot.');
+        }
+    });
+
+    bindAsyncFormSubmit(timeSlotForm, async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: timeSlotIdInput.value || '',
+            time_slot_number: timeSlotNumberInput.value || '',
+            start_time: timeSlotStartInput.value || '',
+            end_time: timeSlotEndInput.value || '',
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateTimeSlot(payload)
+                : await createTimeSlot(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save time slot.');
+                return;
+            }
+
+            window.alert(result.message || 'Time slot saved successfully.');
+            hideTimeSlotForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-timetable-settings');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save time slot.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    manageTimetableContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-timetable-action]');
+        if (!actionButton) return;
+
+        const timetableId = actionButton.getAttribute('data-timetable-id') || '';
+        const timetableAction = actionButton.getAttribute('data-timetable-action') || '';
+        const selectedRecord = adminState.timetableRecords.find(item => String(item.timetable_id) === String(timetableId));
+        if (!selectedRecord) return;
+
+        if (timetableAction === 'update') {
+            openTimetableForm(selectedRecord);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this timetable record?');
+        if (!isConfirmed) {
+            return;
+        }
+
+        try {
+            const result = await deleteTimetableRecord(timetableId);
+            window.alert(result.message || 'Timetable record deleted successfully.');
+            hideTimetableForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-manage-timetable');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete timetable record.');
+        }
+    });
+
+    bindAsyncFormSubmit(timetableForm, async (e) => {
+        e.preventDefault();
+
+        const selectedDayId = timetableDaySelect.value || '';
+        const selectedTimeSlotId = timetableTimeSlotSelect.value || '';
+        const updatedByValue = currentUser.email || String(currentUser.id || '');
+
+        if (!selectedDayId || !selectedTimeSlotId) {
+            window.alert('Please select a valid day and time slot.');
+            return;
+        }
+
+        const payload = {
+            id: timetableIdInput.value || '',
+            time_slot_id: selectedTimeSlotId,
+            column_heading_id: selectedDayId,
+            lecture_group_id: timetableGroupSelect.value || '',
+            lab_id: timetableLabSelect.value || '',
+            subject_cord: timetableSubjectSelect.value || '',
+            action: timetableActionSelect.value || 'free',
+            created_by: updatedByValue,
+            updated_by: updatedByValue,
+        };
+
+        try {
+            const result = payload.id
+                ? await updateTimetableRecord(payload)
+                : await createTimetableRecord(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save timetable record.');
+                return;
+            }
+
+            window.alert(result.message || 'Timetable record saved successfully.');
+            hideTimetableForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-manage-timetable');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save timetable record.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    requestsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-request-action]');
+        if (!actionButton) return;
+
+        const requestId = actionButton.getAttribute('data-request-id') || '';
+        const requestAction = actionButton.getAttribute('data-request-action') || '';
+        const selectedRequest = adminState.lecturerRequests.find(item => String(item.id) === String(requestId));
+        if (!selectedRequest) return;
+
+        try {
+            if (requestAction === 'delete') {
+                if (!canDeleteLecturerRequest(selectedRequest)) {
+                    window.alert('Lecturer request can only be deleted after the request date has passed or when it is canceled.');
+                    return;
+                }
+                const result = await deleteLecturerRequest(requestId);
+                window.alert(result.message || 'Lecturer request deleted successfully.');
+            } else if (requestAction === 'confirmed') {
+                openRequestConfirmForm(selectedRequest);
+                return;
+            } else if (requestAction === 'canceled') {
+                openRequestCancelForm(selectedRequest);
+                return;
+            } else {
+                const result = await updateLecturerRequest({
+                    id: selectedRequest.id,
+                    lecturer_id: selectedRequest.lecturer_id,
+                    subject_id: selectedRequest.subject_id,
+                    year_id: selectedRequest.year_id,
+                    lecture_group_id: selectedRequest.lecture_group_id || selectedRequest.group_id || '',
+                    timetable_time_slot_id: selectedRequest.timetable_time_slot_id,
+                    timetable_column_heading_id: selectedRequest.timetable_column_heading_id,
+                    date: selectedRequest.date,
+                    action: requestAction,
+                    lecturer_request: selectedRequest.lecturer_request,
+                    created_by: selectedRequest.lecturer_name || getAuditValue(),
+                    updated_by: getAuditValue(),
+                });
+                window.alert(result.message || 'Lecturer request updated successfully.');
+            }
+
+            await reloadAdminPanel();
+        } catch (error) {
+            window.alert(error.message || 'Failed to update lecturer request.');
+        }
+    });
+
+    bindAsyncFormSubmit(requestConfirmForm, async (e) => {
+        e.preventDefault();
+
+        if (!requestConfirmLabSelect.value) {
+            window.alert('Please select a lab before confirming this lecturer request.');
+            return;
+        }
+
+        try {
+            const result = await updateLecturerRequest({
+                id: requestConfirmIdInput.value || '',
+                lecturer_id: requestConfirmLecturerIdInput.value || '',
+                subject_id: requestConfirmSubjectIdInput.value || '',
+                year_id: requestConfirmYearIdInput.value || '',
+                timetable_time_slot_id: requestConfirmTimeSlotIdInput.value || '',
+                timetable_column_heading_id: requestConfirmColumnIdInput.value || '',
+                lecture_group_id: requestConfirmGroupIdInput.value || '',
+                lab_id: requestConfirmLabSelect.value || '',
+                date: requestConfirmDateInput.value || '',
+                action: 'confirmed',
+                lecturer_request: requestConfirmDescriptionInput.value || '',
+                created_by: requestConfirmLecturerNameInput.value || getAuditValue(),
+                updated_by: getAuditValue(),
+            });
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to confirm lecturer request.');
+                return;
+            }
+
+            window.alert(result.message || 'Lecturer request confirmed successfully.');
+            hideRequestConfirmForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-requests');
+        } catch (error) {
+            window.alert(error.message || 'Failed to confirm lecturer request.');
+        }
+    }, { busyLabel: 'Confirming...' });
+
+    bindAsyncFormSubmit(requestCancelForm, async (e) => {
+        e.preventDefault();
+
+        const adminMessage = requestCancelMessageInput.value.trim();
+        if (!adminMessage) {
+            window.alert('Please enter a cancel reason for this lecturer request.');
+            return;
+        }
+
+        try {
+            const result = await updateLecturerRequest({
+                id: requestCancelIdInput.value || '',
+                lecturer_id: requestCancelLecturerIdInput.value || '',
+                subject_id: requestCancelSubjectIdInput.value || '',
+                year_id: requestCancelYearIdInput.value || '',
+                timetable_time_slot_id: requestCancelTimeSlotIdInput.value || '',
+                timetable_column_heading_id: requestCancelColumnIdInput.value || '',
+                lecture_group_id: requestCancelGroupIdInput.value || '',
+                lab_id: requestCancelLabIdInput.value || '',
+                date: requestCancelDateInput.value || '',
+                action: 'canceled',
+                lecturer_request: requestCancelDescriptionInput.value || '',
+                admin_message: adminMessage,
+                created_by: requestCancelLecturerNameInput.value || getAuditValue(),
+                updated_by: getAuditValue(),
+            });
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to cancel lecturer request.');
+                return;
+            }
+
+            window.alert(result.message || 'Lecturer request canceled successfully.');
+            hideRequestCancelForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-requests');
+        } catch (error) {
+            window.alert(error.message || 'Failed to cancel lecturer request.');
+        }
+    }, { busyLabel: 'Canceling...' });
+
+    requestCheckAvailabilityButton.addEventListener('click', async () => {
+        requestCheckResult.textContent = 'Checking...';
+        requestCheckResult.className = 'text-sm font-bold text-sky-700 text-right';
+
+        try {
+            const result = await checkLecturerRequestAvailability({
+                timetable_time_slot_id: requestConfirmTimeSlotIdInput.value || '',
+                timetable_column_heading_id: requestConfirmColumnIdInput.value || '',
+                date: requestConfirmDateInput.value || '',
+            });
+
+            if (result.status !== '200') {
+                requestCheckResult.textContent = result.message || 'Failed to check booking.';
+                requestCheckResult.className = 'text-sm font-bold text-red-700 text-right';
+                return;
+            }
+
+            if (result.data?.is_booked) {
+                const bookedRecord = result.data.record || {};
+                requestCheckResult.textContent = `Already booked: ${bookedRecord.subject_cord || '-'}${bookedRecord.group_name ? ` / ${bookedRecord.group_name}` : ''}${bookedRecord.lab_name ? ` / ${bookedRecord.lab_name}` : ''}`;
+                requestCheckResult.className = 'text-sm font-bold text-red-700 text-right';
+                return;
+            }
+
+            requestCheckResult.textContent = 'This request date is available.';
+            requestCheckResult.className = 'text-sm font-bold text-green-700 text-right';
+        } catch (error) {
+            requestCheckResult.textContent = error.message || 'Failed to check booking.';
+            requestCheckResult.className = 'text-sm font-bold text-red-700 text-right';
+        }
+    });
+
+    bindAsyncFormSubmit(newsForm, async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(newsForm);
+        if (newsIdInput.value) {
+            formData.append('id', newsIdInput.value);
+        }
+        if (!newsIdInput.value) {
+            formData.append('created_by', currentUser.id);
+        }
+        formData.append('updated_by', currentUser.id);
+
+        try {
+            const result = newsIdInput.value
+                ? await updateNews(formData)
+                : await createNews(formData);
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save news.');
+                return;
+            }
+
+            window.alert(result.message || 'News saved successfully.');
+            hideNewsForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-news');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save news.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    newsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-news-action]');
+        if (!actionButton) return;
+
+        const newsId = actionButton.getAttribute('data-news-id') || '';
+        if (!newsId) return;
+
+        const selectedNews = adminState.newsItems.find(item => String(item.id) === String(newsId));
+        if (!selectedNews) return;
+
+        const newsAction = actionButton.getAttribute('data-news-action') || '';
+        if (newsAction === 'update') {
+            openNewsForm(selectedNews);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this news record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteNews(newsId);
+            window.alert(result.message || 'News deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-news');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete news.');
+        }
+    });
+
+    bindAsyncFormSubmit(yearForm, async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: yearIdInput.value || '',
+            year: yearNameInput.value.trim(),
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateYear(payload)
+                : await createYear(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save year.');
+                return;
+            }
+
+            window.alert(result.message || 'Year saved successfully.');
+            hideYearForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-years');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save year.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    yearsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-year-action]');
+        if (!actionButton) return;
+
+        const yearId = actionButton.getAttribute('data-year-id') || '';
+        const yearAction = actionButton.getAttribute('data-year-action') || '';
+        const selectedYear = adminState.years.find(item => String(item.id) === String(yearId));
+        if (!selectedYear) return;
+
+        if (yearAction === 'update') {
+            openYearForm(selectedYear);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this year record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteYear(yearId);
+            window.alert(result.message || 'Year deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-years');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete year.');
+        }
+    });
+
+    bindAsyncFormSubmit(groupForm, async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: groupIdInput.value || '',
+            group_name: groupNameInput.value.trim(),
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateLectureGroup(payload)
+                : await createLectureGroup(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save group.');
+                return;
+            }
+
+            window.alert(result.message || 'Group saved successfully.');
+            hideGroupForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-groups');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save group.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    groupsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-group-action]');
+        if (!actionButton) return;
+
+        const groupId = actionButton.getAttribute('data-group-id') || '';
+        const groupAction = actionButton.getAttribute('data-group-action') || '';
+        const selectedGroup = adminState.lectureGroups.find(item => String(item.id) === String(groupId));
+        if (!selectedGroup) return;
+
+        if (groupAction === 'update') {
+            openGroupForm(selectedGroup);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this group record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteLectureGroup(groupId);
+            window.alert(result.message || 'Group deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-groups');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete group.');
+        }
+    });
+
+    bindAsyncFormSubmit(labForm, async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: labIdInput.value || '',
+            lab_name: labNameInput.value.trim(),
+            lab_location: labLocationInput.value.trim(),
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateLab(payload)
+                : await createLab(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save lab.');
+                return;
+            }
+
+            window.alert(result.message || 'Lab saved successfully.');
+            hideLabForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-labs');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save lab.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    labsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-lab-action]');
+        if (!actionButton) return;
+
+        const labId = actionButton.getAttribute('data-lab-id') || '';
+        const labAction = actionButton.getAttribute('data-lab-action') || '';
+        const selectedLab = adminState.labs.find(item => String(item.id) === String(labId));
+        if (!selectedLab) return;
+
+        if (labAction === 'update') {
+            openLabForm(selectedLab);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this lab record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteLab(labId);
+            window.alert(result.message || 'Lab deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-labs');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete lab.');
+        }
+    });
+
+    bindAsyncFormSubmit(subjectForm, async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            id: subjectIdInput.value || '',
+            subject_cord: subjectCodeInput.value.trim(),
+            subject: subjectNameInput.value.trim(),
+            year_id: subjectYearSelect.value || '',
+            created_by: getAuditValue(),
+            updated_by: getAuditValue(),
+        };
+
+        try {
+            const result = payload.id
+                ? await updateSubject(payload)
+                : await createSubject(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save subject.');
+                return;
+            }
+
+            window.alert(result.message || 'Subject saved successfully.');
+            hideSubjectForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-subjects');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save subject.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    subjectsContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-subject-action]');
+        if (!actionButton) return;
+
+        const subjectId = actionButton.getAttribute('data-subject-id') || '';
+        const subjectAction = actionButton.getAttribute('data-subject-action') || '';
+        const selectedSubject = adminState.subjects.find(item => String(item.subject_id || item.id) === String(subjectId));
+        if (!selectedSubject) return;
+
+        if (subjectAction === 'update') {
+            openSubjectForm(selectedSubject);
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this subject record?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteSubject(subjectId);
+            window.alert(result.message || 'Subject deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-subjects');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete subject.');
+        }
+    });
+
+    bindAsyncFormSubmit(userForm, async (e) => {
+        e.preventDefault();
+
+        const auditValue = getAuditValue();
+        const isUpdateMode = Boolean(userIdInput.value);
+        const passwordValue = userPasswordInput.value || '';
+        const confirmPasswordValue = userConfirmPasswordInput.value || '';
+
+        if (!isUpdateMode) {
+            if (!passwordValue) {
+                window.alert('Password is required for a new user.');
+                return;
+            }
+
+            if (passwordValue !== confirmPasswordValue) {
+                window.alert('Password and confirm password must match.');
+                return;
+            }
+        }
+
+        const userPayload = {
+            id: userIdInput.value || '',
+            initials: userInitialsInput.value.trim(),
+            initials_stand_for: userInitialsStandForInput.value.trim(),
+            first_name: userFirstNameInput.value.trim(),
+            last_name: userLastNameInput.value.trim(),
+            honorifics: userHonorificsSelect.value || '',
+            nic: userNicInput.value.trim(),
+            email: userEmailInput.value.trim(),
+            mobile_number: userMobileInput.value.trim(),
+            role: userRoleSelect.value || '',
+            created_by: auditValue,
+            updated_by: auditValue,
+        };
+
+        try {
+            const result = userPayload.id
+                ? await updateUser(userPayload)
+                : await createUser({
+                    ...userPayload,
+                    password: passwordValue,
+                });
+            if (result.status !== '200') {
+                const validationErrors = Array.isArray(result.errors) ? result.errors.join('\n') : '';
+                window.alert(validationErrors || result.message || 'Failed to save user.');
+                return;
+            }
+
+            window.alert(result.message || 'User saved successfully.');
+            hideUserForm();
+            await reloadAdminPanel();
+            showAdminSection('admin-users');
+        } catch (error) {
+            window.alert(error.message || 'Failed to save user.');
+        }
+    }, { busyLabel: 'Saving...' });
+
+    usersContainer.addEventListener('click', async (e) => {
+        const actionButton = e.target.closest('[data-user-action]');
+        if (!actionButton) return;
+
+        const userId = actionButton.getAttribute('data-user-id') || '';
+        const userAction = actionButton.getAttribute('data-user-action') || '';
+        const selectedUser = adminState.users.find(item => String(item.id) === String(userId));
+        if (!selectedUser) return;
+
+        if (userAction === 'update') {
+            openUserForm(selectedUser);
+            return;
+        }
+
+        if (userAction === 'reset-password') {
+            const currentPassword = window.prompt('Enter your current login password to authorize this reset:');
+            if (currentPassword === null) return;
+
+            const newPassword = window.prompt(`Enter a new password for ${selectedUser.email || selectedUser.first_name || 'this user'}:`);
+            if (newPassword === null) return;
+
+            const confirmNewPassword = window.prompt('Confirm the new password:');
+            if (confirmNewPassword === null) return;
+
+            if (!newPassword.trim()) {
+                window.alert('New password is required.');
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                window.alert('New password and confirm password must match.');
+                return;
+            }
+
+            try {
+                const result = await resetUserPassword({
+                    target_user_id: selectedUser.id,
+                    actor_user_id: currentUser.id,
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                    updated_by: getAuditValue(),
+                });
+
+                if (result.status !== '200') {
+                    window.alert(result.message || 'Failed to reset password.');
+                    return;
+                }
+
+                window.alert(result.message || 'Password reset successfully.');
+                await reloadAdminPanel();
+                showAdminSection('admin-users');
+            } catch (error) {
+                window.alert(error.message || 'Failed to reset password.');
+            }
+
+            return;
+        }
+
+        const isConfirmed = window.confirm('Do you want to delete this user?');
+        if (!isConfirmed) return;
+
+        try {
+            const result = await deleteUser(userId);
+            window.alert(result.message || 'User deleted successfully.');
+            await reloadAdminPanel();
+            showAdminSection('admin-users');
+        } catch (error) {
+            window.alert(error.message || 'Failed to delete user.');
+        }
+    });
+
+    try {
+        await reloadAdminPanel();
+    } catch (error) {
+        console.error('Error loading admin panel:', error);
+        adminPanel.innerHTML = `<div class="bg-red-50 text-red-700 rounded-lg p-6 font-bold">Failed to load admin panel data.</div>`;
+    }
+};
+
+/**
+ * Always show scheduling-form-view on timetable cell click.
+ * Logged users can open scheduling-form from lecturer-request button.
+ */
+
+const initLecturerAssignmentsPanel = () => {
+    // ── DOM references ────────────────────────────────────────────────
+    const responsibilitiesContainer   = document.getElementById('admin-responsibilities-list');
+    const assignmentsContainer        = document.getElementById('admin-assignments-list');
+    const responsibilityCreateButton  = document.getElementById('admin-responsibility-create-btn');
+    const assignmentCreateButton      = document.getElementById('admin-assignment-create-btn');
+
+    const responsibilityFormModal     = document.getElementById('admin-responsibility-form-modal');
+    const responsibilityForm          = document.getElementById('admin-responsibility-form');
+    const responsibilityFormTitle     = document.getElementById('admin-responsibility-form-title');
+    const responsibilityFormClose     = document.getElementById('admin-responsibility-form-close');
+    const responsibilityFormCancel    = document.getElementById('admin-responsibility-form-cancel');
+    const responsibilityIdInput       = document.getElementById('admin-responsibility-id');
+    const responsibilityNameInput     = document.getElementById('admin-responsibility-name');
+    const responsibilityLevelInput    = document.getElementById('admin-responsibility-level');
+
+    const assignmentFormModal         = document.getElementById('admin-assignment-form-modal');
+    const assignmentForm              = document.getElementById('admin-assignment-form');
+    const assignmentFormTitle         = document.getElementById('admin-assignment-form-title');
+    const assignmentFormClose         = document.getElementById('admin-assignment-form-close');
+    const assignmentFormCancel        = document.getElementById('admin-assignment-form-cancel');
+    const assignmentIdInput           = document.getElementById('admin-assignment-id');
+    const assignmentSubjectSelect     = document.getElementById('admin-assignment-subject');
+    const assignmentLecturerSelect    = document.getElementById('admin-assignment-lecturer');
+    const assignmentResponsibilitySelect = document.getElementById('admin-assignment-responsibility');
+
+    if (!responsibilitiesContainer || !assignmentsContainer || !responsibilityCreateButton
+        || !assignmentCreateButton || !responsibilityFormModal || !responsibilityForm
+        || !assignmentFormModal || !assignmentForm) {
+        return;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    const showModal  = (el) => { el.classList.remove('hidden'); document.body.classList.add('overflow-hidden'); el.scrollTop = 0; };
+    const hideModal  = (el) => { el.classList.add('hidden'); if (!document.querySelector('.fixed:not(.hidden)')) document.body.classList.remove('overflow-hidden'); };
+
+    const populateSelect = (selectEl, items, valueKey, labelKey, emptyLabel = 'Select') => {
+        const current = selectEl.value;
+        selectEl.innerHTML = `<option value="">${escapeHtml(emptyLabel)}</option>`
+            + items.map(item => `<option value="${escapeHtml(String(item[valueKey] || ''))}">${escapeHtml(String(item[labelKey] || ''))}</option>`).join('');
+        if (current) selectEl.value = current;
+    };
+
+    const getLecturers = () => {
+        const adminStateEl = document.getElementById('admin-assignments-list');
+        if (!adminStateEl) return [];
+        return window.__adminState?.users?.filter(u => u.role === 'lecturer') ?? [];
+    };
+
+    // ── Render responsibilities ───────────────────────────────────────
+    const renderResponsibilities = (items) => {
+        if (!responsibilitiesContainer) return;
+        if (!items.length) {
+            responsibilitiesContainer.innerHTML = `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No responsibilities defined yet.</div>`;
+            return;
+        }
+        responsibilitiesContainer.innerHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Responsibility</th>
+                        <th class="px-4 py-3">Level</th>
+                        <th class="px-4 py-3">Created By</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(item => {
+                        const level = item.responsible_level;
+                        const levelBadge = (level !== null && level !== undefined && level !== '')
+                            ? `<span class="px-3 py-1 rounded-full text-xs font-black ${Number(level) === 1 ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}">
+                                   Level ${escapeHtml(String(level))}${Number(level) === 1 ? ' · In-Charge' : ''}
+                               </span>`
+                            : '<span class="text-gray-400">—</span>';
+                        return `
+                        <tr class="border-b border-gray-200">
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.responsibility || '-')}</td>
+                            <td class="px-4 py-3">${levelBadge}</td>
+                            <td class="px-4 py-3 text-gray-500">${escapeHtml(item.created_by || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-responsibility-action="update" data-responsibility-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-responsibility-action="delete" data-responsibility-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>`;
+    };
+
+    // ── Render assignments ────────────────────────────────────────────
+    const renderAssignments = (items) => {
+        if (!assignmentsContainer) return;
+        if (!items.length) {
+            assignmentsContainer.innerHTML = `<div class="bg-gray-100 rounded-lg px-4 py-6 text-gray-500 font-bold text-center">No assignments yet. Use the button above to assign a lecturer to a subject.</div>`;
+            return;
+        }
+        assignmentsContainer.innerHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 uppercase text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3">Year</th>
+                        <th class="px-4 py-3">Subject Code</th>
+                        <th class="px-4 py-3">Subject Name</th>
+                        <th class="px-4 py-3">Lecturer</th>
+                        <th class="px-4 py-3">Responsibility</th>
+                        <th class="px-4 py-3">Assigned By</th>
+                        <th class="px-4 py-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(item => `
+                        <tr class="border-b border-gray-200 align-top">
+                            <td class="px-4 py-3">${escapeHtml(item.year || '-')}</td>
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.subject_cord || '-')}</td>
+                            <td class="px-4 py-3">${escapeHtml(item.subject_name || '-')}</td>
+                            <td class="px-4 py-3 font-bold">${escapeHtml(item.lecturer_name || '-')}</td>
+                            <td class="px-4 py-3">${item.responsibility_name
+                                ? (() => {
+                                    const lvl = item.responsible_level;
+                                    const isInCharge = lvl !== null && lvl !== undefined && Number(lvl) === 1;
+                                    const colorClass = isInCharge ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700';
+                                    const levelPrefix = (lvl !== null && lvl !== undefined) ? `L${escapeHtml(String(lvl))} · ` : '';
+                                    return `<span class="px-3 py-1 rounded-full text-xs font-black ${colorClass}">${levelPrefix}${escapeHtml(item.responsibility_name)}</span>`;
+                                  })()
+                                : '<span class="text-gray-400">—</span>'}</td>
+                            <td class="px-4 py-3 text-gray-500">${escapeHtml(item.assigned_by || '-')}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-assignment-action="update" data-assignment-id="${escapeHtml(item.id)}" class="bg-sky-600 text-white px-3 py-2 rounded-lg font-black hover:bg-sky-700">Update</button>
+                                    <button type="button" data-assignment-action="delete" data-assignment-id="${escapeHtml(item.id)}" class="bg-red-600 text-white px-3 py-2 rounded-lg font-black hover:bg-red-700">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+    };
+
+    // ── Responsibility form open/close ────────────────────────────────
+    const resetResponsibilityForm = () => {
+        responsibilityForm.reset();
+        responsibilityIdInput.value = '';
+        if (responsibilityLevelInput) responsibilityLevelInput.value = '';
+        responsibilityFormTitle.textContent = 'New Responsibility';
+    };
+
+    const openResponsibilityForm = (record = null) => {
+        resetResponsibilityForm();
+        if (record) {
+            responsibilityFormTitle.textContent = 'Update Responsibility';
+            responsibilityIdInput.value = record.id || '';
+            responsibilityNameInput.value = record.responsibility || '';
+            if (responsibilityLevelInput) {
+                responsibilityLevelInput.value = (record.responsible_level !== null && record.responsible_level !== undefined)
+                    ? String(record.responsible_level)
+                    : '';
+            }
+        }
+        showModal(responsibilityFormModal);
+    };
+
+    const hideResponsibilityForm = () => {
+        hideModal(responsibilityFormModal);
+        resetResponsibilityForm();
+    };
+
+    // ── Assignment form open/close ────────────────────────────────────
+    const resetAssignmentForm = () => {
+        assignmentForm.reset();
+        assignmentIdInput.value = '';
+        assignmentFormTitle.textContent = 'New Assignment';
+    };
+
+    const openAssignmentForm = (record = null, state) => {
+        resetAssignmentForm();
+
+        populateSelect(assignmentSubjectSelect, state.subjects, 'subject_cord',
+            item => `${item.subject_cord} — ${item.subject}`, 'Select subject');
+        assignmentSubjectSelect.innerHTML = `<option value="">Select subject</option>`
+            + state.subjects.map(s => `<option value="${escapeHtml(s.subject_cord)}">${escapeHtml(s.subject_cord + ' — ' + s.subject + (s.year ? ' (' + s.year + ')' : ''))}</option>`).join('');
+
+        const lecturers = (state.users || []).filter(u => u.role === 'lecturer');
+        assignmentLecturerSelect.innerHTML = `<option value="">Select lecturer</option>`
+            + lecturers.map(u => `<option value="${escapeHtml(String(u.id))}">${escapeHtml(u.lecturer_name || (u.first_name + ' ' + u.last_name))}</option>`).join('');
+
+        const leveledResponsibilities = (state.responsibilities || []).filter(
+            r => r.responsible_level !== null && r.responsible_level !== undefined && r.responsible_level !== ''
+        );
+        assignmentResponsibilitySelect.innerHTML = `<option value="">No responsibility</option>`
+            + leveledResponsibilities.map(r => {
+                const lvl = r.responsible_level;
+                const label = `Level ${escapeHtml(String(lvl))}${Number(lvl) === 1 ? ' (In-Charge)' : ''} — ${escapeHtml(r.responsibility)}`;
+                return `<option value="${escapeHtml(String(r.id))}">${label}</option>`;
+            }).join('');
+
+        if (record) {
+            assignmentFormTitle.textContent = 'Update Assignment';
+            assignmentIdInput.value = record.id || '';
+            assignmentSubjectSelect.value = record.subject_cord || '';
+            assignmentLecturerSelect.value = String(record.lecturer_id || '');
+            assignmentResponsibilitySelect.value = String(record.responsibility_id || '');
+        }
+        showModal(assignmentFormModal);
+    };
+
+    const hideAssignmentForm = () => {
+        hideModal(assignmentFormModal);
+        resetAssignmentForm();
+    };
+
+    // ── Reload helper (updates both containers) ───────────────────────
+    const reloadAssignmentData = async (state) => {
+        try {
+            const [rRes, aRes] = await Promise.all([getResponsibilities(), getAssignments()]);
+            state.responsibilities = rRes.status === '200' && Array.isArray(rRes.data) ? rRes.data : state.responsibilities;
+            state.assignments      = aRes.status === '200' && Array.isArray(aRes.data) ? aRes.data : state.assignments;
+        } catch (_) { /* non-critical */ }
+        renderResponsibilities(state.responsibilities);
+        renderAssignments(state.assignments);
+    };
+
+    // ── Event: nav buttons already bound; expose render for initial load ──
+    // Called from renderAdminPanel in the main init block — we attach a hook below.
+    window.__renderLecturerAssignments = (state) => {
+        renderResponsibilities(state.responsibilities);
+        renderAssignments(state.assignments);
+    };
+
+    // ── Responsibility form submit ─────────────────────────────────────
+    responsibilityCreateButton.addEventListener('click', () => openResponsibilityForm());
+    responsibilityFormClose.addEventListener('click',  hideResponsibilityForm);
+    responsibilityFormCancel.addEventListener('click', hideResponsibilityForm);
+
+    responsibilityForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const levelRaw = responsibilityLevelInput?.value?.trim() || '';
+        const payload = {
+            id:                responsibilityIdInput.value || '',
+            responsibility:    responsibilityNameInput.value.trim(),
+            responsible_level: levelRaw !== '' ? parseInt(levelRaw, 10) : '',
+        };
+        try {
+            const result = payload.id
+                ? await updateResponsibility(payload)
+                : await createResponsibility(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save responsibility.');
+                return;
+            }
+            window.alert(result.message || 'Responsibility saved.');
+            hideResponsibilityForm();
+            const state = window.__adminStateRef;
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to save responsibility.');
+        }
+    });
+
+    responsibilitiesContainer.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-responsibility-action]');
+        if (!btn) return;
+        const id     = btn.getAttribute('data-responsibility-id') || '';
+        const action = btn.getAttribute('data-responsibility-action') || '';
+        const state  = window.__adminStateRef;
+        const record = state?.responsibilities.find(r => String(r.id) === String(id));
+        if (!record) return;
+
+        if (action === 'update') { openResponsibilityForm(record); return; }
+
+        if (!window.confirm('Delete this responsibility? Assignments using it will lose their responsibility link.')) return;
+        try {
+            const result = await deleteResponsibility(id);
+            window.alert(result.message || 'Responsibility deleted.');
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to delete responsibility.');
+        }
+    });
+
+    // ── Assignment form submit ────────────────────────────────────────
+    assignmentCreateButton.addEventListener('click', () => openAssignmentForm(null, window.__adminStateRef || { subjects: [], users: [], responsibilities: [] }));
+    assignmentFormClose.addEventListener('click',  hideAssignmentForm);
+    assignmentFormCancel.addEventListener('click', hideAssignmentForm);
+
+    assignmentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            id:                assignmentIdInput.value || '',
+            subject_cord:      assignmentSubjectSelect.value || '',
+            lecturer_id:       assignmentLecturerSelect.value || '',
+            responsibility_id: assignmentResponsibilitySelect.value || '',
+        };
+
+        if (!payload.subject_cord) { window.alert('Please select a subject.'); return; }
+        if (!payload.lecturer_id)  { window.alert('Please select a lecturer.'); return; }
+
+        const state = window.__adminStateRef;
+        const existing = state?.assignments || [];
+
+        // Bug 1: same lecturer already assigned to the same subject
+        const duplicateLecturer = existing.find(a =>
+            String(a.subject_cord) === String(payload.subject_cord) &&
+            String(a.lecturer_id)  === String(payload.lecturer_id)  &&
+            String(a.id) !== String(payload.id)
+        );
+        if (duplicateLecturer) {
+            window.alert('This lecturer is already assigned to this subject.\nEach lecturer can only be assigned to a subject once.');
+            return;
+        }
+
+        // Bug 2: a second Level-1 (In-Charge) for the same subject
+        if (payload.responsibility_id) {
+            const selectedResp = (state?.responsibilities || []).find(
+                r => String(r.id) === String(payload.responsibility_id)
+            );
+            if (selectedResp && Number(selectedResp.responsible_level) === 1) {
+                const existingInCharge = existing.find(a =>
+                    String(a.subject_cord) === String(payload.subject_cord) &&
+                    String(a.id) !== String(payload.id) &&
+                    Number(a.responsible_level) === 1
+                );
+                if (existingInCharge) {
+                    window.alert(
+                        'This subject already has a Lecturer In-Charge (Level 1).\n' +
+                        'Remove or update the existing Level 1 assignment first.'
+                    );
+                    return;
+                }
+            }
+        }
+
+        try {
+            const result = payload.id
+                ? await updateAssignment(payload)
+                : await createAssignment(payload);
+
+            if (result.status !== '200') {
+                window.alert(result.message || 'Failed to save assignment.');
+                return;
+            }
+            window.alert(result.message || 'Assignment saved.');
+            hideAssignmentForm();
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to save assignment.');
+        }
+    });
+
+    assignmentsContainer.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-assignment-action]');
+        if (!btn) return;
+        const id     = btn.getAttribute('data-assignment-id') || '';
+        const action = btn.getAttribute('data-assignment-action') || '';
+        const state  = window.__adminStateRef;
+        const record = state?.assignments.find(a => String(a.id) === String(id));
+        if (!record) return;
+
+        if (action === 'update') {
+            openAssignmentForm(record, state || { subjects: [], users: [], responsibilities: [] });
+            return;
+        }
+
+        if (!window.confirm('Delete this assignment?')) return;
+        try {
+            const result = await deleteAssignment(id);
+            window.alert(result.message || 'Assignment deleted.');
+            if (state) await reloadAssignmentData(state);
+        } catch (err) {
+            window.alert(err.message || 'Failed to delete assignment.');
+        }
+    });
+};
+
+export { initAdminSideNav, initAdminPanel, initLecturerAssignmentsPanel };
