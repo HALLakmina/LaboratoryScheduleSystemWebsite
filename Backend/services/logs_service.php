@@ -63,8 +63,6 @@ class LogsService {
     }
 
     public function getActionLogs(int $page, int $perPage): array {
-        $offset = ($page - 1) * $perPage;
-
         $countDb = new DbConnection();
         $countDb->selectData("SELECT COUNT(*) AS total FROM database_modification_logs");
         $countRow = $countDb->fetchRow();
@@ -73,9 +71,7 @@ class LogsService {
         }
         $total = (int)$countRow['total'];
 
-        $dataDb = new DbConnection();
-        $dataDb->selectData(
-            "SELECT
+        $baseQuery = "SELECT
                 dml.log_id,
                 dml.action_type,
                 dml.table_name,
@@ -89,9 +85,16 @@ class LogsService {
                 u.role
              FROM database_modification_logs dml
              LEFT JOIN users u ON dml.changed_by = u.id
-             ORDER BY dml.changed_at DESC
-             LIMIT {$perPage} OFFSET {$offset}"
-        );
+             ORDER BY dml.changed_at DESC";
+
+        $dataDb = new DbConnection();
+        if ($perPage === 0) {
+            $dataDb->selectData($baseQuery);
+        } else {
+            $offset = ($page - 1) * $perPage;
+            $dataDb->selectData("{$baseQuery} LIMIT {$perPage} OFFSET {$offset}");
+        }
+
         $rows = $dataDb->fetchAll();
         if ($rows === false) {
             throw new Exception('Failed to fetch action logs');
@@ -100,9 +103,9 @@ class LogsService {
         return [
             'logs'        => $rows,
             'total'       => $total,
-            'page'        => $page,
-            'per_page'    => $perPage,
-            'total_pages' => $total > 0 ? (int)ceil($total / $perPage) : 0,
+            'page'        => $perPage === 0 ? 1 : $page,
+            'per_page'    => $perPage === 0 ? $total : $perPage,
+            'total_pages' => $perPage === 0 ? ($total > 0 ? 1 : 0) : ($total > 0 ? (int)ceil($total / $perPage) : 0),
         ];
     }
 }
