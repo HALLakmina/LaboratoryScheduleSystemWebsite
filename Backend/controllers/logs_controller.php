@@ -25,9 +25,12 @@ class LogsController {
 
     public function getActionLogs($req = null, $res = null) {
         try {
-            $query = $req['query'] ?? [];
-            $page    = max(1, (int)($query['page']     ?? 1));
-            $perPage = min(100, max(1, (int)($query['per_page'] ?? 20)));
+            $query       = $req['query'] ?? [];
+            $page        = max(1, (int)($query['page'] ?? 1));
+            $perPageRaw  = $query['per_page'] ?? '20';
+            $perPage     = ($perPageRaw === '0' || strtolower((string)$perPageRaw) === 'all')
+                           ? 0
+                           : max(1, min(500, (int)$perPageRaw));
 
             $result = $this->service->getActionLogs($page, $perPage);
             $this->jsonResponse('200', 'Action logs fetched successfully', $result);
