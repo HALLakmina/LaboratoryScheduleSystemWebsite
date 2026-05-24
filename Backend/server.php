@@ -46,6 +46,7 @@ class Server {
             $router->accessEndpoint('/api/v1/lecturer-request', 'routers/lecturer_requests_router.php');
             $router->accessEndpoint('/api/v1/news', 'routers/news_router.php');
             $router->accessEndpoint('/api/v1/lecturer-assignment', 'routers/lecturer_assignments_router.php');
+            $router->accessEndpoint('/api/v1/logs', 'routers/logs_router.php');
             http_response_code(404);
             echo json_encode(['status' => '404', 'message' => 'Endpoint not found']);
             exit;
