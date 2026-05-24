@@ -22,7 +22,8 @@
 14. [Contributing](#contributing)
 15. [Troubleshooting](#troubleshooting)
 16. [Security](#security)
-17. [Author](#author)
+17. [Logging System](#logging-system)
+18. [Author](#author)
 
 ---
 
@@ -87,6 +88,12 @@ Receive email                    Send email notifications
 - User management (create, update, delete, reset passwords)
 - Responsibilities management (create, update, delete responsibility type definitions)
 - Lecturer Assignments management (assign lecturers to subjects)
+- Action Logs viewer — paginated table of every INSERT / UPDATE / DELETE across the system, with before/after data diff in a detail modal and a record-count selector (10 / 20 / 50 / 100 / All)
+
+### Logging System
+- **File-based logs** — system events written to `Backend/logs/error.log`, `warning.log`, and `info.log` with ISO timestamps; the directory is blocked from browser access via `.htaccess`
+- **Database audit log** — every INSERT, UPDATE, and DELETE across all five resource controllers is captured in `database_modification_logs` with the `old_data` snapshot (for UPDATE and DELETE) and `new_data` payload, the acting user's ID, and a timestamp; password hashes are stripped before any user-table record is written to the log
+- **Non-disruptive** — a DB-log failure falls back silently to `error.log` and never interrupts the main request
 
 ### Security
 - JWT stored in **HttpOnly** cookie — not accessible to JavaScript
@@ -156,6 +163,7 @@ LaboratoryScheduleSystemWebsite/
 │   ├── controllers/                        # Thin handlers — unpack, inject audit, call service
 │   │   ├── lecturer_assignments_controller.php
 │   │   ├── lecturer_requests_controller.php
+│   │   ├── logs_controller.php             # Action-logs read endpoint
 │   │   ├── news_controller.php
 │   │   ├── timetable_controller.php
 │   │   └── users_controller.php
@@ -165,6 +173,7 @@ LaboratoryScheduleSystemWebsite/
 │   ├── routers/
 │   │   ├── lecturer_assignments_router.php
 │   │   ├── lecturer_requests_router.php
+│   │   ├── logs_router.php                 # GET /action-logs (admin only)
 │   │   ├── news_router.php
 │   │   ├── timetable_router.php
 │   │   └── users_router.php
@@ -172,6 +181,7 @@ LaboratoryScheduleSystemWebsite/
 │   │   ├── email_notification_service.php
 │   │   ├── lecturer_assignments_service.php
 │   │   ├── lecturer_requests_service.php
+│   │   ├── logs_service.php                # logAction, fetchRowById, getActionLogs
 │   │   ├── news_service.php
 │   │   ├── timetable_service.php
 │   │   └── users_service.php
@@ -186,7 +196,13 @@ LaboratoryScheduleSystemWebsite/
 │   ├── utils/
 │   │   ├── database_seed.php               # Seed orchestration
 │   │   ├── httpOnlyCookie.php              # Cookie helper
+│   │   ├── logger.php                      # Static Logger — writes error/warning/info.log
 │   │   └── route.php                       # Custom singleton router
+│   ├── logs/                               # Runtime log files (auto-created, not in repo)
+│   │   ├── error.log
+│   │   ├── warning.log
+│   │   ├── info.log
+│   │   └── .htaccess                       # Deny from all — blocks direct browser access
 │   ├── DB/
 │   │   └── dbConnection.php                # PDO wrapper
 │   ├── server.php                          # API entry point, CORS headers
@@ -198,6 +214,7 @@ LaboratoryScheduleSystemWebsite/
 │   ├── API/                                # JS fetch wrappers — one file per backend resource
 │   │   ├── lecturerAssignmentsApi.js
 │   │   ├── lecturerRequestApi.js
+│   │   ├── logsApi.js                      # getActionLogs(page, perPage)
 │   │   ├── newsApi.js
 │   │   ├── timetableApi.js
 │   │   └── userApi.js
@@ -499,6 +516,49 @@ Uploaded images are stored in `storage/images/` and validated by both extension 
 
 ---
 
+### Logs — `/logs`
+
+| Method | Path             | Auth | Description |
+|--------|------------------|------|-------------|
+| GET    | `/action-logs`   | 🛡️  | Paginated list of all database modification logs. Supports `?page=N&per_page=N`. Pass `per_page=0` or `per_page=all` to retrieve all records in one response. |
+
+**Query parameters:**
+
+| Parameter  | Default | Notes |
+|------------|---------|-------|
+| `page`     | `1`     | Page number (1-based) |
+| `per_page` | `20`    | Records per page. Max `500`. Use `0` or `all` for unlimited. |
+
+**Response fields:**
+
+| Field         | Description |
+|---------------|-------------|
+| `logs`        | Array of log records (see below) |
+| `total`       | Total number of log entries |
+| `page`        | Current page |
+| `per_page`    | Records per page returned |
+| `total_pages` | Total pages (always `1` when `per_page=all`) |
+
+**Log record fields:**
+
+| Field          | Description |
+|----------------|-------------|
+| `log_id`       | Auto-increment primary key |
+| `action_type`  | `INSERT`, `UPDATE`, or `DELETE` |
+| `table_name`   | Database table that was modified |
+| `old_data`     | JSON snapshot of the row **before** mutation (`null` for INSERT) |
+| `new_data`     | JSON payload sent to the mutation (`null` for DELETE) |
+| `changed_at`   | UTC timestamp of the action |
+| `user_id`      | ID of the acting user |
+| `first_name`   | Acting user's first name |
+| `last_name`    | Acting user's last name |
+| `email`        | Acting user's email |
+| `role`         | Acting user's role (`admin` / `lecturer`) |
+
+> Password hashes are always stripped from `old_data` and `new_data` before a user-table record is written.
+
+---
+
 ### Lecturer Assignments — `/lecturer-assignment`
 
 | Method | Path                        | Auth | Description |
@@ -527,20 +587,22 @@ Full schema: `Backend/seeds/laboratory_schedule_system.sql`
 
 ```
 users ◄──── subject_lecture_relations ────► practical_subjects
-              │        │                          │
-              ▼        ▼                          ▼
-    lecturer_responsibility              subject_group_relations
-                                                  │
-                                                  ▼
-timetable_settings                        lecture_groups
-timetable_column_headings
-timetable_time_slots
-timetable_cells
-timetable ──────────────────────────────► temporary_timetable
-                                          lecturer_requests
-news ──► images
-years
-labs
+  │           │        │                          │
+  │           ▼        ▼                          ▼
+  │  lecturer_responsibility              subject_group_relations
+  │                                                │
+  │                                                ▼
+  │  timetable_settings                    lecture_groups
+  │  timetable_column_headings
+  │  timetable_time_slots
+  │  timetable_cells
+  │  timetable ──────────────────────────► temporary_timetable
+  │                                        lecturer_requests
+  │  news ──► images
+  │  years
+  │  labs
+  │
+  └──► database_modification_logs   ← audit log for every INSERT / UPDATE / DELETE
 ```
 
 | Table                       | Purpose |
@@ -562,7 +624,7 @@ labs
 | `lecturer_requests`         | Incoming slot requests from lecturers. |
 | `news`                      | News articles. |
 | `images`                    | Uploaded image metadata linked to news. |
-| `database_modification_logs`| Audit log of INSERT/UPDATE/DELETE operations. |
+| `database_modification_logs`| Audit log of every INSERT / UPDATE / DELETE. Stores `old_data` and `new_data` as JSON, plus the acting user ID and timestamp. Password hashes are never written here. |
 
 ---
 
@@ -667,11 +729,66 @@ The following controls are in place:
 | Privilege escalation | `requireRole('admin')` middleware runs after token verification |
 | File upload | Extension allowlist + MIME-type inspection (`finfo`) before `move_uploaded_file` |
 | Password storage | bcrypt via PHP `password_hash(PASSWORD_DEFAULT)` |
-| Audit trail | `created_by` / `updated_by` / `assigned_by` injected server-side from JWT |
+| Audit trail | `created_by` / `updated_by` / `assigned_by` injected server-side from JWT; full before/after snapshots recorded in `database_modification_logs` for every mutation |
 | CORS | Reflected only when request `Origin` matches `ALLOWED_ORIGINS` allowlist |
-| Sensitive data | `password` column excluded from all public-facing user list queries |
+| Sensitive data | `password` column excluded from all public-facing user list queries; password hashes stripped before any user-table row is written to `database_modification_logs` |
+| Log file access | `Backend/logs/.htaccess` denies all direct browser access to `error.log`, `warning.log`, and `info.log` |
 
 To report a security vulnerability, please email [lahirulakmina1999@gmail.com](mailto:lahirulakmina1999@gmail.com) directly rather than opening a public issue.
+
+---
+
+## Logging System
+
+The system has two complementary logging layers that operate independently.
+
+### File-based logs
+
+Runtime events (errors, warnings, informational messages) are written to flat log files by the `Backend\Utils\Logger` static class.
+
+| File                     | Written when |
+|--------------------------|--------------|
+| `Backend/logs/error.log`   | Unhandled exceptions, DB failures, auth errors |
+| `Backend/logs/warning.log` | Non-critical anomalies (e.g. missing optional config) |
+| `Backend/logs/info.log`    | Informational lifecycle events |
+
+Each line follows the format:
+
+```
+[YYYY-MM-DD HH:MM:SS] [level] message | {"context":"key"}
+```
+
+The `Backend/logs/` directory is created automatically on first write. A `.htaccess` file inside it denies all direct HTTP access.
+
+### Database audit log
+
+Every state-changing operation (INSERT, UPDATE, DELETE) across all five resource controllers is recorded to `database_modification_logs`.
+
+**How it works — fetch-before-modify pattern:**
+
+```
+1. Controller fetches the current row from the DB (old_data)
+2. Controller calls the service to mutate the row
+3. Controller calls LogsService::logAction() with old_data and new_data
+```
+
+This guarantees `old_data` always reflects the actual pre-mutation state, not just the values that happened to be in the incoming request.
+
+**Tables covered:**
+
+| Controller | Tables logged |
+|------------|---------------|
+| `timetable_controller.php` | `timetable`, `years`, `labs`, `lecture_groups`, `timetable_column_headings`, `timetable_time_slots`, `practical_subjects` |
+| `news_controller.php` | `news` |
+| `lecturer_requests_controller.php` | `lecturer_requests` |
+| `users_controller.php` | `users` |
+| `lecturer_assignments_controller.php` | `lecturer_responsibility`, `subject_lecture_relations` |
+
+**Password safety:** For the `users` table, the `password` field is removed from both `old_data` and `new_data` before they are passed to `logAction()`. Password hashes never appear in `database_modification_logs`.
+
+**Failure isolation:** `logAction()` wraps its DB insert in a try/catch. If the audit log write fails it falls back to `Logger::error()` and returns silently — a logging failure never breaks the main request.
+
+**Admin UI:** The Action Logs section in the admin panel fetches records from `GET /api/v1/logs/action-logs` (admin-only endpoint). Records are displayed in a paginated table with a record-count selector (10 / 20 / 50 / 100 / All). Clicking a row opens a detail modal showing the full `old_data` and `new_data` JSON side-by-side.
 
 ---
 
