@@ -6,7 +6,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <title>Laboratory Scheduling System Admin Panel</title>
     </head>
-    <body class="w-full bg-[url('../../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs min-h-svh overflow-auto" id="index-content">
+    <body class="w-full overflow-y-auto no-scrollbar bg-[url('../../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs min-h-svh overflow-auto" id="index-content">
         <?php include __DIR__ . '/../../Components/NavigationBar.php';?>
         <main id="admin-panel" class="w-full p-4 md:p-6">
             <section class="w-full">
