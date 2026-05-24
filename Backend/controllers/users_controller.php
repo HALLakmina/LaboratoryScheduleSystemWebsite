@@ -1,17 +1,25 @@
 <?php
 namespace Backend\Controllers;
+
 require_once __DIR__ . "/../services/users_service.php";
+require_once __DIR__ . '/../services/logs_service.php';
 require_once __DIR__ . "/../middleware/jwtToken.php";
+require_once __DIR__ . '/../utils/logger.php';
+
 use Backend\Services\UsersService;
+use Backend\Services\LogsService;
 use Backend\Middleware\JwtToken;
 use Backend\Utils\Route;
+use Backend\Utils\Logger;
 use Exception;
 
 class UsersController {
     private $usersService;
+    private $logsService;
 
     public function __construct() {
         $this->usersService = new UsersService();
+        $this->logsService  = new LogsService();
     }
 
     private function getPayload($req) {
@@ -23,25 +31,26 @@ class UsersController {
         return Route::getInstance()->request['user'] ?? [];
     }
 
-    /**
-     * Get all users - GET /api/v1/user
-     */
+    private function dbLog(string $type, string $table, $old, $new): void {
+        $actor = $this->getAuthUser();
+        $this->logsService->logAction($type, $table, $old, $new, isset($actor['userId']) ? (int)$actor['userId'] : null);
+    }
+
     public function getAll($req = null, $res = null) {
         try {
             $respond = $this->usersService->getAll();
+            $actor = $this->getAuthUser();
+            Logger::info('[UsersController::getAll]', ['user' => $actor['userName'] ?? 'anonymous', 'count' => count($respond)]);
             echo json_encode([
-                'status' => '200',
-                'data' => $respond,
-                'message' => 'Data get successfully'
+                'status'  => '200',
+                'data'    => $respond,
+                'message' => 'Data get successfully',
             ]);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
@@ -53,19 +62,19 @@ class UsersController {
             $payload['created_by'] = $actor['userName'] ?? null;
             $payload['updated_by'] = $actor['userName'] ?? null;
             $this->usersService->create($payload);
+            $logPayload = $payload;
+            unset($logPayload['password']);
+            $this->dbLog('INSERT', 'users', null, $logPayload);
             echo json_encode([
-                'status' => '200',
-                'data' => 'User created',
-                'message' => 'User created successfully'
+                'status'  => '200',
+                'data'    => 'User created',
+                'message' => 'User created successfully',
             ]);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
@@ -75,20 +84,22 @@ class UsersController {
             $payload = $this->getPayload($req);
             $actor = $this->getAuthUser();
             $payload['updated_by'] = $actor['userName'] ?? null;
+            $old = $this->logsService->fetchRowById('users', $payload['id'] ?? null);
+            if ($old !== null) unset($old['password']);
             $this->usersService->update($payload);
+            $logPayload = $payload;
+            unset($logPayload['password']);
+            $this->dbLog('UPDATE', 'users', $old, $logPayload);
             echo json_encode([
-                'status' => '200',
-                'data' => 'User updated',
-                'message' => 'User updated successfully'
+                'status'  => '200',
+                'data'    => 'User updated',
+                'message' => 'User updated successfully',
             ]);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
@@ -96,20 +107,20 @@ class UsersController {
     public function delete($req = null, $res = null) {
         try {
             $payload = $this->getPayload($req);
+            $old = $this->logsService->fetchRowById('users', $payload['id'] ?? null);
+            if ($old !== null) unset($old['password']);
             $this->usersService->delete($payload['id']);
+            $this->dbLog('DELETE', 'users', $old, null);
             echo json_encode([
-                'status' => '200',
-                'data' => 'User deleted',
-                'message' => 'User deleted successfully'
+                'status'  => '200',
+                'data'    => 'User deleted',
+                'message' => 'User deleted successfully',
             ]);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
@@ -119,32 +130,27 @@ class UsersController {
             $payload = $this->getPayload($req);
             $actor = $this->getAuthUser();
             $payload['updated_by'] = $actor['userName'] ?? null;
+            $old = $this->logsService->fetchRowById('users', $payload['id'] ?? null);
+            if ($old !== null) unset($old['password']);
             $this->usersService->resetPassword($payload);
+            $this->dbLog('UPDATE', 'users', $old, ['id' => $payload['id'] ?? null, 'action' => 'password_reset']);
             echo json_encode([
-                'status' => '200',
-                'data' => 'Password reset',
-                'message' => 'User password reset successfully'
+                'status'  => '200',
+                'data'    => 'Password reset',
+                'message' => 'User password reset successfully',
             ]);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
 
-    /**
-     * User login - POST /api/v1/user/login
-     * Body: { "email": "...", "password": "..." }
-     */
     public function login($req = null, $res = null) {
         try {
-            $body = $this->getPayload($req);
-
+            $body  = $this->getPayload($req);
             $email = trim($body['email']);
             $password = $body['password'];
 
@@ -152,10 +158,7 @@ class UsersController {
 
             if (!$foundUser || empty($foundUser)) {
                 http_response_code(401);
-                echo json_encode([
-                    'status' => '401',
-                    'message' => 'Wrong email or password.'
-                ]);
+                echo json_encode(['status' => '401', 'message' => 'Wrong email or password.']);
                 exit;
             }
 
@@ -163,10 +166,7 @@ class UsersController {
 
             if (!password_verify($password, $user['password'])) {
                 http_response_code(401);
-                echo json_encode([
-                    'status' => '401',
-                    'message' => 'Wrong email or password.'
-                ]);
+                echo json_encode(['status' => '401', 'message' => 'Wrong email or password.']);
                 exit;
             }
 
@@ -189,38 +189,33 @@ class UsersController {
                 ]);
             }
 
+            Logger::info('[UsersController::login]', ['userId' => $user['id'], 'role' => $user['role']]);
+
             echo json_encode([
-                'status' => '200',
-                'message' => 'Login successful.',
-                'jwtToken' => $jwtToken,
-                'user' => [
-                    'id' => $user['id'] ?? null,
-                    'email' => $user['email'] ?? null,
-                    'role' => $user['role'],
+                'status'    => '200',
+                'message'   => 'Login successful.',
+                'jwtToken'  => $jwtToken,
+                'user'      => [
+                    'id'         => $user['id'] ?? null,
+                    'email'      => $user['email'] ?? null,
+                    'role'       => $user['role'],
                     'first_name' => $user['first_name'] ?? null,
-                    'last_name' => $user['last_name'] ?? null,
-                ]
+                    'last_name'  => $user['last_name'] ?? null,
+                ],
             ]);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
 
-    /**
-     * User logout - POST /api/v1/user/logout
-     */
     public function logout($req = null, $res = null) {
         try {
             $isSecure = ($_ENV['APP_ENV'] ?? 'local') === 'production';
             $res = $res ?? [];
-
             if (is_callable($res['cookie'] ?? null)) {
                 $res['cookie']('token', '', [
                     'expires'  => time() - 3600,
@@ -230,19 +225,12 @@ class UsersController {
                     'samesite' => $isSecure ? 'none' : 'lax',
                 ]);
             }
-
-            echo json_encode([
-                'status' => '200',
-                'message' => 'Logout successful.'
-            ]);
+            echo json_encode(['status' => '200', 'message' => 'Logout successful.']);
             exit;
         } catch (Exception $e) {
-            error_log('[UsersController] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             http_response_code(500);
-            echo json_encode([
-                'status' => '500',
-                'message' => 'An internal error occurred'
-            ]);
+            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
             exit;
         }
     }
