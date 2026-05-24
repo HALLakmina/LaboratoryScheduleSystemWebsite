@@ -46,6 +46,22 @@ class LogsService {
         }
     }
 
+    public function fetchRowById(string $table, $id): ?array {
+        $allowed = [
+            'lecturer_responsibility', 'subject_lecture_relations',
+            'users', 'news', 'lecturer_requests',
+            'years', 'labs', 'lecture_groups', 'timetable',
+            'timetable_column_headings', 'timetable_time_slots', 'practical_subjects',
+        ];
+        if (!in_array($table, $allowed, true)) {
+            return null;
+        }
+        $db = new DbConnection();
+        $db->selectDataByProperty("SELECT * FROM `{$table}` WHERE id = :id LIMIT 1", ['id' => $id]);
+        $row = $db->fetchRow();
+        return $row !== false ? $row : null;
+    }
+
     public function getActionLogs(int $page, int $perPage): array {
         $offset = ($page - 1) * $perPage;
 
