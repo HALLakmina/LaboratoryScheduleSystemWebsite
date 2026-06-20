@@ -4,11 +4,13 @@ namespace Backend\Controllers;
 require_once __DIR__ . "/../services/timetable_service.php";
 require_once __DIR__ . '/../services/logs_service.php';
 require_once __DIR__ . '/../utils/logger.php';
+require_once __DIR__ . '/../utils/response.php';
 
 use Backend\Services\TimetableService;
 use Backend\Services\LogsService;
 use Backend\Utils\Route;
 use Backend\Utils\Logger;
+use Backend\Utils\Response;
 use Exception;
 
 class TimetableController {
@@ -21,13 +23,7 @@ class TimetableController {
     }
 
     private function jsonResponse($status, $message, $data = null) {
-        http_response_code((int)$status);
-        echo json_encode([
-            "status"  => $status,
-            "data"    => $data,
-            "message" => $message,
-        ]);
-        exit;
+        Response::send((string)$status, $message, $data);
     }
 
     private function normalizeNullableValue($value) {
@@ -53,7 +49,7 @@ class TimetableController {
     public function getAllTimeSchedules($req = null, $res = null) {
         try {
             $respond = $this->timetableService->getAllTimeSchedules();
-            $this->jsonResponse("200", 'Data get Successfully', $respond);
+            $this->jsonResponse("200", 'Data fetched successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[TimetableController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             $this->jsonResponse("500", 'An internal error occurred');
@@ -64,7 +60,7 @@ class TimetableController {
         $year = $req['query']['year'] ?? '';
         try {
             $respond = $this->timetableService->getTimeSchedulesByYear($year);
-            $this->jsonResponse("200", 'Data get Successfully', $respond);
+            $this->jsonResponse("200", 'Data fetched successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[TimetableController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             $this->jsonResponse("500", 'An internal error occurred');

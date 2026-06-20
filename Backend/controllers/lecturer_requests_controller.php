@@ -4,11 +4,13 @@ namespace Backend\Controllers;
 require_once __DIR__ . '/../services/lecturer_requests_service.php';
 require_once __DIR__ . '/../services/logs_service.php';
 require_once __DIR__ . '/../utils/logger.php';
+require_once __DIR__ . '/../utils/response.php';
 
 use Backend\Services\LecturerRequestsService;
 use Backend\Services\LogsService;
 use Backend\Utils\Route;
 use Backend\Utils\Logger;
+use Backend\Utils\Response;
 use Exception;
 
 class LecturerRequestsController {
@@ -42,17 +44,10 @@ class LecturerRequestsController {
             $payload['updated_by'] = $actor['userName'] ?? null;
             $respond = $this->lecturerRequestsService->create($payload);
             $this->dbLog('INSERT', 'lecturer_requests', null, $payload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'Lecturer request sent successfully',
-            ]);
-            exit;
+            Response::success('Lecturer request sent successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[LecturerRequestsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -61,17 +56,10 @@ class LecturerRequestsController {
             $respond = $this->lecturerRequestsService->getAll();
             $actor = $this->getAuthUser();
             Logger::info('[LecturerRequestsController::getAll]', ['user' => $actor['userName'] ?? 'anonymous', 'count' => count($respond)]);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'Lecturer requests fetched successfully',
-            ]);
-            exit;
+            Response::success('Lecturer requests fetched successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[LecturerRequestsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -83,17 +71,10 @@ class LecturerRequestsController {
             $old = $this->logsService->fetchRowById('lecturer_requests', $payload['id'] ?? null);
             $respond = $this->lecturerRequestsService->update($payload);
             $this->dbLog('UPDATE', 'lecturer_requests', $old, $payload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'Lecturer request updated successfully',
-            ]);
-            exit;
+            Response::success('Lecturer request updated successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[LecturerRequestsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -103,17 +84,10 @@ class LecturerRequestsController {
             $old = $this->logsService->fetchRowById('lecturer_requests', $payload['id'] ?? null);
             $respond = $this->lecturerRequestsService->delete($payload['id']);
             $this->dbLog('DELETE', 'lecturer_requests', $old, null);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'Lecturer request deleted successfully',
-            ]);
-            exit;
+            Response::success('Lecturer request deleted successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[LecturerRequestsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -123,25 +97,19 @@ class LecturerRequestsController {
             $requiredFields = ['timetable_time_slot_id', 'timetable_column_heading_id', 'date'];
             foreach ($requiredFields as $field) {
                 if (!isset($payload[$field]) || trim((string)$payload[$field]) === '') {
-                    http_response_code(400);
-                    echo json_encode(['status' => '400', 'message' => $field . ' is required.']);
-                    exit;
+                    Response::error('400', $field . ' is required.');
                 }
             }
             $respond = $this->lecturerRequestsService->checkTemporaryTimetableAvailability($payload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => $respond['is_booked']
+            Response::success(
+                $respond['is_booked']
                     ? 'Lecture request date is already booked.'
                     : 'Lecture request date is available.',
-            ]);
-            exit;
+                $respond
+            );
         } catch (Exception $e) {
             Logger::error('[LecturerRequestsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 }
