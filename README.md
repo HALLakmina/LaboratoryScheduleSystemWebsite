@@ -13,18 +13,17 @@
 5. [Project Structure](#project-structure)
 6. [Quick Start](#quick-start)
 7. [Detailed Setup](#detailed-setup)
-8. [Docker Setup](#docker-setup)
-9. [Environment Variables](#environment-variables)
-10. [Seed Accounts](#seed-accounts)
-11. [API Reference](#api-reference)
-12. [Database Schema](#database-schema)
-13. [Database Migrations](#database-migrations)
-14. [Backend Libraries](#backend-libraries)
-15. [Contributing](#contributing)
-16. [Troubleshooting](#troubleshooting)
-17. [Security](#security)
-18. [Logging System](#logging-system)
-19. [Author](#author)
+8. [Environment Variables](#environment-variables)
+9. [Seed Accounts](#seed-accounts)
+10. [API Reference](#api-reference)
+11. [Database Schema](#database-schema)
+12. [Database Migrations](#database-migrations)
+13. [Backend Libraries](#backend-libraries)
+14. [Contributing](#contributing)
+15. [Troubleshooting](#troubleshooting)
+16. [Security](#security)
+17. [Logging System](#logging-system)
+18. [Author](#author)
 
 ---
 
@@ -351,87 +350,6 @@ http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
 
 ---
 
-## Docker Setup
-
-An alternative to native XAMPP setup — runs the whole stack (Apache + PHP 8.2, MySQL 8.0, phpMyAdmin) in containers. Two Compose files are provided: a dev stack with live-reloading source, and a production stack with a baked image.
-
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac) or Docker Engine + the Compose plugin (Linux)
-- **Port 80 free** — stop XAMPP's Apache (or anything else bound to port 80) first. `Frontend/config.php` and every `Frontend/API/*.js` file hardcode `http://localhost/...` with no port, so the app must stay on host port 80.
-- **Port 3306 free** — stop any local MySQL/XAMPP MySQL instance, since the dev compose file also publishes the database on the host.
-
-### Services (dev stack)
-
-| Service      | Image                              | Container                 | Host port | Purpose |
-|--------------|-------------------------------------|----------------------------|-----------|---------|
-| `web`        | built from `Dockerfile` (`php:8.2-apache`) | `lab_schedule_web`         | 80        | Apache + PHP serving the whole app |
-| `db`         | `mysql:8.0`                         | `lab_schedule_db`          | 3306      | Database |
-| `phpmyadmin` | `phpmyadmin/phpmyadmin`             | `lab_schedule_phpmyadmin`  | 8081      | Browser-based DB management |
-
-### Dev setup — `docker-compose.yaml`
-
-```bash
-# 1 — Create the Docker env file (based on .env-example, but DB_HOST must be "db")
-copy Backend\.env-example Backend\.env.docker
-# Edit Backend/.env.docker: set DB_HOST=db, DB_USER=labapp, DB_PASSWORD=labapppassword,
-# DB_NAME=timetable_system (or match whatever you set in docker-compose.yaml's db
-# service), plus a real JWT_KEY and optional SMTP_* values.
-
-# 2 — Build and start the stack
-docker compose up -d --build
-
-# 3 — One-time database seed (creates tables + admin/lecturer accounts)
-docker compose exec web php Backend/scripts/run_seed.php
-# *** Save the printed credentials — they are shown only once ***
-```
-
-| Page         | URL |
-|--------------|-----|
-| App          | `http://localhost/LaboratoryScheduleSystemWebsite/Frontend/` |
-| Bare root    | `http://localhost/` — redirects to the line above via `docker-root-index.php` |
-| phpMyAdmin   | `http://localhost:8081` (login with the `db` service's `MYSQL_USER`/`MYSQL_PASSWORD`, or `root`/`MYSQL_ROOT_PASSWORD`) |
-
-**How the dev stack is wired:**
-- The entire repo is bind-mounted into the `web` container at `/var/www/html/LaboratoryScheduleSystemWebsite` — edits on the host take effect immediately, no rebuild needed for PHP/JS/CSS changes.
-- Only `Backend/.env` is overlaid from `Backend/.env.docker` (read-only), so your real `Backend/.env` used by native XAMPP is never touched and the two setups can coexist on the same checkout.
-- A rebuild (`docker compose up -d --build`) is only needed after changing the `Dockerfile` itself or `Backend/composer.json`.
-- `docker-root-index.php` is copied to the Apache `DocumentRoot` (`/var/www/html/index.php`) separately from the app folder, because `DocumentRoot` has no index of its own — only the `LaboratoryScheduleSystemWebsite/` subfolder. Without it, visiting `http://localhost/` produces Apache's "No matching DirectoryIndex found" error.
-
-### Production stack — `docker-compose.prod.yaml`
-
-Unlike the dev stack, this bakes the source into the image at build time (no bind mount) and keeps the database off the host network entirely.
-
-```bash
-# 1 — Create Backend/.env.production: DB_HOST=db, DB_USER/DB_PASSWORD/DB_NAME
-#     matching step 2 below, plus real JWT_KEY/SMTP secrets. Never commit it.
-
-# 2 — Create a ".env" file next to docker-compose.prod.yaml:
-#       MYSQL_ROOT_PASSWORD=...
-#       MYSQL_DATABASE=...
-#       MYSQL_USER=...
-#       MYSQL_PASSWORD=...
-
-# 3 — Build and start
-docker compose -f docker-compose.prod.yaml up -d --build
-
-# 4 — One-time database seed
-docker compose -f docker-compose.prod.yaml exec web php Backend/scripts/run_seed.php
-```
-
-| Aspect | Dev (`docker-compose.yaml`) | Prod (`docker-compose.prod.yaml`) |
-|--------|------------------------------|-------------------------------------|
-| Source code | Live bind-mounted from host | Baked into the image at build time |
-| Env file | `Backend/.env.docker` | `Backend/.env.production` |
-| Database port on host | Yes — `3306:3306` | No — reachable only from `web` over the internal Compose network |
-| `storage/` and `Backend/logs/` | Bind-mounted from host | Named volumes (`storage_data`, `logs_data`) |
-| Restart policy | `unless-stopped` | `always` |
-| phpMyAdmin | Included | Not included — use a tunnel or a one-off `mysql` client if needed |
-
-> **Domain caveat:** `Frontend/config.php` and every `Frontend/API/*.js` file hardcode `http://localhost/...`. The production stack works as-is when accessed as `localhost` on the server itself, but deploying behind a real domain requires updating those hardcoded URLs first.
-
----
-
 ## Environment Variables
 
 All runtime configuration is in `Backend/.env`. Use `Backend/.env-example` as the starting template.
@@ -714,6 +632,91 @@ users ◄──── subject_lecture_relations ────► practical_subjec
 | `news`                      | News articles. |
 | `images`                    | Uploaded image metadata linked to news. |
 | `database_modification_logs`| Audit log of every INSERT / UPDATE / DELETE. Stores `old_data` and `new_data` as JSON, plus the acting user ID and timestamp. Password hashes are never written here. |
+
+---
+
+## Database Migrations
+
+### Initial setup — PHP seed script
+
+The project includes a one-time setup script (`Backend/scripts/run_seed.php`) that creates the database entirely through PHP and PDO — no manual SQL import needed.
+
+**What the script does, in order:**
+
+1. Reads `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` from `Backend/.env`
+2. Opens a PDO connection to MySQL **without** a database selected
+3. Executes `CREATE DATABASE IF NOT EXISTS` with charset `utf8mb4` and collation `utf8mb4_unicode_ci`
+4. Imports the full schema from `Backend/seeds/laboratory_schedule_system.sql` — all tables, indexes, foreign keys, and default rows
+5. Inserts the initial `admin` and `lecturer` accounts with bcrypt-hashed passwords
+6. Creates `Backend/seeds/.seed.lock` to prevent accidental re-runs
+7. Prints the generated credentials to the terminal (shown only once)
+
+**Run:**
+
+```bash
+cd LaboratoryScheduleSystemWebsite
+php Backend/scripts/run_seed.php
+```
+
+---
+
+### Re-seeding a clean database
+
+To wipe all data and start fresh with new seed credentials:
+
+```bash
+# Step 1 — Remove the lock file
+del Backend\seeds\.seed.lock          # Windows CMD
+# rm Backend/seeds/.seed.lock         # macOS / Linux / Git Bash
+
+# Step 2 — Drop the database (choose one method)
+
+# Option A — phpMyAdmin (recommended)
+# Open http://localhost/phpmyadmin → select the database →
+# Operations → Drop the database → confirm → create a new
+# empty database with the same name (utf8mb4 / utf8mb4_unicode_ci)
+
+# Option B — MySQL CLI
+mysql -u root -e "DROP DATABASE IF EXISTS your_db_name;"
+mysql -u root -e "CREATE DATABASE your_db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Step 3 — Re-run the seed script
+php Backend/scripts/run_seed.php
+```
+
+> **Warning:** Dropping the database deletes all records permanently — timetable data, news articles, users, requests, and audit logs.
+
+---
+
+### Schema-only import via phpMyAdmin
+
+To import only the schema (no seed users) on a server where you manage accounts manually:
+
+1. Open `http://localhost/phpmyadmin` and create a new empty database
+   - Charset: `utf8mb4`
+   - Collation: `utf8mb4_unicode_ci`
+2. Click the new database in the left panel
+3. Go to the **Import** tab
+4. Choose `Backend/seeds/laboratory_schedule_system.sql`
+5. Click **Go**
+6. Update `DB_NAME` in `Backend/.env` to match the new database name
+
+---
+
+### PDO connection details
+
+All database access goes through `Backend/DB/dbConnection.php` using PHP's PDO layer.
+
+| Setting | Value |
+|---------|-------|
+| Driver | `mysql` |
+| Charset | `utf8mb4` |
+| Collation | `utf8mb4_unicode_ci` |
+| Emulated prepares | Disabled — real server-side prepared statements |
+| Error mode | `ERRMODE_EXCEPTION` — all errors throw `PDOException` |
+| LIMIT / OFFSET | Integer-interpolated directly (not bound as parameters — PDO binds them as strings which breaks MySQL with emulation disabled) |
+
+No manual DSN configuration is required beyond the four `DB_*` variables in `Backend/.env`.
 
 ---
 
