@@ -13,17 +13,18 @@
 5. [Project Structure](#project-structure)
 6. [Quick Start](#quick-start)
 7. [Detailed Setup](#detailed-setup)
-8. [Environment Variables](#environment-variables)
-9. [Seed Accounts](#seed-accounts)
-10. [API Reference](#api-reference)
-11. [Database Schema](#database-schema)
-12. [Database Migrations](#database-migrations)
-13. [Backend Libraries](#backend-libraries)
-14. [Contributing](#contributing)
-15. [Troubleshooting](#troubleshooting)
-16. [Security](#security)
-17. [Logging System](#logging-system)
-18. [Author](#author)
+8. [XAMPP Configuration](#xampp-configuration)
+9. [Environment Variables](#environment-variables)
+10. [Seed Accounts](#seed-accounts)
+11. [API Reference](#api-reference)
+12. [Database Schema](#database-schema)
+13. [Database Migrations](#database-migrations)
+14. [Backend Libraries](#backend-libraries)
+15. [Contributing](#contributing)
+16. [Troubleshooting](#troubleshooting)
+17. [Security](#security)
+18. [Logging System](#logging-system)
+19. [Author](#author)
 
 ---
 
@@ -343,6 +344,101 @@ http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
 
 ---
 
+## XAMPP Configuration
+
+These one-time changes to your XAMPP installation are required before the application will run. Apply them once, restart Apache, and you will not need to touch them again.
+
+### Apache — enable mod_rewrite and AllowOverride
+
+The backend routes every request through `Backend/.htaccess` using Apache's `mod_rewrite`. Two settings must be active.
+
+**1. Enable mod_rewrite**
+
+Open `C:\xampp\apache\conf\httpd.conf` and find the rewrite module line. Remove the leading `#` so it reads:
+
+```apache
+LoadModule rewrite_module modules/mod_rewrite.so
+```
+
+**2. Allow .htaccess overrides in htdocs**
+
+In the same file, find the `<Directory>` block for `htdocs` and change `AllowOverride None` to `AllowOverride All`:
+
+```apache
+<Directory "C:/xampp/htdocs">
+    Options Indexes FollowSymLinks Includes ExecCGI
+    AllowOverride All
+    Require all granted
+</Directory>
+```
+
+**3. Restart Apache** from the XAMPP Control Panel after saving the file.
+
+> **Verify:** Navigate to `http://localhost/LaboratoryScheduleSystemWebsite/Backend/api/v1/user/` in a browser. You should get a JSON response (likely `{"status":"401",...}`), not a 404 or blank page. A 404 means mod_rewrite is still off or AllowOverride is still None.
+
+---
+
+### PHP — verify required extensions
+
+Two extensions must be enabled in `php.ini`. XAMPP includes them but they are sometimes commented out.
+
+Open `C:\xampp\php\php.ini` and confirm these lines are present and **not** prefixed with a semicolon:
+
+```ini
+extension=pdo_mysql    ; PDO MySQL driver — all database connections
+extension=fileinfo     ; MIME-type inspection — file upload validation
+```
+
+If either line starts with `;extension=...`, remove the semicolon and restart Apache.
+
+> **Verify:** Open `http://localhost/dashboard/phpinfo.php`, use Ctrl+F to search for `pdo_mysql` and `fileinfo`. Each should appear in its own section listing its version and status.
+
+---
+
+### MySQL / MariaDB — default credentials
+
+XAMPP ships MySQL/MariaDB with a `root` account and an **empty password**. The seed script and `.env` use these defaults unless you change them.
+
+| Setting  | XAMPP default |
+|----------|---------------|
+| Host     | `localhost`   |
+| Port     | `3306`        |
+| User     | `root`        |
+| Password | _(empty — leave `DB_PASSWORD=` blank in `.env`)_ |
+
+**To change the root password after installation:**
+
+1. Open `http://localhost/phpmyadmin`
+2. Go to **User Accounts** → click **Edit Privileges** next to `root@localhost`
+3. Click the **Change password** tab, set a new password, click **Go**
+4. Update `DB_PASSWORD` in `Backend/.env` to match
+
+---
+
+### phpMyAdmin — database management
+
+phpMyAdmin is bundled with XAMPP and provides a full graphical interface for the MySQL database. Access it at:
+
+```
+http://localhost/phpmyadmin
+```
+
+Common tasks:
+
+| Task | Steps in phpMyAdmin |
+|------|---------------------|
+| Browse the database | Left panel → click the `DB_NAME` database → click any table |
+| Run a raw SQL query | Select the database → **SQL** tab → paste query → **Go** |
+| Export a full backup | Select the database → **Export** → Quick → Format: SQL → **Go** |
+| Import a SQL file | Select the database → **Import** → choose file → **Go** |
+| Drop and recreate | Select the database → **Operations** → **Drop the database** → create a new empty one with the same name (charset `utf8mb4`, collation `utf8mb4_unicode_ci`) |
+| Check table structure | Select a table → **Structure** tab |
+| Inspect audit logs | Select database → table `database_modification_logs` → **Browse** |
+
+> phpMyAdmin is only accessible from `localhost`. It is not exposed to the network when Apache binds to `127.0.0.1` (the XAMPP default).
+
+---
+
 ## Environment Variables
 
 All runtime configuration is in `Backend/.env`. Use `Backend/.env-example` as the starting template.
@@ -625,6 +721,91 @@ users ◄──── subject_lecture_relations ────► practical_subjec
 | `news`                      | News articles. |
 | `images`                    | Uploaded image metadata linked to news. |
 | `database_modification_logs`| Audit log of every INSERT / UPDATE / DELETE. Stores `old_data` and `new_data` as JSON, plus the acting user ID and timestamp. Password hashes are never written here. |
+
+---
+
+## Database Migrations
+
+### Initial setup — PHP seed script
+
+The project includes a one-time setup script (`Backend/scripts/run_seed.php`) that creates the database entirely through PHP and PDO — no manual SQL import needed.
+
+**What the script does, in order:**
+
+1. Reads `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` from `Backend/.env`
+2. Opens a PDO connection to MySQL **without** a database selected
+3. Executes `CREATE DATABASE IF NOT EXISTS` with charset `utf8mb4` and collation `utf8mb4_unicode_ci`
+4. Imports the full schema from `Backend/seeds/laboratory_schedule_system.sql` — all tables, indexes, foreign keys, and default rows
+5. Inserts the initial `admin` and `lecturer` accounts with bcrypt-hashed passwords
+6. Creates `Backend/seeds/.seed.lock` to prevent accidental re-runs
+7. Prints the generated credentials to the terminal (shown only once)
+
+**Run:**
+
+```bash
+cd LaboratoryScheduleSystemWebsite
+php Backend/scripts/run_seed.php
+```
+
+---
+
+### Re-seeding a clean database
+
+To wipe all data and start fresh with new seed credentials:
+
+```bash
+# Step 1 — Remove the lock file
+del Backend\seeds\.seed.lock          # Windows CMD
+# rm Backend/seeds/.seed.lock         # macOS / Linux / Git Bash
+
+# Step 2 — Drop the database (choose one method)
+
+# Option A — phpMyAdmin (recommended)
+# Open http://localhost/phpmyadmin → select the database →
+# Operations → Drop the database → confirm → create a new
+# empty database with the same name (utf8mb4 / utf8mb4_unicode_ci)
+
+# Option B — MySQL CLI
+mysql -u root -e "DROP DATABASE IF EXISTS your_db_name;"
+mysql -u root -e "CREATE DATABASE your_db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Step 3 — Re-run the seed script
+php Backend/scripts/run_seed.php
+```
+
+> **Warning:** Dropping the database deletes all records permanently — timetable data, news articles, users, requests, and audit logs.
+
+---
+
+### Schema-only import via phpMyAdmin
+
+To import only the schema (no seed users) on a server where you manage accounts manually:
+
+1. Open `http://localhost/phpmyadmin` and create a new empty database
+   - Charset: `utf8mb4`
+   - Collation: `utf8mb4_unicode_ci`
+2. Click the new database in the left panel
+3. Go to the **Import** tab
+4. Choose `Backend/seeds/laboratory_schedule_system.sql`
+5. Click **Go**
+6. Update `DB_NAME` in `Backend/.env` to match the new database name
+
+---
+
+### PDO connection details
+
+All database access goes through `Backend/DB/dbConnection.php` using PHP's PDO layer.
+
+| Setting | Value |
+|---------|-------|
+| Driver | `mysql` |
+| Charset | `utf8mb4` |
+| Collation | `utf8mb4_unicode_ci` |
+| Emulated prepares | Disabled — real server-side prepared statements |
+| Error mode | `ERRMODE_EXCEPTION` — all errors throw `PDOException` |
+| LIMIT / OFFSET | Integer-interpolated directly (not bound as parameters — PDO binds them as strings which breaks MySQL with emulation disabled) |
+
+No manual DSN configuration is required beyond the four `DB_*` variables in `Backend/.env`.
 
 ---
 
