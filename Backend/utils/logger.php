@@ -11,10 +11,11 @@ class Logger {
         }
 
         $timestamp = date('Y-m-d H:i:s');
+        $date = date('Y-m-d');
         $contextStr = empty($context) ? '' : ' | ' . json_encode($context);
         $line = "[{$timestamp}] [{$level}] {$message}{$contextStr}" . PHP_EOL;
 
-        file_put_contents("{$dir}/{$level}.log", $line, FILE_APPEND | LOCK_EX);
+        file_put_contents("{$dir}/{$level} {$date}.log", $line, FILE_APPEND | LOCK_EX);
     }
 
     public static function error(string $message, array $context = []): void {
