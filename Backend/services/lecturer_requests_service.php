@@ -3,15 +3,18 @@ namespace Backend\Services;
 
 require_once __DIR__ . '/../DB/dbConnection.php';
 require_once __DIR__ . '/email_notification_service.php';
+require_once __DIR__ . '/whatsapp_notification_service.php';
 
 use Backend\DB\DbConnection;
 use Exception;
 
 class LecturerRequestsService {
     private $emailNotificationService;
+    private $whatsappNotificationService;
 
     public function __construct() {
         $this->emailNotificationService = new EmailNotificationService();
+        $this->whatsappNotificationService = new WhatsAppNotificationService();
     }
 
     private function fetchAllRows($query, $property = null) {
@@ -89,7 +92,7 @@ class LecturerRequestsService {
 
     private function getAdminRecipients() {
         $admins = $this->fetchAllRows(
-            "SELECT email, CONCAT(first_name, ' ', last_name) AS name
+            "SELECT email, mobile_number, CONCAT(first_name, ' ', last_name) AS name
              FROM users
              WHERE role = 'admin' AND email IS NOT NULL AND email != ''"
         );
@@ -121,6 +124,7 @@ class LecturerRequestsService {
                 lr.admin_message,
                 lr.lecturer_id,
                 u.email AS lecturer_email,
+                u.mobile_number AS lecturer_mobile_number,
                 CONCAT(u.first_name, ' ', u.last_name) AS lecturer_name,
                 ps.subject,
                 y.year,
@@ -165,21 +169,36 @@ class LecturerRequestsService {
 
         $adminRecipients = $this->getAdminRecipients();
         $this->emailNotificationService->notifyAdminsAboutLecturerRequest($requestData, $adminRecipients);
+        $this->whatsappNotificationService->notifyAdminsAboutLecturerRequest($requestData, $adminRecipients);
     }
 
     private function notifyLecturerForRequestStatus($requestId, $labId = null) {
         $requestData = $this->getRequestNotificationData($requestId, $labId);
-        if (!$requestData || empty($requestData['lecturer_email'])) {
+        if (!$requestData) {
             return;
         }
 
-        $this->emailNotificationService->notifyLecturerAboutRequestStatus(
-            $requestData,
-            [
-                'email' => $requestData['lecturer_email'],
-                'name' => $requestData['lecturer_name'] ?? 'Lecturer',
-            ]
-        );
+        $lecturerName = $requestData['lecturer_name'] ?? 'Lecturer';
+
+        if (!empty($requestData['lecturer_email'])) {
+            $this->emailNotificationService->notifyLecturerAboutRequestStatus(
+                $requestData,
+                [
+                    'email' => $requestData['lecturer_email'],
+                    'name' => $lecturerName,
+                ]
+            );
+        }
+
+        if (!empty($requestData['lecturer_mobile_number'])) {
+            $this->whatsappNotificationService->notifyLecturerAboutRequestStatus(
+                $requestData,
+                [
+                    'mobile_number' => $requestData['lecturer_mobile_number'],
+                    'name' => $lecturerName,
+                ]
+            );
+        }
     }
 
     private function syncTemporaryTimetable($payload) {

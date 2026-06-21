@@ -67,6 +67,13 @@ Receive email                    Send email notifications
   - **Lecturer In-Charge** — the lecturer assigned with `responsible_level = 1`
   - **Lecturers** — all other assigned lecturers (comma-separated)
 
+### Mobile-Friendly / Responsive Design
+- Every page sets `<meta name="viewport" content="width=device-width, initial-scale=1.0">` and is built mobile-first with Tailwind's `sm:` / `md:` / `lg:` breakpoints — no separate mobile site or app
+- Navigation bar collapses into a `<details>`-based hamburger menu below the `sm` breakpoint; the full inline nav appears at `sm` and above
+- Modals (scheduling form, lecture details, lab allocation) anchor to the top of the screen and scroll independently on mobile, then vertically center themselves on larger screens (`items-start sm:items-center`) — content never gets trapped above the visible viewport
+- The timetable grid scrolls horizontally on narrow screens (`overflow-x-auto`) while staying full-width on desktop
+- Admin panel sections, stat grids, and data tables reflow from single-column on mobile to multi-column (`md:grid-cols-4`) and gain independent scroll regions on large screens (`lg:overflow-y-auto`)
+
 ### Lecturer Request Flow
 - Submit a slot request (subject, year, group, day, time slot, date, description)
 - Availability check before submission to prevent double-booking
@@ -569,6 +576,33 @@ When `SMTP_HOST` or `SMTP_FROM_EMAIL` is not configured, email notifications are
 | `SMTP_FROM_NAME`  | Sender display name on outgoing emails. | `Laboratory Schedule System` |
 
 **Gmail tip:** Enable 2-Step Verification and create an [App Password](https://myaccount.google.com/apppasswords). Use the App Password as `SMTP_PASSWORD`.
+
+### WhatsApp (Cloud API) — all optional
+
+When `WHATSAPP_PHONE_NUMBER_ID` or `WHATSAPP_ACCESS_TOKEN` is not configured, WhatsApp notifications are silently skipped. Email notifications continue to work independently — WhatsApp is an additional channel, not a replacement.
+
+| Variable                              | Description | Example |
+|----------------------------------------|-------------|---------|
+| `WHATSAPP_PHONE_NUMBER_ID`             | Phone Number ID from your Meta WhatsApp Business app. | `123456789012345` |
+| `WHATSAPP_ACCESS_TOKEN`                | Permanent (System User) access token for the Cloud API. | `EAAxxxxxxxxxxxx` |
+| `WHATSAPP_API_VERSION`                 | Graph API version to call. | `v21.0` |
+| `WHATSAPP_DEFAULT_COUNTRY_CODE`        | Digits prepended to `mobile_number` values that don't already start with it (handles locally-formatted numbers like `0771234567`). | `94` |
+| `WHATSAPP_TEMPLATE_LANGUAGE`           | Language code of the approved templates below. | `en_US` |
+| `WHATSAPP_TEMPLATE_ADMIN_NEW_REQUEST`  | Approved template name sent to admins when a lecturer submits a new request. | `admin_new_lecture_request` |
+| `WHATSAPP_TEMPLATE_LECTURER_CONFIRMED` | Approved template name sent to the lecturer when their request is confirmed. | `lecture_request_confirmed` |
+| `WHATSAPP_TEMPLATE_LECTURER_CANCELED`  | Approved template name sent to the lecturer when their request is canceled. | `lecture_request_canceled` |
+
+**Why templates, not free text:** WhatsApp Cloud API only allows business-initiated messages (i.e. notifications the server sends without the user messaging first) using templates pre-approved in Meta Business Manager. Each template must be created and approved before its name can be used here.
+
+**Body parameter order expected by each template** (`WhatsAppNotificationService::sendTemplateMessage` sends exactly these, in this order, as `{{1}}`, `{{2}}`, ...):
+
+| Template | `{{1}}` | `{{2}}` | `{{3}}` | `{{4}}` | `{{5}}` | `{{6}}` |
+|----------|---------|---------|---------|---------|---------|---------|
+| `WHATSAPP_TEMPLATE_ADMIN_NEW_REQUEST` | lecturer name | subject | date | day | time slot | group name |
+| `WHATSAPP_TEMPLATE_LECTURER_CONFIRMED` | lecturer name | subject | date | day | time slot | lab name |
+| `WHATSAPP_TEMPLATE_LECTURER_CANCELED` | lecturer name | subject | date | day | time slot | cancel reason |
+
+Recipients are pulled from `users.mobile_number` — admins and lecturers without a stored number are skipped for WhatsApp only (they still receive email if they have one).
 
 ### Seed Passwords — optional
 
