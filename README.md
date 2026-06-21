@@ -14,7 +14,6 @@
 6. [Quick Start](#quick-start)
 7. [Detailed Setup](#detailed-setup)
 8. [XAMPP Configuration](#xampp-configuration)
-<<<<<<< HEAD
 9. [Docker Setup](#docker-setup)
 10. [Environment Variables](#environment-variables)
 11. [Seed Accounts](#seed-accounts)
