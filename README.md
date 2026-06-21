@@ -67,6 +67,13 @@ Receive email                    Send email notifications
   - **Lecturer In-Charge** — the lecturer assigned with `responsible_level = 1`
   - **Lecturers** — all other assigned lecturers (comma-separated)
 
+### Mobile-Friendly / Responsive Design
+- Every page sets `<meta name="viewport" content="width=device-width, initial-scale=1.0">` and is built mobile-first with Tailwind's `sm:` / `md:` / `lg:` breakpoints — no separate mobile site or app
+- Navigation bar collapses into a `<details>`-based hamburger menu below the `sm` breakpoint; the full inline nav appears at `sm` and above
+- Modals (scheduling form, lecture details, lab allocation) anchor to the top of the screen and scroll independently on mobile, then vertically center themselves on larger screens (`items-start sm:items-center`) — content never gets trapped above the visible viewport
+- The timetable grid scrolls horizontally on narrow screens (`overflow-x-auto`) while staying full-width on desktop
+- Admin panel sections, stat grids, and data tables reflow from single-column on mobile to multi-column (`md:grid-cols-4`) and gain independent scroll regions on large screens (`lg:overflow-y-auto`)
+
 ### Lecturer Request Flow
 - Submit a slot request (subject, year, group, day, time slot, date, description)
 - Availability check before submission to prevent double-booking
