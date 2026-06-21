@@ -1,0 +1,14 @@
+.git
+.gitattributes
+.claude
+node_modules
+Backend/vendor
+Backend/.env
+Backend/.env.docker
+Backend/.env.production
+Backend/logs
+storage
+docker-compose.yaml
+docker-compose.prod.yaml
+Dockerfile
+README.md

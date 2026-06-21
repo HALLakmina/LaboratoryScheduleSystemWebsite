@@ -1,0 +1,60 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lab-schedule-system:latest
+    container_name: lab_schedule_web
+    ports:
+      - "80:80"
+    volumes:
+      # Only the env file and persistent app data come from the host; the
+      # rest of the code is baked into the image (no live bind mount).
+      - ./Backend/.env.production:/var/www/html/LaboratoryScheduleSystemWebsite/Backend/.env:ro
+      - storage_data:/var/www/html/LaboratoryScheduleSystemWebsite/storage
+      - logs_data:/var/www/html/LaboratoryScheduleSystemWebsite/Backend/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  db:
+    image: mysql:8.0
+    container_name: lab_schedule_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    # No host port published — only the "web" service can reach the db,
+    # over the internal compose network.
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
+  storage_data:
+  logs_data:
+
+# Usage:
+#   1. Create Backend/.env.production (DB_HOST=db, DB_USER/DB_PASSWORD/DB_NAME
+#      matching the values below, real JWT_KEY/SMTP secrets) - never commit it.
+#   2. Create a ".env" file next to this compose file with:
+#        MYSQL_ROOT_PASSWORD=...
+#        MYSQL_DATABASE=...
+#        MYSQL_USER=...
+#        MYSQL_PASSWORD=...
+#   3. docker compose -f docker-compose.prod.yaml up -d --build
+#   4. One-time schema/user seed:
+#        docker compose -f docker-compose.prod.yaml exec web php Backend/scripts/run_seed.php
+#
+# NOTE: Frontend/config.php and the Frontend/API/*.js files hardcode
+# "http://localhost/..." for every API call. That only works when the site
+# is accessed as "localhost" on the server itself. Deploying behind a real
+# domain requires updating those hardcoded URLs first.
