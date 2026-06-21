@@ -91,9 +91,9 @@ Receive email                    Send email notifications
 - Action Logs viewer — paginated table of every INSERT / UPDATE / DELETE across the system, with before/after data diff in a detail modal and a record-count selector (10 / 20 / 50 / 100 / All)
 
 ### Logging System
-- **File-based logs** — system events written to `Backend/logs/error.log`, `warning.log`, and `info.log` with ISO timestamps; the directory is blocked from browser access via `.htaccess`
+- **File-based logs** — system events written to one file per level **per day**: `Backend/logs/error YYYY-MM-DD.log`, `warning YYYY-MM-DD.log`, `info YYYY-MM-DD.log`; the directory is blocked from browser access via `.htaccess`
 - **Database audit log** — every INSERT, UPDATE, and DELETE across all five resource controllers is captured in `database_modification_logs` with the `old_data` snapshot (for UPDATE and DELETE) and `new_data` payload, the acting user's ID, and a timestamp; password hashes are stripped before any user-table record is written to the log
-- **Non-disruptive** — a DB-log failure falls back silently to `error.log` and never interrupts the main request
+- **Non-disruptive** — a DB-log failure falls back silently to that day's `error YYYY-MM-DD.log` and never interrupts the main request
 
 ### Security
 - JWT stored in **HttpOnly** cookie — not accessible to JavaScript
@@ -196,12 +196,12 @@ LaboratoryScheduleSystemWebsite/
 │   ├── utils/
 │   │   ├── database_seed.php               # Seed orchestration
 │   │   ├── httpOnlyCookie.php              # Cookie helper
-│   │   ├── logger.php                      # Static Logger — writes error/warning/info.log
+│   │   ├── logger.php                      # Static Logger — writes one file per level per day
 │   │   └── route.php                       # Custom singleton router
 │   ├── logs/                               # Runtime log files (auto-created, not in repo)
-│   │   ├── error.log
-│   │   ├── warning.log
-│   │   ├── info.log
+│   │   ├── error YYYY-MM-DD.log
+│   │   ├── warning YYYY-MM-DD.log
+│   │   ├── info YYYY-MM-DD.log
 │   │   └── .htaccess                       # Deny from all — blocks direct browser access
 │   ├── DB/
 │   │   └── dbConnection.php                # PDO wrapper
@@ -732,7 +732,7 @@ The following controls are in place:
 | Audit trail | `created_by` / `updated_by` / `assigned_by` injected server-side from JWT; full before/after snapshots recorded in `database_modification_logs` for every mutation |
 | CORS | Reflected only when request `Origin` matches `ALLOWED_ORIGINS` allowlist |
 | Sensitive data | `password` column excluded from all public-facing user list queries; password hashes stripped before any user-table row is written to `database_modification_logs` |
-| Log file access | `Backend/logs/.htaccess` denies all direct browser access to `error.log`, `warning.log`, and `info.log` |
+| Log file access | `Backend/logs/.htaccess` denies all direct browser access to every `*.log` file in the directory |
 
 To report a security vulnerability, please email [lahirulakmina1999@gmail.com](mailto:lahirulakmina1999@gmail.com) directly rather than opening a public issue.
 
@@ -744,13 +744,15 @@ The system has two complementary logging layers that operate independently.
 
 ### File-based logs
 
-Runtime events (errors, warnings, informational messages) are written to flat log files by the `Backend\Utils\Logger` static class.
+Runtime events (errors, warnings, informational messages) are written to flat log files by the `Backend\Utils\Logger` static class. A **new file is created per day, per level** — logs naturally rotate at midnight with no cleanup job required.
 
-| File                     | Written when |
-|--------------------------|--------------|
-| `Backend/logs/error.log`   | Unhandled exceptions, DB failures, auth errors |
-| `Backend/logs/warning.log` | Non-critical anomalies (e.g. missing optional config) |
-| `Backend/logs/info.log`    | Informational lifecycle events |
+| File pattern                          | Written when |
+|----------------------------------------|--------------|
+| `Backend/logs/error YYYY-MM-DD.log`   | Unhandled exceptions, DB failures, auth errors |
+| `Backend/logs/warning YYYY-MM-DD.log` | Non-critical anomalies (e.g. missing optional config) |
+| `Backend/logs/info YYYY-MM-DD.log`    | Informational lifecycle events |
+
+Example: an error logged on 2026-06-21 is written to `Backend/logs/error 2026-06-21.log`; the next day's errors go to a new `error 2026-06-22.log`.
 
 Each line follows the format:
 

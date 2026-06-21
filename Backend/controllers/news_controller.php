@@ -4,11 +4,13 @@ namespace Backend\Controllers;
 require_once __DIR__ . '/../services/news_service.php';
 require_once __DIR__ . '/../services/logs_service.php';
 require_once __DIR__ . '/../utils/logger.php';
+require_once __DIR__ . '/../utils/response.php';
 
 use Backend\Services\NewsService;
 use Backend\Services\LogsService;
 use Backend\Utils\Route;
 use Backend\Utils\Logger;
+use Backend\Utils\Response;
 use Exception;
 
 class NewsController {
@@ -43,17 +45,10 @@ class NewsController {
     public function getAll($req = null, $res = null) {
         try {
             $respond = $this->newsService->getAll();
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'News fetched successfully',
-            ]);
-            exit;
+            Response::success('News fetched successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[NewsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -61,21 +56,13 @@ class NewsController {
         try {
             $id = $req['query']['id'] ?? '';
             if (trim((string)$id) === '') {
-                echo json_encode(['status' => '400', 'message' => 'id is required.']);
-                exit;
+                Response::error('400', 'id is required.');
             }
             $respond = $this->newsService->getById($id);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'News fetched successfully',
-            ]);
-            exit;
+            Response::success('News fetched successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[NewsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -87,17 +74,10 @@ class NewsController {
             $payload['updated_by'] = (int)($actor['userId'] ?? 0);
             $respond = $this->newsService->create($payload, $_FILES['image'] ?? null);
             $this->dbLog('INSERT', 'news', null, $payload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'News created successfully',
-            ]);
-            exit;
+            Response::success('News created successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[NewsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -109,17 +89,10 @@ class NewsController {
             $old = $this->logsService->fetchRowById('news', $payload['id'] ?? null);
             $respond = $this->newsService->update($payload, $_FILES['image'] ?? null);
             $this->dbLog('UPDATE', 'news', $old, $payload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'News updated successfully',
-            ]);
-            exit;
+            Response::success('News updated successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[NewsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -129,17 +102,10 @@ class NewsController {
             $old = $this->logsService->fetchRowById('news', $payload['id'] ?? null);
             $respond = $this->newsService->delete($payload['id']);
             $this->dbLog('DELETE', 'news', $old, null);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'News deleted successfully',
-            ]);
-            exit;
+            Response::success('News deleted successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[NewsController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 }

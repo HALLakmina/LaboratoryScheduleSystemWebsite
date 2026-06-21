@@ -4,10 +4,12 @@ namespace Backend\Controllers;
 require_once __DIR__ . '/../services/logs_service.php';
 require_once __DIR__ . '/../utils/route.php';
 require_once __DIR__ . '/../utils/logger.php';
+require_once __DIR__ . '/../utils/response.php';
 
 use Backend\Services\LogsService;
 use Backend\Utils\Route;
 use Backend\Utils\Logger;
+use Backend\Utils\Response;
 use Exception;
 
 class LogsController {
@@ -18,9 +20,7 @@ class LogsController {
     }
 
     private function jsonResponse($status, $message, $data = null) {
-        http_response_code((int)$status);
-        echo json_encode(['status' => (string)$status, 'data' => $data, 'message' => $message]);
-        exit;
+        Response::send((string)$status, $message, $data);
     }
 
     public function getActionLogs($req = null, $res = null) {

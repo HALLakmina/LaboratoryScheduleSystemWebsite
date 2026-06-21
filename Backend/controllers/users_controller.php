@@ -5,12 +5,14 @@ require_once __DIR__ . "/../services/users_service.php";
 require_once __DIR__ . '/../services/logs_service.php';
 require_once __DIR__ . "/../middleware/jwtToken.php";
 require_once __DIR__ . '/../utils/logger.php';
+require_once __DIR__ . '/../utils/response.php';
 
 use Backend\Services\UsersService;
 use Backend\Services\LogsService;
 use Backend\Middleware\JwtToken;
 use Backend\Utils\Route;
 use Backend\Utils\Logger;
+use Backend\Utils\Response;
 use Exception;
 
 class UsersController {
@@ -41,17 +43,10 @@ class UsersController {
             $respond = $this->usersService->getAll();
             $actor = $this->getAuthUser();
             Logger::info('[UsersController::getAll]', ['user' => $actor['userName'] ?? 'anonymous', 'count' => count($respond)]);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => $respond,
-                'message' => 'Data get successfully',
-            ]);
-            exit;
+            Response::success('Users fetched successfully', $respond);
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -65,17 +60,10 @@ class UsersController {
             $logPayload = $payload;
             unset($logPayload['password']);
             $this->dbLog('INSERT', 'users', null, $logPayload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => 'User created',
-                'message' => 'User created successfully',
-            ]);
-            exit;
+            Response::success('User created successfully');
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -90,17 +78,10 @@ class UsersController {
             $logPayload = $payload;
             unset($logPayload['password']);
             $this->dbLog('UPDATE', 'users', $old, $logPayload);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => 'User updated',
-                'message' => 'User updated successfully',
-            ]);
-            exit;
+            Response::success('User updated successfully');
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -111,17 +92,10 @@ class UsersController {
             if ($old !== null) unset($old['password']);
             $this->usersService->delete($payload['id']);
             $this->dbLog('DELETE', 'users', $old, null);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => 'User deleted',
-                'message' => 'User deleted successfully',
-            ]);
-            exit;
+            Response::success('User deleted successfully');
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -134,17 +108,10 @@ class UsersController {
             if ($old !== null) unset($old['password']);
             $this->usersService->resetPassword($payload);
             $this->dbLog('UPDATE', 'users', $old, ['id' => $payload['id'] ?? null, 'action' => 'password_reset']);
-            echo json_encode([
-                'status'  => '200',
-                'data'    => 'Password reset',
-                'message' => 'User password reset successfully',
-            ]);
-            exit;
+            Response::success('User password reset successfully');
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -157,17 +124,13 @@ class UsersController {
             $foundUser = $this->usersService->getByEmail($email);
 
             if (!$foundUser || empty($foundUser)) {
-                http_response_code(401);
-                echo json_encode(['status' => '401', 'message' => 'Wrong email or password.']);
-                exit;
+                Response::error('401', 'Wrong email or password.');
             }
 
             $user = $foundUser[0];
 
             if (!password_verify($password, $user['password'])) {
-                http_response_code(401);
-                echo json_encode(['status' => '401', 'message' => 'Wrong email or password.']);
-                exit;
+                Response::error('401', 'Wrong email or password.');
             }
 
             $jwt = new JwtToken();
@@ -191,11 +154,9 @@ class UsersController {
 
             Logger::info('[UsersController::login]', ['userId' => $user['id'], 'role' => $user['role']]);
 
-            echo json_encode([
-                'status'    => '200',
-                'message'   => 'Login successful.',
-                'jwtToken'  => $jwtToken,
-                'user'      => [
+            Response::success('Login successful', [
+                'jwtToken' => $jwtToken,
+                'user'     => [
                     'id'         => $user['id'] ?? null,
                     'email'      => $user['email'] ?? null,
                     'role'       => $user['role'],
@@ -203,12 +164,9 @@ class UsersController {
                     'last_name'  => $user['last_name'] ?? null,
                 ],
             ]);
-            exit;
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 
@@ -225,13 +183,10 @@ class UsersController {
                     'samesite' => $isSecure ? 'none' : 'lax',
                 ]);
             }
-            echo json_encode(['status' => '200', 'message' => 'Logout successful.']);
-            exit;
+            Response::success('Logout successful');
         } catch (Exception $e) {
             Logger::error('[UsersController] ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
-            http_response_code(500);
-            echo json_encode(['status' => '500', 'message' => 'An internal error occurred']);
-            exit;
+            Response::error('500', 'An internal error occurred');
         }
     }
 }
