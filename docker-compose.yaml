@@ -1,0 +1,60 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab_schedule_web
+    ports:
+      # Must stay on host port 80: Frontend/config.php and the Frontend/API/*.js
+      # files hardcode "http://localhost/LaboratoryScheduleSystemWebsite/..."
+      # with no port. Stop XAMPP's Apache (or anything else on port 80) first.
+      - "80:80"
+    volumes:
+      # Mirrors XAMPP htdocs: source is live-edited from the host.
+      - .:/var/www/html/LaboratoryScheduleSystemWebsite
+      # Overlays only the .env file so the host's real Backend/.env (used by
+      # native XAMPP, DB_HOST=localhost) is never touched.
+      - ./Backend/.env.docker:/var/www/html/LaboratoryScheduleSystemWebsite/Backend/.env:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: lab_schedule_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: timetable_system
+      MYSQL_USER: labapp
+      MYSQL_PASSWORD: labapppassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: lab_schedule_phpmyadmin
+    depends_on:
+      - db
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+# First run: create tables + seed users with
+#   docker compose exec web php Backend/scripts/run_seed.php
+# App:        http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
+# phpMyAdmin: http://localhost:8081

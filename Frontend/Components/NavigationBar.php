@@ -1,8 +1,6 @@
 <?php
     include __DIR__ . '/../config.php';
 
-    if (session_status() === PHP_SESSION_NONE) session_start();
-
     function isActive($file) {
         $current = basename($_SERVER['PHP_SELF']);
         return $current === $file;

@@ -13,16 +13,19 @@
 5. [Project Structure](#project-structure)
 6. [Quick Start](#quick-start)
 7. [Detailed Setup](#detailed-setup)
-8. [Environment Variables](#environment-variables)
-9. [Seed Accounts](#seed-accounts)
-10. [API Reference](#api-reference)
-11. [Database Schema](#database-schema)
-12. [Database Migrations](#database-migrations)
-13. [Backend Libraries](#backend-libraries)
-14. [Contributing](#contributing)
-15. [Troubleshooting](#troubleshooting)
-16. [Security](#security)
-17. [Author](#author)
+8. [XAMPP Configuration](#xampp-configuration)
+9. [Docker Setup](#docker-setup)
+10. [Environment Variables](#environment-variables)
+11. [Seed Accounts](#seed-accounts)
+12. [API Reference](#api-reference)
+13. [Database Schema](#database-schema)
+14. [Database Migrations](#database-migrations)
+15. [Backend Libraries](#backend-libraries)
+16. [Contributing](#contributing)
+17. [Troubleshooting](#troubleshooting)
+18. [Security](#security)
+19. [Logging System](#logging-system)
+20. [Author](#author)
 
 ---
 
@@ -64,6 +67,13 @@ Receive email                    Send email notifications
   - **Lecturer In-Charge** — the lecturer assigned with `responsible_level = 1`
   - **Lecturers** — all other assigned lecturers (comma-separated)
 
+### Mobile-Friendly / Responsive Design
+- Every page sets `<meta name="viewport" content="width=device-width, initial-scale=1.0">` and is built mobile-first with Tailwind's `sm:` / `md:` / `lg:` breakpoints — no separate mobile site or app
+- Navigation bar collapses into a `<details>`-based hamburger menu below the `sm` breakpoint; the full inline nav appears at `sm` and above
+- Modals (scheduling form, lecture details, lab allocation) anchor to the top of the screen and scroll independently on mobile, then vertically center themselves on larger screens (`items-start sm:items-center`) — content never gets trapped above the visible viewport
+- The timetable grid scrolls horizontally on narrow screens (`overflow-x-auto`) while staying full-width on desktop
+- Admin panel sections, stat grids, and data tables reflow from single-column on mobile to multi-column (`md:grid-cols-4`) and gain independent scroll regions on large screens (`lg:overflow-y-auto`)
+
 ### Lecturer Request Flow
 - Submit a slot request (subject, year, group, day, time slot, date, description)
 - Availability check before submission to prevent double-booking
@@ -87,6 +97,12 @@ Receive email                    Send email notifications
 - User management (create, update, delete, reset passwords)
 - Responsibilities management (create, update, delete responsibility type definitions)
 - Lecturer Assignments management (assign lecturers to subjects)
+- Action Logs viewer — paginated table of every INSERT / UPDATE / DELETE across the system, with before/after data diff in a detail modal and a record-count selector (10 / 20 / 50 / 100 / All)
+
+### Logging System
+- **File-based logs** — system events written to one file per level **per day**: `Backend/logs/error YYYY-MM-DD.log`, `warning YYYY-MM-DD.log`, `info YYYY-MM-DD.log`; the directory is blocked from browser access via `.htaccess`
+- **Database audit log** — every INSERT, UPDATE, and DELETE across all five resource controllers is captured in `database_modification_logs` with the `old_data` snapshot (for UPDATE and DELETE) and `new_data` payload, the acting user's ID, and a timestamp; password hashes are stripped before any user-table record is written to the log
+- **Non-disruptive** — a DB-log failure falls back silently to that day's `error YYYY-MM-DD.log` and never interrupts the main request
 
 ### Security
 - JWT stored in **HttpOnly** cookie — not accessible to JavaScript
@@ -156,6 +172,7 @@ LaboratoryScheduleSystemWebsite/
 │   ├── controllers/                        # Thin handlers — unpack, inject audit, call service
 │   │   ├── lecturer_assignments_controller.php
 │   │   ├── lecturer_requests_controller.php
+│   │   ├── logs_controller.php             # Action-logs read endpoint
 │   │   ├── news_controller.php
 │   │   ├── timetable_controller.php
 │   │   └── users_controller.php
@@ -165,6 +182,7 @@ LaboratoryScheduleSystemWebsite/
 │   ├── routers/
 │   │   ├── lecturer_assignments_router.php
 │   │   ├── lecturer_requests_router.php
+│   │   ├── logs_router.php                 # GET /action-logs (admin only)
 │   │   ├── news_router.php
 │   │   ├── timetable_router.php
 │   │   └── users_router.php
@@ -172,6 +190,7 @@ LaboratoryScheduleSystemWebsite/
 │   │   ├── email_notification_service.php
 │   │   ├── lecturer_assignments_service.php
 │   │   ├── lecturer_requests_service.php
+│   │   ├── logs_service.php                # logAction, fetchRowById, getActionLogs
 │   │   ├── news_service.php
 │   │   ├── timetable_service.php
 │   │   └── users_service.php
@@ -186,18 +205,27 @@ LaboratoryScheduleSystemWebsite/
 │   ├── utils/
 │   │   ├── database_seed.php               # Seed orchestration
 │   │   ├── httpOnlyCookie.php              # Cookie helper
+│   │   ├── logger.php                      # Static Logger — writes one file per level per day
 │   │   └── route.php                       # Custom singleton router
+│   ├── logs/                               # Runtime log files (auto-created, not in repo)
+│   │   ├── error YYYY-MM-DD.log
+│   │   ├── warning YYYY-MM-DD.log
+│   │   ├── info YYYY-MM-DD.log
+│   │   └── .htaccess                       # Deny from all — blocks direct browser access
 │   ├── DB/
 │   │   └── dbConnection.php                # PDO wrapper
 │   ├── server.php                          # API entry point, CORS headers
 │   ├── .htaccess                           # URL rewriting to server.php
 │   ├── .env                                # Local config (not in repo)
-│   └── .env-example                        # Template for .env
+│   ├── .env-example                        # Template for .env
+│   ├── .env.docker                         # Dev Docker config — DB_HOST=db (not in repo)
+│   └── .env.production                     # Prod Docker config (not in repo)
 │
 ├── Frontend/
 │   ├── API/                                # JS fetch wrappers — one file per backend resource
 │   │   ├── lecturerAssignmentsApi.js
 │   │   ├── lecturerRequestApi.js
+│   │   ├── logsApi.js                      # getActionLogs(page, perPage)
 │   │   ├── newsApi.js
 │   │   ├── timetableApi.js
 │   │   └── userApi.js
@@ -223,6 +251,11 @@ LaboratoryScheduleSystemWebsite/
 │
 ├── storage/
 │   └── images/                             # Uploaded news images (auto-created on first upload)
+├── Dockerfile                              # php:8.2-apache image, builds Backend/vendor via Composer
+├── docker-compose.yaml                     # Dev stack — live bind-mounted source, phpMyAdmin included
+├── docker-compose.prod.yaml                # Prod stack — baked image, no live mount, no exposed DB port
+├── docker-root-index.php                   # Redirect at the Apache DocumentRoot → Frontend/
+├── .dockerignore
 └── README.md
 ```
 
@@ -326,6 +359,180 @@ http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
 
 ---
 
+## XAMPP Configuration
+
+These one-time changes to your XAMPP installation are required before the application will run natively (skip this section entirely if you're using [Docker Setup](#docker-setup) instead — `mod_rewrite` and the PHP extensions below are already baked into the container image). Apply them once, restart Apache, and you will not need to touch them again.
+
+### Apache — enable mod_rewrite and AllowOverride
+
+The backend routes every request through `Backend/.htaccess` using Apache's `mod_rewrite`. Two settings must be active.
+
+**1. Enable mod_rewrite**
+
+Open `C:\xampp\apache\conf\httpd.conf` and find the rewrite module line. Remove the leading `#` so it reads:
+
+```apache
+LoadModule rewrite_module modules/mod_rewrite.so
+```
+
+**2. Allow .htaccess overrides in htdocs**
+
+In the same file, find the `<Directory>` block for `htdocs` and change `AllowOverride None` to `AllowOverride All`:
+
+```apache
+<Directory "C:/xampp/htdocs">
+    Options Indexes FollowSymLinks Includes ExecCGI
+    AllowOverride All
+    Require all granted
+</Directory>
+```
+
+**3. Restart Apache** from the XAMPP Control Panel after saving the file.
+
+> **Verify:** Navigate to `http://localhost/LaboratoryScheduleSystemWebsite/Backend/api/v1/user/` in a browser. You should get a JSON response (likely `{"status":"401",...}`), not a 404 or blank page. A 404 means mod_rewrite is still off or AllowOverride is still None.
+
+---
+
+### PHP — verify required extensions
+
+Two extensions must be enabled in `php.ini`. XAMPP includes them but they are sometimes commented out.
+
+Open `C:\xampp\php\php.ini` and confirm these lines are present and **not** prefixed with a semicolon:
+
+```ini
+extension=pdo_mysql    ; PDO MySQL driver — all database connections
+extension=fileinfo     ; MIME-type inspection — file upload validation
+```
+
+If either line starts with `;extension=...`, remove the semicolon and restart Apache.
+
+> **Verify:** Open `http://localhost/dashboard/phpinfo.php`, use Ctrl+F to search for `pdo_mysql` and `fileinfo`. Each should appear in its own section listing its version and status.
+
+---
+
+### MySQL / MariaDB — default credentials
+
+XAMPP ships MySQL/MariaDB with a `root` account and an **empty password**. The seed script and `.env` use these defaults unless you change them.
+
+| Setting  | XAMPP default |
+|----------|---------------|
+| Host     | `localhost`   |
+| Port     | `3306`        |
+| User     | `root`        |
+| Password | _(empty — leave `DB_PASSWORD=` blank in `.env`)_ |
+
+**To change the root password after installation:**
+
+1. Open `http://localhost/phpmyadmin`
+2. Go to **User Accounts** → click **Edit Privileges** next to `root@localhost`
+3. Click the **Change password** tab, set a new password, click **Go**
+4. Update `DB_PASSWORD` in `Backend/.env` to match
+
+---
+
+### phpMyAdmin — database management
+
+phpMyAdmin is bundled with XAMPP and provides a full graphical interface for the MySQL database. Access it at:
+
+```
+http://localhost/phpmyadmin
+```
+
+Common tasks:
+
+| Task | Steps in phpMyAdmin |
+|------|---------------------|
+| Browse the database | Left panel → click the `DB_NAME` database → click any table |
+| Run a raw SQL query | Select the database → **SQL** tab → paste query → **Go** |
+| Export a full backup | Select the database → **Export** → Quick → Format: SQL → **Go** |
+| Import a SQL file | Select the database → **Import** → choose file → **Go** |
+| Drop and recreate | Select the database → **Operations** → **Drop the database** → create a new empty one with the same name (charset `utf8mb4`, collation `utf8mb4_unicode_ci`) |
+| Check table structure | Select a table → **Structure** tab |
+| Inspect audit logs | Select database → table `database_modification_logs` → **Browse** |
+
+---
+
+## Docker Setup
+
+An alternative to native XAMPP setup — runs the whole stack (Apache + PHP 8.2, MySQL 8.0, phpMyAdmin) in containers, with `mod_rewrite` and the PHP extensions from [XAMPP Configuration](#xampp-configuration) already baked into the image. Two Compose files are provided: a dev stack with live-reloading source, and a production stack with a baked image.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac) or Docker Engine + the Compose plugin (Linux)
+- **Port 80 free** — stop XAMPP's Apache (or anything else bound to port 80) first. `Frontend/config.php` and every `Frontend/API/*.js` file hardcode `http://localhost/...` with no port, so the app must stay on host port 80.
+- **Port 3306 free** — stop any local MySQL/XAMPP MySQL instance, since the dev compose file also publishes the database on the host.
+
+### Services (dev stack)
+
+| Service      | Image                              | Container                 | Host port | Purpose |
+|--------------|-------------------------------------|----------------------------|-----------|---------|
+| `web`        | built from `Dockerfile` (`php:8.2-apache`) | `lab_schedule_web`         | 80        | Apache + PHP serving the whole app |
+| `db`         | `mysql:8.0`                         | `lab_schedule_db`          | 3306      | Database |
+| `phpmyadmin` | `phpmyadmin/phpmyadmin`             | `lab_schedule_phpmyadmin`  | 8081      | Browser-based DB management |
+
+### Dev setup — `docker-compose.yaml`
+
+```bash
+# 1 — Create the Docker env file (based on .env-example, but DB_HOST must be "db")
+copy Backend\.env-example Backend\.env.docker
+# Edit Backend/.env.docker: set DB_HOST=db, DB_USER=labapp, DB_PASSWORD=labapppassword,
+# DB_NAME=timetable_system (or match whatever you set in docker-compose.yaml's db
+# service), plus a real JWT_KEY and optional SMTP_* values.
+
+# 2 — Build and start the stack
+docker compose up -d --build
+
+# 3 — One-time database seed (creates tables + admin/lecturer accounts)
+docker compose exec web php Backend/scripts/run_seed.php
+# *** Save the printed credentials — they are shown only once ***
+```
+
+| Page         | URL |
+|--------------|-----|
+| App          | `http://localhost/LaboratoryScheduleSystemWebsite/Frontend/` |
+| Bare root    | `http://localhost/` — redirects to the line above via `docker-root-index.php` |
+| phpMyAdmin   | `http://localhost:8081` (login with the `db` service's `MYSQL_USER`/`MYSQL_PASSWORD`, or `root`/`MYSQL_ROOT_PASSWORD`) |
+
+**How the dev stack is wired:**
+- The entire repo is bind-mounted into the `web` container at `/var/www/html/LaboratoryScheduleSystemWebsite` — edits on the host take effect immediately, no rebuild needed for PHP/JS/CSS changes.
+- Only `Backend/.env` is overlaid from `Backend/.env.docker` (read-only), so your real `Backend/.env` used by native XAMPP is never touched and the two setups can coexist on the same checkout.
+- A rebuild (`docker compose up -d --build`) is only needed after changing the `Dockerfile` itself or `Backend/composer.json`.
+- `docker-root-index.php` is copied to the Apache `DocumentRoot` (`/var/www/html/index.php`) separately from the app folder, because `DocumentRoot` has no index of its own — only the `LaboratoryScheduleSystemWebsite/` subfolder. Without it, visiting `http://localhost/` produces Apache's "No matching DirectoryIndex found" error.
+
+### Production stack — `docker-compose.prod.yaml`
+
+Unlike the dev stack, this bakes the source into the image at build time (no bind mount) and keeps the database off the host network entirely.
+
+```bash
+# 1 — Create Backend/.env.production: DB_HOST=db, DB_USER/DB_PASSWORD/DB_NAME
+#     matching step 2 below, plus real JWT_KEY/SMTP secrets. Never commit it.
+
+# 2 — Create a ".env" file next to docker-compose.prod.yaml:
+#       MYSQL_ROOT_PASSWORD=...
+#       MYSQL_DATABASE=...
+#       MYSQL_USER=...
+#       MYSQL_PASSWORD=...
+
+# 3 — Build and start
+docker compose -f docker-compose.prod.yaml up -d --build
+
+# 4 — One-time database seed
+docker compose -f docker-compose.prod.yaml exec web php Backend/scripts/run_seed.php
+```
+
+| Aspect | Dev (`docker-compose.yaml`) | Prod (`docker-compose.prod.yaml`) |
+|--------|------------------------------|-------------------------------------|
+| Source code | Live bind-mounted from host | Baked into the image at build time |
+| Env file | `Backend/.env.docker` | `Backend/.env.production` |
+| Database port on host | Yes — `3306:3306` | No — reachable only from `web` over the internal Compose network |
+| `storage/` and `Backend/logs/` | Bind-mounted from host | Named volumes (`storage_data`, `logs_data`) |
+| Restart policy | `unless-stopped` | `always` |
+| phpMyAdmin | Included | Not included — use a tunnel or a one-off `mysql` client if needed |
+
+> **Domain caveat:** `Frontend/config.php` and every `Frontend/API/*.js` file hardcode `http://localhost/...`. The production stack works as-is when accessed as `localhost` on the server itself, but deploying behind a real domain requires updating those hardcoded URLs first.
+
+---
+
 ## Environment Variables
 
 All runtime configuration is in `Backend/.env`. Use `Backend/.env-example` as the starting template.
@@ -369,6 +576,33 @@ When `SMTP_HOST` or `SMTP_FROM_EMAIL` is not configured, email notifications are
 | `SMTP_FROM_NAME`  | Sender display name on outgoing emails. | `Laboratory Schedule System` |
 
 **Gmail tip:** Enable 2-Step Verification and create an [App Password](https://myaccount.google.com/apppasswords). Use the App Password as `SMTP_PASSWORD`.
+
+### WhatsApp (Cloud API) — all optional
+
+When `WHATSAPP_PHONE_NUMBER_ID` or `WHATSAPP_ACCESS_TOKEN` is not configured, WhatsApp notifications are silently skipped. Email notifications continue to work independently — WhatsApp is an additional channel, not a replacement.
+
+| Variable                              | Description | Example |
+|----------------------------------------|-------------|---------|
+| `WHATSAPP_PHONE_NUMBER_ID`             | Phone Number ID from your Meta WhatsApp Business app. | `123456789012345` |
+| `WHATSAPP_ACCESS_TOKEN`                | Permanent (System User) access token for the Cloud API. | `EAAxxxxxxxxxxxx` |
+| `WHATSAPP_API_VERSION`                 | Graph API version to call. | `v21.0` |
+| `WHATSAPP_DEFAULT_COUNTRY_CODE`        | Digits prepended to `mobile_number` values that don't already start with it (handles locally-formatted numbers like `0771234567`). | `94` |
+| `WHATSAPP_TEMPLATE_LANGUAGE`           | Language code of the approved templates below. | `en_US` |
+| `WHATSAPP_TEMPLATE_ADMIN_NEW_REQUEST`  | Approved template name sent to admins when a lecturer submits a new request. | `admin_new_lecture_request` |
+| `WHATSAPP_TEMPLATE_LECTURER_CONFIRMED` | Approved template name sent to the lecturer when their request is confirmed. | `lecture_request_confirmed` |
+| `WHATSAPP_TEMPLATE_LECTURER_CANCELED`  | Approved template name sent to the lecturer when their request is canceled. | `lecture_request_canceled` |
+
+**Why templates, not free text:** WhatsApp Cloud API only allows business-initiated messages (i.e. notifications the server sends without the user messaging first) using templates pre-approved in Meta Business Manager. Each template must be created and approved before its name can be used here.
+
+**Body parameter order expected by each template** (`WhatsAppNotificationService::sendTemplateMessage` sends exactly these, in this order, as `{{1}}`, `{{2}}`, ...):
+
+| Template | `{{1}}` | `{{2}}` | `{{3}}` | `{{4}}` | `{{5}}` | `{{6}}` |
+|----------|---------|---------|---------|---------|---------|---------|
+| `WHATSAPP_TEMPLATE_ADMIN_NEW_REQUEST` | lecturer name | subject | date | day | time slot | group name |
+| `WHATSAPP_TEMPLATE_LECTURER_CONFIRMED` | lecturer name | subject | date | day | time slot | lab name |
+| `WHATSAPP_TEMPLATE_LECTURER_CANCELED` | lecturer name | subject | date | day | time slot | cancel reason |
+
+Recipients are pulled from `users.mobile_number` — admins and lecturers without a stored number are skipped for WhatsApp only (they still receive email if they have one).
 
 ### Seed Passwords — optional
 
@@ -499,6 +733,49 @@ Uploaded images are stored in `storage/images/` and validated by both extension 
 
 ---
 
+### Logs — `/logs`
+
+| Method | Path             | Auth | Description |
+|--------|------------------|------|-------------|
+| GET    | `/action-logs`   | 🛡️  | Paginated list of all database modification logs. Supports `?page=N&per_page=N`. Pass `per_page=0` or `per_page=all` to retrieve all records in one response. |
+
+**Query parameters:**
+
+| Parameter  | Default | Notes |
+|------------|---------|-------|
+| `page`     | `1`     | Page number (1-based) |
+| `per_page` | `20`    | Records per page. Max `500`. Use `0` or `all` for unlimited. |
+
+**Response fields:**
+
+| Field         | Description |
+|---------------|-------------|
+| `logs`        | Array of log records (see below) |
+| `total`       | Total number of log entries |
+| `page`        | Current page |
+| `per_page`    | Records per page returned |
+| `total_pages` | Total pages (always `1` when `per_page=all`) |
+
+**Log record fields:**
+
+| Field          | Description |
+|----------------|-------------|
+| `log_id`       | Auto-increment primary key |
+| `action_type`  | `INSERT`, `UPDATE`, or `DELETE` |
+| `table_name`   | Database table that was modified |
+| `old_data`     | JSON snapshot of the row **before** mutation (`null` for INSERT) |
+| `new_data`     | JSON payload sent to the mutation (`null` for DELETE) |
+| `changed_at`   | UTC timestamp of the action |
+| `user_id`      | ID of the acting user |
+| `first_name`   | Acting user's first name |
+| `last_name`    | Acting user's last name |
+| `email`        | Acting user's email |
+| `role`         | Acting user's role (`admin` / `lecturer`) |
+
+> Password hashes are always stripped from `old_data` and `new_data` before a user-table record is written.
+
+---
+
 ### Lecturer Assignments — `/lecturer-assignment`
 
 | Method | Path                        | Auth | Description |
@@ -527,20 +804,22 @@ Full schema: `Backend/seeds/laboratory_schedule_system.sql`
 
 ```
 users ◄──── subject_lecture_relations ────► practical_subjects
-              │        │                          │
-              ▼        ▼                          ▼
-    lecturer_responsibility              subject_group_relations
-                                                  │
-                                                  ▼
-timetable_settings                        lecture_groups
-timetable_column_headings
-timetable_time_slots
-timetable_cells
-timetable ──────────────────────────────► temporary_timetable
-                                          lecturer_requests
-news ──► images
-years
-labs
+  │           │        │                          │
+  │           ▼        ▼                          ▼
+  │  lecturer_responsibility              subject_group_relations
+  │                                                │
+  │                                                ▼
+  │  timetable_settings                    lecture_groups
+  │  timetable_column_headings
+  │  timetable_time_slots
+  │  timetable_cells
+  │  timetable ──────────────────────────► temporary_timetable
+  │                                        lecturer_requests
+  │  news ──► images
+  │  years
+  │  labs
+  │
+  └──► database_modification_logs   ← audit log for every INSERT / UPDATE / DELETE
 ```
 
 | Table                       | Purpose |
@@ -562,7 +841,92 @@ labs
 | `lecturer_requests`         | Incoming slot requests from lecturers. |
 | `news`                      | News articles. |
 | `images`                    | Uploaded image metadata linked to news. |
-| `database_modification_logs`| Audit log of INSERT/UPDATE/DELETE operations. |
+| `database_modification_logs`| Audit log of every INSERT / UPDATE / DELETE. Stores `old_data` and `new_data` as JSON, plus the acting user ID and timestamp. Password hashes are never written here. |
+
+---
+
+## Database Migrations
+
+### Initial setup — PHP seed script
+
+The project includes a one-time setup script (`Backend/scripts/run_seed.php`) that creates the database entirely through PHP and PDO — no manual SQL import needed.
+
+**What the script does, in order:**
+
+1. Reads `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` from `Backend/.env`
+2. Opens a PDO connection to MySQL **without** a database selected
+3. Executes `CREATE DATABASE IF NOT EXISTS` with charset `utf8mb4` and collation `utf8mb4_unicode_ci`
+4. Imports the full schema from `Backend/seeds/laboratory_schedule_system.sql` — all tables, indexes, foreign keys, and default rows
+5. Inserts the initial `admin` and `lecturer` accounts with bcrypt-hashed passwords
+6. Creates `Backend/seeds/.seed.lock` to prevent accidental re-runs
+7. Prints the generated credentials to the terminal (shown only once)
+
+**Run:**
+
+```bash
+cd LaboratoryScheduleSystemWebsite
+php Backend/scripts/run_seed.php
+```
+
+---
+
+### Re-seeding a clean database
+
+To wipe all data and start fresh with new seed credentials:
+
+```bash
+# Step 1 — Remove the lock file
+del Backend\seeds\.seed.lock          # Windows CMD
+# rm Backend/seeds/.seed.lock         # macOS / Linux / Git Bash
+
+# Step 2 — Drop the database (choose one method)
+
+# Option A — phpMyAdmin (recommended)
+# Open http://localhost/phpmyadmin → select the database →
+# Operations → Drop the database → confirm → create a new
+# empty database with the same name (utf8mb4 / utf8mb4_unicode_ci)
+
+# Option B — MySQL CLI
+mysql -u root -e "DROP DATABASE IF EXISTS your_db_name;"
+mysql -u root -e "CREATE DATABASE your_db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Step 3 — Re-run the seed script
+php Backend/scripts/run_seed.php
+```
+
+> **Warning:** Dropping the database deletes all records permanently — timetable data, news articles, users, requests, and audit logs.
+
+---
+
+### Schema-only import via phpMyAdmin
+
+To import only the schema (no seed users) on a server where you manage accounts manually:
+
+1. Open `http://localhost/phpmyadmin` and create a new empty database
+   - Charset: `utf8mb4`
+   - Collation: `utf8mb4_unicode_ci`
+2. Click the new database in the left panel
+3. Go to the **Import** tab
+4. Choose `Backend/seeds/laboratory_schedule_system.sql`
+5. Click **Go**
+6. Update `DB_NAME` in `Backend/.env` to match the new database name
+
+---
+
+### PDO connection details
+
+All database access goes through `Backend/DB/dbConnection.php` using PHP's PDO layer.
+
+| Setting | Value |
+|---------|-------|
+| Driver | `mysql` |
+| Charset | `utf8mb4` |
+| Collation | `utf8mb4_unicode_ci` |
+| Emulated prepares | Disabled — real server-side prepared statements |
+| Error mode | `ERRMODE_EXCEPTION` — all errors throw `PDOException` |
+| LIMIT / OFFSET | Integer-interpolated directly (not bound as parameters — PDO binds them as strings which breaks MySQL with emulation disabled) |
+
+No manual DSN configuration is required beyond the four `DB_*` variables in `Backend/.env`.
 
 ---
 
@@ -652,6 +1016,21 @@ find Backend -name "*.php" -exec php -l {} \;
 - The `storage/images/` directory is created automatically on first upload, but Apache must have write permission to the project root
 - On Windows XAMPP, permissions are generally open; on Linux, run `chmod -R 775 storage/`
 
+### Docker: `docker compose up` fails with a port already in use
+
+- Port 80: stop XAMPP's Apache (or any other service bound to 80) — the app requires host port 80 because Frontend URLs are hardcoded without a port
+- Port 3306: stop any local MySQL/XAMPP MySQL instance — the dev compose file also publishes the database on the host
+
+### Docker: "localhost sent an invalid response" when opening `http://localhost:3306/`
+
+- This is expected — port 3306 speaks the raw MySQL protocol, not HTTP, so no browser can open it directly
+- Use phpMyAdmin instead: `http://localhost:8081`
+
+### Docker: blank page or "No matching DirectoryIndex found" at `http://localhost/`
+
+- Confirm `docker-root-index.php` was copied to the image (`docker compose up -d --build` after any `Dockerfile` change) — it redirects the bare Apache `DocumentRoot` to `Frontend/`
+- Navigate directly to `http://localhost/LaboratoryScheduleSystemWebsite/Frontend/` if the redirect isn't picked up
+
 ---
 
 ## Security
@@ -667,11 +1046,68 @@ The following controls are in place:
 | Privilege escalation | `requireRole('admin')` middleware runs after token verification |
 | File upload | Extension allowlist + MIME-type inspection (`finfo`) before `move_uploaded_file` |
 | Password storage | bcrypt via PHP `password_hash(PASSWORD_DEFAULT)` |
-| Audit trail | `created_by` / `updated_by` / `assigned_by` injected server-side from JWT |
+| Audit trail | `created_by` / `updated_by` / `assigned_by` injected server-side from JWT; full before/after snapshots recorded in `database_modification_logs` for every mutation |
 | CORS | Reflected only when request `Origin` matches `ALLOWED_ORIGINS` allowlist |
-| Sensitive data | `password` column excluded from all public-facing user list queries |
+| Sensitive data | `password` column excluded from all public-facing user list queries; password hashes stripped before any user-table row is written to `database_modification_logs` |
+| Log file access | `Backend/logs/.htaccess` denies all direct browser access to every `*.log` file in the directory |
 
 To report a security vulnerability, please email [lahirulakmina1999@gmail.com](mailto:lahirulakmina1999@gmail.com) directly rather than opening a public issue.
+
+---
+
+## Logging System
+
+The system has two complementary logging layers that operate independently.
+
+### File-based logs
+
+Runtime events (errors, warnings, informational messages) are written to flat log files by the `Backend\Utils\Logger` static class. A **new file is created per day, per level** — logs naturally rotate at midnight with no cleanup job required.
+
+| File pattern                          | Written when |
+|----------------------------------------|--------------|
+| `Backend/logs/error YYYY-MM-DD.log`   | Unhandled exceptions, DB failures, auth errors |
+| `Backend/logs/warning YYYY-MM-DD.log` | Non-critical anomalies (e.g. missing optional config) |
+| `Backend/logs/info YYYY-MM-DD.log`    | Informational lifecycle events |
+
+Example: an error logged on 2026-06-21 is written to `Backend/logs/error 2026-06-21.log`; the next day's errors go to a new `error 2026-06-22.log`.
+
+Each line follows the format:
+
+```
+[YYYY-MM-DD HH:MM:SS] [level] message | {"context":"key"}
+```
+
+The `Backend/logs/` directory is created automatically on first write. A `.htaccess` file inside it denies all direct HTTP access.
+
+### Database audit log
+
+Every state-changing operation (INSERT, UPDATE, DELETE) across all five resource controllers is recorded to `database_modification_logs`.
+
+**How it works — fetch-before-modify pattern:**
+
+```
+1. Controller fetches the current row from the DB (old_data)
+2. Controller calls the service to mutate the row
+3. Controller calls LogsService::logAction() with old_data and new_data
+```
+
+This guarantees `old_data` always reflects the actual pre-mutation state, not just the values that happened to be in the incoming request.
+
+**Tables covered:**
+
+| Controller | Tables logged |
+|------------|---------------|
+| `timetable_controller.php` | `timetable`, `years`, `labs`, `lecture_groups`, `timetable_column_headings`, `timetable_time_slots`, `practical_subjects` |
+| `news_controller.php` | `news` |
+| `lecturer_requests_controller.php` | `lecturer_requests` |
+| `users_controller.php` | `users` |
+| `lecturer_assignments_controller.php` | `lecturer_responsibility`, `subject_lecture_relations` |
+
+**Password safety:** For the `users` table, the `password` field is removed from both `old_data` and `new_data` before they are passed to `logAction()`. Password hashes never appear in `database_modification_logs`.
+
+**Failure isolation:** `logAction()` wraps its DB insert in a try/catch. If the audit log write fails it falls back to `Logger::error()` and returns silently — a logging failure never breaks the main request.
+
+**Admin UI:** The Action Logs section in the admin panel fetches records from `GET /api/v1/logs/action-logs` (admin-only endpoint). Records are displayed in a paginated table with a record-count selector (10 / 20 / 50 / 100 / All). Clicking a row opens a detail modal showing the full `old_data` and `new_data` JSON side-by-side.
 
 ---
 

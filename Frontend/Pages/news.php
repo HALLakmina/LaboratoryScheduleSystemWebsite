@@ -6,7 +6,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <title>Laboratory Scheduling System News</title>
     </head>
-    <body class="w-full bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center w-full bg-no-repeat backdrop-blur-xs h-svh overflow-auto"  id="index-content">
+    <body class="w-full overflow-y-auto no-scrollbar bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center w-full bg-no-repeat backdrop-blur-xs h-svh overflow-auto"  id="index-content">
         <div class="w-full h-screen overflow-y-scroll pb-24">
             <?php include __DIR__ . '/../Components/NavigationBar.php';?>
             <main>

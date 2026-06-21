@@ -6,7 +6,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <title>Laboratory Scheduling System Admin Panel</title>
     </head>
-    <body class="w-full bg-[url('../../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs min-h-svh overflow-auto" id="index-content">
+    <body class="w-full overflow-y-auto no-scrollbar bg-[url('../../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs min-h-svh overflow-auto" id="index-content">
         <?php include __DIR__ . '/../../Components/NavigationBar.php';?>
         <main id="admin-panel" class="w-full p-4 md:p-6">
             <section class="w-full">
@@ -30,6 +30,7 @@
                         <button type="button" data-admin-target="admin-users" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Users</button>
                         <button type="button" data-admin-target="admin-responsibilities" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Responsibilities</button>
                         <button type="button" data-admin-target="admin-assignments" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Lecturer Assignments</button>
+                        <button type="button" data-admin-target="admin-action-logs" class="admin-nav-btn bg-gray-100 hover:bg-sky-100 rounded-lg px-4 py-3 text-left">Action Logs</button>
                     </nav>
                 </aside>
 
@@ -207,6 +208,29 @@
                             <button id="admin-assignment-create-btn" type="button" class="bg-sky-600 text-white font-black px-4 py-3 rounded-lg hover:bg-sky-700">New Assignment</button>
                         </div>
                         <div id="admin-assignments-list" class="pt-5 overflow-x-auto"></div>
+                    </section>
+
+                    <section id="admin-action-logs" data-admin-section class="hidden bg-white/92 rounded-lg p-5 shadow-lg lg:h-[calc(100svh-10rem)] lg:overflow-y-auto">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap">
+                            <div>
+                                <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">System</p>
+                                <h2 class="text-2xl font-black">User Action Logs</h2>
+                                <p class="pt-2 text-sm text-gray-600">Audit trail of all INSERT, UPDATE, and DELETE operations performed by users.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label for="admin-logs-per-page" class="text-sm font-bold text-gray-700 whitespace-nowrap">Show records</label>
+                                <select id="admin-logs-per-page" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                    <option value="0">All</option>
+                                </select>
+                                <button id="admin-logs-refresh-btn" type="button" class="bg-gray-950 text-white font-black px-4 py-2 rounded-lg hover:bg-sky-700 text-sm">Refresh</button>
+                            </div>
+                        </div>
+                        <div id="admin-logs-table" class="pt-5 overflow-x-auto"></div>
+                        <div id="admin-logs-pagination" class="pt-4"></div>
                     </section>
                 </div>
             </section>
@@ -582,6 +606,20 @@
                     <button type="submit" class="bg-gray-950 text-white font-black px-5 py-3 rounded-lg hover:bg-sky-700">Save Assignment</button>
                 </div>
             </form>
+        </section>
+
+        <!-- Log detail modal -->
+        <section id="admin-log-detail-modal" class="hidden fixed inset-0 bg-gray-950/50 z-30 overflow-y-auto p-4">
+            <div class="w-full max-w-3xl bg-white rounded-lg p-5 shadow-2xl my-8 mx-auto">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-500 font-black">Log Detail</p>
+                        <h3 id="admin-log-detail-title" class="text-2xl font-black">Log #</h3>
+                    </div>
+                    <button type="button" id="admin-log-detail-close" class="self-start bg-red-500 p-1 w-8 rounded-sm font-bold text-white active:scale-95" aria-label="Close">X</button>
+                </div>
+                <div id="admin-log-detail-body" class="pt-4 flex flex-col gap-4"></div>
+            </div>
         </section>
 
         <?php include __DIR__ . '/../../Components/FooterBar.php';?>

@@ -435,6 +435,8 @@ const initAdminPanel = async () => {
             button.classList.toggle('bg-gray-100', !isActive);
             button.classList.toggle('hover:bg-sky-100', !isActive);
         });
+
+        document.dispatchEvent(new CustomEvent('admin-section-shown', { detail: { sectionId: targetSectionId } }));
     };
 
     adminNavButtons.forEach(button => {
@@ -2579,4 +2581,186 @@ const initLecturerAssignmentsPanel = () => {
     });
 };
 
-export { initAdminSideNav, initAdminPanel, initLecturerAssignmentsPanel };
+const initLogsPanel = () => {
+    const section = document.getElementById('admin-action-logs');
+    if (!section) return;
+
+    const perPageSelect   = document.getElementById('admin-logs-per-page');
+    const tableContainer  = document.getElementById('admin-logs-table');
+    const paginContainer  = document.getElementById('admin-logs-pagination');
+    const refreshBtn      = document.getElementById('admin-logs-refresh-btn');
+    const detailModal     = document.getElementById('admin-log-detail-modal');
+    const detailClose     = document.getElementById('admin-log-detail-close');
+    const detailTitle     = document.getElementById('admin-log-detail-title');
+    const detailBody      = document.getElementById('admin-log-detail-body');
+
+    if (!perPageSelect || !tableContainer || !paginContainer) return;
+
+    let logsState = { page: 1, perPage: 20, total: 0, totalPages: 1, logs: [] };
+
+    const actionBadge = (type) => {
+        const colours = { INSERT: 'bg-emerald-100 text-emerald-800', UPDATE: 'bg-sky-100 text-sky-800', DELETE: 'bg-red-100 text-red-800' };
+        const cls = colours[type] || 'bg-gray-100 text-gray-800';
+        return `<span class="inline-block rounded px-2 py-0.5 text-xs font-black uppercase ${cls}">${escapeHtml(type)}</span>`;
+    };
+
+    const formatDate = (raw) => {
+        if (!raw) return '—';
+        const d = new Date(raw.replace(' ', 'T'));
+        return isNaN(d) ? raw : d.toLocaleString();
+    };
+
+    const changedByLabel = (log) => {
+        if (!log.first_name && !log.last_name) return '<span class="text-gray-400">—</span>';
+        const name = `${log.first_name ?? ''} ${log.last_name ?? ''}`.trim();
+        const role = log.role ? `<span class="ml-1 text-xs text-gray-400">(${escapeHtml(log.role)})</span>` : '';
+        return `${escapeHtml(name)}${role}`;
+    };
+
+    const renderTable = (logs) => {
+        if (!logs.length) {
+            tableContainer.innerHTML = '<p class="text-sm text-gray-500 py-6 text-center">No action logs found.</p>';
+            return;
+        }
+        const rows = logs.map((log) => `
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">${escapeHtml(String(log.log_id))}</td>
+                <td class="px-3 py-2 whitespace-nowrap">${actionBadge(log.action_type)}</td>
+                <td class="px-3 py-2 text-sm font-mono whitespace-nowrap">${escapeHtml(log.table_name)}</td>
+                <td class="px-3 py-2 text-sm whitespace-nowrap">${changedByLabel(log)}</td>
+                <td class="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">${formatDate(log.changed_at)}</td>
+                <td class="px-3 py-2 whitespace-nowrap">
+                    <button type="button" class="text-xs font-black text-sky-600 hover:text-sky-800 underline"
+                        data-log-detail='${escapeHtml(JSON.stringify(log))}'>Details</button>
+                </td>
+            </tr>`).join('');
+
+        tableContainer.innerHTML = `
+            <table class="w-full text-left border-collapse min-w-[640px]">
+                <thead>
+                    <tr class="border-b-2 border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-black">
+                        <th class="px-3 py-2">#</th>
+                        <th class="px-3 py-2">Action</th>
+                        <th class="px-3 py-2">Table</th>
+                        <th class="px-3 py-2">Changed By</th>
+                        <th class="px-3 py-2">Date / Time</th>
+                        <th class="px-3 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    };
+
+    const renderPagination = () => {
+        const { page, totalPages, total, perPage } = logsState;
+        const isAll = perPage === 0;
+        if (isAll || totalPages <= 1) {
+            paginContainer.innerHTML = `<p class="text-sm text-gray-500">Showing ${total} record${total !== 1 ? 's' : ''}.</p>`;
+            return;
+        }
+        const from = (page - 1) * perPage + 1;
+        const to   = Math.min(page * perPage, total);
+        paginContainer.innerHTML = `
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p class="text-sm text-gray-500">Showing ${from}–${to} of ${total} records</p>
+                <div class="flex items-center gap-2">
+                    <button id="admin-logs-prev" type="button"
+                        class="px-3 py-1.5 rounded-lg text-sm font-black ${page <= 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-950 text-white hover:bg-sky-700'}"
+                        ${page <= 1 ? 'disabled' : ''}>Prev</button>
+                    <span class="text-sm font-bold text-gray-700">Page ${page} / ${totalPages}</span>
+                    <button id="admin-logs-next" type="button"
+                        class="px-3 py-1.5 rounded-lg text-sm font-black ${page >= totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-950 text-white hover:bg-sky-700'}"
+                        ${page >= totalPages ? 'disabled' : ''}>Next</button>
+                </div>
+            </div>`;
+
+        document.getElementById('admin-logs-prev')?.addEventListener('click', () => {
+            if (logsState.page > 1) { logsState.page -= 1; loadLogs(); }
+        });
+        document.getElementById('admin-logs-next')?.addEventListener('click', () => {
+            if (logsState.page < logsState.totalPages) { logsState.page += 1; loadLogs(); }
+        });
+    };
+
+    const showDetail = (log) => {
+        if (!detailModal || !detailTitle || !detailBody) return;
+        detailTitle.textContent = `Log #${log.log_id}`;
+
+        const jsonBlock = (label, value) => {
+            if (value === null || value === undefined || value === '') return '';
+            let pretty;
+            try { pretty = JSON.stringify(typeof value === 'string' ? JSON.parse(value) : value, null, 2); }
+            catch { pretty = String(value); }
+            return `
+                <div>
+                    <p class="text-xs font-black uppercase tracking-wider text-gray-500 mb-1">${label}</p>
+                    <pre class="bg-gray-50 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all border border-gray-200">${escapeHtml(pretty)}</pre>
+                </div>`;
+        };
+
+        const userName = (log.first_name || log.last_name)
+            ? `${log.first_name ?? ''} ${log.last_name ?? ''}`.trim()
+            : '—';
+
+        detailBody.innerHTML = `
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div><p class="text-xs font-black uppercase tracking-wider text-gray-500">Action</p><p class="pt-1">${actionBadge(log.action_type)}</p></div>
+                <div><p class="text-xs font-black uppercase tracking-wider text-gray-500">Table</p><p class="pt-1 text-sm font-mono">${escapeHtml(log.table_name)}</p></div>
+                <div><p class="text-xs font-black uppercase tracking-wider text-gray-500">Date / Time</p><p class="pt-1 text-sm">${formatDate(log.changed_at)}</p></div>
+                <div><p class="text-xs font-black uppercase tracking-wider text-gray-500">Changed By</p><p class="pt-1 text-sm">${escapeHtml(userName)}</p></div>
+                <div><p class="text-xs font-black uppercase tracking-wider text-gray-500">Role</p><p class="pt-1 text-sm">${escapeHtml(log.role ?? '—')}</p></div>
+                <div><p class="text-xs font-black uppercase tracking-wider text-gray-500">Email</p><p class="pt-1 text-sm">${escapeHtml(log.email ?? '—')}</p></div>
+            </div>
+            ${jsonBlock('Old Data (before change)', log.old_data)}
+            ${jsonBlock('New Data (after change)', log.new_data)}`;
+
+        detailModal.classList.remove('hidden');
+    };
+
+    const hideDetail = () => detailModal?.classList.add('hidden');
+
+    const loadLogs = async () => {
+        tableContainer.innerHTML = '<p class="text-sm text-gray-500 py-6 text-center">Loading...</p>';
+        paginContainer.innerHTML = '';
+        try {
+            const { getActionLogs } = await import('../API/logsApi.js');
+            const result = await getActionLogs(logsState.page, logsState.perPage);
+            if (result.status !== '200') throw new Error(result.message || 'Failed to load logs');
+            const data = result.data;
+            logsState.total      = data.total ?? 0;
+            logsState.totalPages = data.total_pages ?? 1;
+            logsState.logs       = data.logs ?? [];
+            renderTable(logsState.logs);
+            renderPagination();
+        } catch (err) {
+            tableContainer.innerHTML = `<p class="text-sm text-red-600 py-6 text-center">${escapeHtml(err.message)}</p>`;
+        }
+    };
+
+    perPageSelect.addEventListener('change', () => {
+        logsState.perPage = Number(perPageSelect.value);
+        logsState.page    = 1;
+        loadLogs();
+    });
+
+    refreshBtn?.addEventListener('click', () => {
+        logsState.page = 1;
+        loadLogs();
+    });
+
+    tableContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-log-detail]');
+        if (!btn) return;
+        try { showDetail(JSON.parse(btn.getAttribute('data-log-detail'))); }
+        catch { /* malformed JSON — ignore */ }
+    });
+
+    detailClose?.addEventListener('click', hideDetail);
+    detailModal?.addEventListener('click', (e) => { if (e.target === detailModal) hideDetail(); });
+
+    document.addEventListener('admin-section-shown', (e) => {
+        if (e.detail?.sectionId === 'admin-action-logs') loadLogs();
+    });
+};
+
+export { initAdminSideNav, initAdminPanel, initLecturerAssignmentsPanel, initLogsPanel };

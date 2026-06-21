@@ -29,9 +29,10 @@ const initLoginForm = () => {
         try {
             const result = await loginApi(email, password);
             if (result.status === '200') {
-                if (result.user) {
+                const user = result.data?.user;
+                if (user) {
                     const selectedAccess = access.toLowerCase();
-                    const apiRole = String(result.user.role || '').toLowerCase();
+                    const apiRole = String(user.role || '').toLowerCase();
                     if (selectedAccess && selectedAccess !== apiRole) {
                         if (errorEl) {
                             errorEl.textContent = 'Selected access does not match your account role.';
@@ -40,7 +41,7 @@ const initLoginForm = () => {
                         return;
                     }
 
-                    setStoredUser(result.user);
+                    setStoredUser(user);
                 }
 
                 window.location.href = 'timetable.php';

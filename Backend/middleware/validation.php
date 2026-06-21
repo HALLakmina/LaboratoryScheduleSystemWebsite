@@ -3,8 +3,10 @@ namespace Backend\Middleware;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../services/timetable_service.php';
+require_once __DIR__ . '/../utils/response.php';
 
 use Backend\Services\TimetableService;
+use Backend\Utils\Response;
 use Respect\Validation\Exceptions\NestedValidationException;
 use Respect\Validation\Validator as v;
 
@@ -59,13 +61,7 @@ class Validation {
     }
 
     private function failValidation(array $errors) {
-        http_response_code(400);
-        echo json_encode([
-            'status' => '400',
-            'message' => 'Validation failed',
-            'errors' => array_values($errors),
-        ]);
-        exit;
+        Response::error('400', 'Validation failed', ['errors' => array_values($errors)]);
     }
 
     private function assertPayload($payload, $validator) {

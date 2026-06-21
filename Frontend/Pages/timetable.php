@@ -6,7 +6,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <title>Laboratory Scheduling System Timetable</title>
     </head>
-    <body class="min-w-[320px] min-h-svh overflow-auto bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs" id="index-content">
+    <body class="min-w-[320px] min-h-svh overflow-y-auto no-scrollbar bg-[url('../resources/img/Wallpaper.jpg')] bg-cover bg-center bg-no-repeat backdrop-blur-xs" id="index-content">
         <?php include __DIR__ . '/../Components/NavigationBar.php';?>
         <main class="mx-auto flex w-full flex-col gap-4 px-2 pb-6 pt-4 sm:px-4">
 

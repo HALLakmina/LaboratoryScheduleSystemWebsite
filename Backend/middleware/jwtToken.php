@@ -2,9 +2,11 @@
     namespace Backend\Middleware;
     require_once __DIR__ . '/../vendor/autoload.php';
     require_once __DIR__ . '/../utils/route.php';
+    require_once __DIR__ . '/../utils/response.php';
     use Firebase\JWT\JWT;
     use Firebase\JWT\Key;
     use Backend\Utils\Route;
+    use Backend\Utils\Response;
     use Dotenv\Dotenv;
     use Exception;
     class JwtToken{
@@ -43,18 +45,14 @@
             $jwtToken = is_callable($req['cookie'] ?? null) ? $req['cookie']('token') : null;
 
             if (!$jwtToken) {
-                http_response_code(401);
-                echo json_encode(['error' => 'No token found']);
-                exit;
+                Response::error('401', 'No token found');
             }
 
             try {
                 $decoded = JWT::decode($jwtToken, new Key($this->secret_key, 'HS256'));
                 Route::getInstance()->request['user'] = (array)$decoded->data;
             } catch (Exception $e) {
-                http_response_code(401);
-                echo json_encode(['error' => 'Invalid token: ' . $e->getMessage()]);
-                exit;
+                Response::error('401', 'Invalid or expired token.');
             }
         }
 
@@ -62,9 +60,7 @@
             return function ($req = null, $res = null) use ($requiredRole) {
                 $user = Route::getInstance()->request['user'] ?? [];
                 if (($user['role'] ?? '') !== $requiredRole) {
-                    http_response_code(403);
-                    echo json_encode(['error' => 'Forbidden: admin access required']);
-                    exit;
+                    Response::error('403', 'Forbidden: admin access required');
                 }
             };
         }
