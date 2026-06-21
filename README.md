@@ -14,6 +14,7 @@
 6. [Quick Start](#quick-start)
 7. [Detailed Setup](#detailed-setup)
 8. [XAMPP Configuration](#xampp-configuration)
+<<<<<<< HEAD
 9. [Docker Setup](#docker-setup)
 10. [Environment Variables](#environment-variables)
 11. [Seed Accounts](#seed-accounts)
@@ -353,6 +354,7 @@ http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
 ---
 
 ## XAMPP Configuration
+<<<<<<< HEAD
 
 These one-time changes to your XAMPP installation are required before the application will run natively (skip this section entirely if you're using [Docker Setup](#docker-setup) instead — `mod_rewrite` and the PHP extensions below are already baked into the container image). Apply them once, restart Apache, and you will not need to touch them again.
 
@@ -448,81 +450,99 @@ Common tasks:
 ## Docker Setup
 
 An alternative to native XAMPP setup — runs the whole stack (Apache + PHP 8.2, MySQL 8.0, phpMyAdmin) in containers, with `mod_rewrite` and the PHP extensions from [XAMPP Configuration](#xampp-configuration) already baked into the image. Two Compose files are provided: a dev stack with live-reloading source, and a production stack with a baked image.
+=======
 
-### Prerequisites
+These one-time changes to your XAMPP installation are required before the application will run. Apply them once, restart Apache, and you will not need to touch them again.
+>>>>>>> ba0299895afccc0ac6aee79b8b0d3a7f743c79b7
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac) or Docker Engine + the Compose plugin (Linux)
-- **Port 80 free** — stop XAMPP's Apache (or anything else bound to port 80) first. `Frontend/config.php` and every `Frontend/API/*.js` file hardcode `http://localhost/...` with no port, so the app must stay on host port 80.
-- **Port 3306 free** — stop any local MySQL/XAMPP MySQL instance, since the dev compose file also publishes the database on the host.
+### Apache — enable mod_rewrite and AllowOverride
 
-### Services (dev stack)
+The backend routes every request through `Backend/.htaccess` using Apache's `mod_rewrite`. Two settings must be active.
 
-| Service      | Image                              | Container                 | Host port | Purpose |
-|--------------|-------------------------------------|----------------------------|-----------|---------|
-| `web`        | built from `Dockerfile` (`php:8.2-apache`) | `lab_schedule_web`         | 80        | Apache + PHP serving the whole app |
-| `db`         | `mysql:8.0`                         | `lab_schedule_db`          | 3306      | Database |
-| `phpmyadmin` | `phpmyadmin/phpmyadmin`             | `lab_schedule_phpmyadmin`  | 8081      | Browser-based DB management |
+**1. Enable mod_rewrite**
 
-### Dev setup — `docker-compose.yaml`
+Open `C:\xampp\apache\conf\httpd.conf` and find the rewrite module line. Remove the leading `#` so it reads:
 
-```bash
-# 1 — Create the Docker env file (based on .env-example, but DB_HOST must be "db")
-copy Backend\.env-example Backend\.env.docker
-# Edit Backend/.env.docker: set DB_HOST=db, DB_USER=labapp, DB_PASSWORD=labapppassword,
-# DB_NAME=timetable_system (or match whatever you set in docker-compose.yaml's db
-# service), plus a real JWT_KEY and optional SMTP_* values.
-
-# 2 — Build and start the stack
-docker compose up -d --build
-
-# 3 — One-time database seed (creates tables + admin/lecturer accounts)
-docker compose exec web php Backend/scripts/run_seed.php
-# *** Save the printed credentials — they are shown only once ***
+```apache
+LoadModule rewrite_module modules/mod_rewrite.so
 ```
 
-| Page         | URL |
-|--------------|-----|
-| App          | `http://localhost/LaboratoryScheduleSystemWebsite/Frontend/` |
-| Bare root    | `http://localhost/` — redirects to the line above via `docker-root-index.php` |
-| phpMyAdmin   | `http://localhost:8081` (login with the `db` service's `MYSQL_USER`/`MYSQL_PASSWORD`, or `root`/`MYSQL_ROOT_PASSWORD`) |
+**2. Allow .htaccess overrides in htdocs**
 
-**How the dev stack is wired:**
-- The entire repo is bind-mounted into the `web` container at `/var/www/html/LaboratoryScheduleSystemWebsite` — edits on the host take effect immediately, no rebuild needed for PHP/JS/CSS changes.
-- Only `Backend/.env` is overlaid from `Backend/.env.docker` (read-only), so your real `Backend/.env` used by native XAMPP is never touched and the two setups can coexist on the same checkout.
-- A rebuild (`docker compose up -d --build`) is only needed after changing the `Dockerfile` itself or `Backend/composer.json`.
-- `docker-root-index.php` is copied to the Apache `DocumentRoot` (`/var/www/html/index.php`) separately from the app folder, because `DocumentRoot` has no index of its own — only the `LaboratoryScheduleSystemWebsite/` subfolder. Without it, visiting `http://localhost/` produces Apache's "No matching DirectoryIndex found" error.
+In the same file, find the `<Directory>` block for `htdocs` and change `AllowOverride None` to `AllowOverride All`:
 
-### Production stack — `docker-compose.prod.yaml`
-
-Unlike the dev stack, this bakes the source into the image at build time (no bind mount) and keeps the database off the host network entirely.
-
-```bash
-# 1 — Create Backend/.env.production: DB_HOST=db, DB_USER/DB_PASSWORD/DB_NAME
-#     matching step 2 below, plus real JWT_KEY/SMTP secrets. Never commit it.
-
-# 2 — Create a ".env" file next to docker-compose.prod.yaml:
-#       MYSQL_ROOT_PASSWORD=...
-#       MYSQL_DATABASE=...
-#       MYSQL_USER=...
-#       MYSQL_PASSWORD=...
-
-# 3 — Build and start
-docker compose -f docker-compose.prod.yaml up -d --build
-
-# 4 — One-time database seed
-docker compose -f docker-compose.prod.yaml exec web php Backend/scripts/run_seed.php
+```apache
+<Directory "C:/xampp/htdocs">
+    Options Indexes FollowSymLinks Includes ExecCGI
+    AllowOverride All
+    Require all granted
+</Directory>
 ```
 
-| Aspect | Dev (`docker-compose.yaml`) | Prod (`docker-compose.prod.yaml`) |
-|--------|------------------------------|-------------------------------------|
-| Source code | Live bind-mounted from host | Baked into the image at build time |
-| Env file | `Backend/.env.docker` | `Backend/.env.production` |
-| Database port on host | Yes — `3306:3306` | No — reachable only from `web` over the internal Compose network |
-| `storage/` and `Backend/logs/` | Bind-mounted from host | Named volumes (`storage_data`, `logs_data`) |
-| Restart policy | `unless-stopped` | `always` |
-| phpMyAdmin | Included | Not included — use a tunnel or a one-off `mysql` client if needed |
+**3. Restart Apache** from the XAMPP Control Panel after saving the file.
 
-> **Domain caveat:** `Frontend/config.php` and every `Frontend/API/*.js` file hardcode `http://localhost/...`. The production stack works as-is when accessed as `localhost` on the server itself, but deploying behind a real domain requires updating those hardcoded URLs first.
+> **Verify:** Navigate to `http://localhost/LaboratoryScheduleSystemWebsite/Backend/api/v1/user/` in a browser. You should get a JSON response (likely `{"status":"401",...}`), not a 404 or blank page. A 404 means mod_rewrite is still off or AllowOverride is still None.
+
+---
+
+### PHP — verify required extensions
+
+Two extensions must be enabled in `php.ini`. XAMPP includes them but they are sometimes commented out.
+
+Open `C:\xampp\php\php.ini` and confirm these lines are present and **not** prefixed with a semicolon:
+
+```ini
+extension=pdo_mysql    ; PDO MySQL driver — all database connections
+extension=fileinfo     ; MIME-type inspection — file upload validation
+```
+
+If either line starts with `;extension=...`, remove the semicolon and restart Apache.
+
+> **Verify:** Open `http://localhost/dashboard/phpinfo.php`, use Ctrl+F to search for `pdo_mysql` and `fileinfo`. Each should appear in its own section listing its version and status.
+
+---
+
+### MySQL / MariaDB — default credentials
+
+XAMPP ships MySQL/MariaDB with a `root` account and an **empty password**. The seed script and `.env` use these defaults unless you change them.
+
+| Setting  | XAMPP default |
+|----------|---------------|
+| Host     | `localhost`   |
+| Port     | `3306`        |
+| User     | `root`        |
+| Password | _(empty — leave `DB_PASSWORD=` blank in `.env`)_ |
+
+**To change the root password after installation:**
+
+1. Open `http://localhost/phpmyadmin`
+2. Go to **User Accounts** → click **Edit Privileges** next to `root@localhost`
+3. Click the **Change password** tab, set a new password, click **Go**
+4. Update `DB_PASSWORD` in `Backend/.env` to match
+
+---
+
+### phpMyAdmin — database management
+
+phpMyAdmin is bundled with XAMPP and provides a full graphical interface for the MySQL database. Access it at:
+
+```
+http://localhost/phpmyadmin
+```
+
+Common tasks:
+
+| Task | Steps in phpMyAdmin |
+|------|---------------------|
+| Browse the database | Left panel → click the `DB_NAME` database → click any table |
+| Run a raw SQL query | Select the database → **SQL** tab → paste query → **Go** |
+| Export a full backup | Select the database → **Export** → Quick → Format: SQL → **Go** |
+| Import a SQL file | Select the database → **Import** → choose file → **Go** |
+| Drop and recreate | Select the database → **Operations** → **Drop the database** → create a new empty one with the same name (charset `utf8mb4`, collation `utf8mb4_unicode_ci`) |
+| Check table structure | Select a table → **Structure** tab |
+| Inspect audit logs | Select database → table `database_modification_logs` → **Browse** |
+
+> phpMyAdmin is only accessible from `localhost`. It is not exposed to the network when Apache binds to `127.0.0.1` (the XAMPP default).
 
 ---
 
