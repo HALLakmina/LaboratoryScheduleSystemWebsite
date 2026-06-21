@@ -353,7 +353,6 @@ http://localhost/LaboratoryScheduleSystemWebsite/Frontend/
 ---
 
 ## XAMPP Configuration
-<<<<<<< HEAD
 
 These one-time changes to your XAMPP installation are required before the application will run natively (skip this section entirely if you're using [Docker Setup](#docker-setup) instead — `mod_rewrite` and the PHP extensions below are already baked into the container image). Apply them once, restart Apache, and you will not need to touch them again.
 
@@ -449,10 +448,6 @@ Common tasks:
 ## Docker Setup
 
 An alternative to native XAMPP setup — runs the whole stack (Apache + PHP 8.2, MySQL 8.0, phpMyAdmin) in containers, with `mod_rewrite` and the PHP extensions from [XAMPP Configuration](#xampp-configuration) already baked into the image. Two Compose files are provided: a dev stack with live-reloading source, and a production stack with a baked image.
-=======
-
-These one-time changes to your XAMPP installation are required before the application will run. Apply them once, restart Apache, and you will not need to touch them again.
->>>>>>> ba0299895afccc0ac6aee79b8b0d3a7f743c79b7
 
 ### Apache — enable mod_rewrite and AllowOverride
 
